@@ -9,9 +9,11 @@ name: CI
 # workflow in this repo can reach a signing key.
 
 on:
+  # Also build this integration branch directly while validating its PR.
   push:
-    branches: [main]
+    branches: [main, feat/omniroute-integrated-gateway]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
