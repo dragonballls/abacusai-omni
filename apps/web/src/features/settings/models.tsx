@@ -73,6 +73,25 @@ export const ModelsPage = ({
   );
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [omniRouteBusy, setOmniRouteBusy] = useState(false);
+  const [omniRouteMessage, setOmniRouteMessage] = useState<string | null>(null);
+  const openOmniRoute = async () => {
+    setOmniRouteBusy(true);
+    setError(null);
+    setOmniRouteMessage(null);
+    try {
+      const result = await transport.client.settings.omniRoute.open({});
+      await transport.client.models.list({ refresh: true });
+      await cache.invalidateQueries({
+        queryKey: transport.orpc.models.list.queryKey(),
+      });
+      setOmniRouteMessage(result.message);
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setOmniRouteBusy(false);
+    }
+  };
   const now = useNow();
   const mark = creditMarkState(
     account.data,
@@ -205,6 +224,28 @@ export const ModelsPage = ({
         title={t("settings.pages.models")}
         description={t("phase5.settings.modelsDetail")}
       >
+        {IS_ELECTRON && (
+          <GroupCard title="OmniRoute Gateway">
+            <p className="p-3 text-sm">
+              Open a local, movable OmniRoute window to add provider API keys
+              and route new AbacusAI Bot sessions through OmniRoute Auto.
+              Provider keys are managed by OmniRoute, not stored in this app.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 p-3">
+              <Button
+                disabled={omniRouteBusy}
+                onClick={() => void openOmniRoute()}
+              >
+                {omniRouteBusy ? "Starting OmniRoute…" : "Open OmniRoute window"}
+              </Button>
+              {omniRouteMessage && (
+                <span role="status" className="text-muted-foreground text-xs">
+                  {omniRouteMessage}
+                </span>
+              )}
+            </div>
+          </GroupCard>
+        )}
         {mark === "show" && (
           <GroupCard title={t("phase5.creditsExhausted")}>
             <p className="p-3 text-sm">{t("phase5.creditsAlternatives")}</p>
