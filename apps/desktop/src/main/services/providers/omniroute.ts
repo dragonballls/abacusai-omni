@@ -5,8 +5,15 @@
  * data directory. Upstream provider credentials are entered in OmniRoute's
  * own dashboard and are never copied into AbacusAI Bot settings.
  */
+import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { app, BrowserWindow, shell } from "electron";
 
@@ -28,7 +35,8 @@ const PROVIDER_ID = "omniroute";
 const omniRouteDataDir =
   process.platform === "win32"
     ? join(
-        process.env.LOCALAPPDATA || join(app.getPath("home"), "AppData", "Local"),
+        process.env.LOCALAPPDATA ||
+          join(app.getPath("home"), "AppData", "Local"),
         "BrahmaAI",
         "OmniRoute"
       )
@@ -81,7 +89,13 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   if (process.platform === "win32") {
     // Prefer npm's JavaScript entrypoint over npm.cmd, which requires a shell
     // and can incorrectly quote paths that contain spaces.
-    const npmCli = join(dirname(node), "node_modules", "npm", "bin", "npm-cli.js");
+    const npmCli = join(
+      dirname(node),
+      "node_modules",
+      "npm",
+      "bin",
+      "npm-cli.js"
+    );
     if (!existsSync(npmCli)) {
       throw new Error(
         "The Node.js installation was found, but npm's CLI is missing. Repair/reinstall Node.js with npm, then retry OmniRoute."
@@ -134,13 +148,21 @@ function runCommand(
       if (settled) return;
       settled = true;
       child.kill();
-      reject(new Error("OmniRoute setup timed out. Check Node.js/npm and try again."));
+      reject(
+        new Error(
+          "OmniRoute setup timed out. Check Node.js/npm and try again."
+        )
+      );
     }, timeoutMs);
     child.once("error", (error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new Error(`Could not start the OmniRoute setup command: ${error.message}`));
+      reject(
+        new Error(
+          `Could not start the OmniRoute setup command: ${error.message}`
+        )
+      );
     });
     child.once("close", (code) => {
       if (settled) return;
@@ -158,8 +180,45 @@ async function installedVersion(node: string): Promise<string | null> {
   return result.output.trim().split(/\r?\n/).filter(Boolean).at(-1) ?? null;
 }
 
+/**
+ * On a truly empty data directory, create the required persistent secrets
+ * before npm's postinstall can copy the package's publicly known CHANGEME
+ * starter password. Empty INITIAL_PASSWORD lets OmniRoute present its
+ * first-run password setup. Existing data directories are deliberately left
+ * alone so we cannot rotate secrets for a database that already has keys.
+ */
+function prepareFreshOmniRouteEnvironment(): void {
+  const envPath = join(omniRouteDataDir, ".env");
+  try {
+    if (readdirSync(omniRouteDataDir).length !== 0 || existsSync(envPath)) {
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  const contents = [
+    `JWT_SECRET=${randomBytes(48).toString("base64url")}`,
+    `API_KEY_SECRET=${randomBytes(32).toString("hex")}`,
+    "INITIAL_PASSWORD=",
+    "",
+  ].join("\\n");
+  try {
+    writeFileSync(envPath, contents, { encoding: "utf8", flag: "wx", mode: 0o600 });
+    try {
+      chmodSync(envPath, 0o600);
+    } catch {
+      // Windows ACLs inherit from the user's private AppData directory.
+    }
+  } catch (error) {
+    // Another Abacus/Brahma process may have initialized it at the same time.
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+}
+
 async function ensureRuntimeInstalled(): Promise<string> {
   mkdirSync(omniRouteDataDir, { recursive: true });
+  prepareFreshOmniRouteEnvironment();
   const { node, npmArgs } = nodeAndNpm();
   const version = await installedVersion(node);
   if (version !== OMNIROUTE_VERSION) {
@@ -338,7 +397,9 @@ export async function openOmniRouteWindow(): Promise<{
       },
     });
     dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
-      if (new URL(url).origin === OMNIROUTE_ORIGIN) return { action: "allow" };
+      if (new URL(url).origin === OMNIROUTE_ORIGIN) {
+        return { action: "allow" };
+      }
       openExternalHttps(url);
       return { action: "deny" };
     });
@@ -365,7 +426,9 @@ export async function openOmniRouteWindow(): Promise<{
   };
 }
 
-/** Stop only the gateway process this app started; never stop a shared instance. */
+/**
+ * Stop only the gateway process this app started; never stop a shared instance.
+ */
 export async function stopOmniRoute(): Promise<void> {
   const child = gatewayProcess;
   gatewayProcess = null;
