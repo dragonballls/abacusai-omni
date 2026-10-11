@@ -73,9 +73,10 @@ const nodeHostPlatform: HostPlatformOperations = {
       version: null,
       message: "OmniRoute credentials can only be managed in the desktop app.",
     }),
+    listConnections: async () => [],
     start: refuse("settings.omniRoute.start"),
     addKey: refuse("settings.omniRoute.addKey"),
-    testProvider: refuse("settings.omniRoute.testProvider"),
+    testConnection: refuse("settings.omniRoute.testConnection"),
   },
 };
 
