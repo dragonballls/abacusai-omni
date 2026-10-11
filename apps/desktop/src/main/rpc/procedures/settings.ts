@@ -53,9 +53,13 @@ export const settingsRouter = impl.settings.router({
   omniRoute: {
     open: impl.settings.omniRoute.open.handler(async ({ context }) => {
       if (context.platform !== "electron") {
-        throw new Error("The OmniRoute window is available in the desktop app only.");
+        throw new Error(
+          "The OmniRoute window is available in the desktop app only."
+        );
       }
-      const { openOmniRouteWindow } = await import("../../services/providers/omniroute.js");
+      const { openOmniRouteWindow } = await import(
+        "../../services/providers/omniroute.js"
+      );
       const result = await openOmniRouteWindow();
       context.deps.serviceHost.refreshAgentProviders();
       return result;
