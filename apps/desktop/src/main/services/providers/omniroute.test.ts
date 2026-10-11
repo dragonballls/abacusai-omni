@@ -17,7 +17,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain('"post-api-keys"');
     expect(
       source.match(
-        /JSON\\.stringify\\(\\{ name: "AbacusAI Bot", scopes: \\[\\"chat\\"\\] \\}\\)/g
+        /JSON\.stringify\(\{ name: "AbacusAI Bot", scopes: \["chat"\] \}\)/g
       )
     ).toHaveLength(2);
     expect(source).toContain("function persistOmniRouteClientKey(apiKey: string)");
