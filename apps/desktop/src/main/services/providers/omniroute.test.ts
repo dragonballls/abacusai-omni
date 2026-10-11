@@ -50,7 +50,9 @@ describe("local OmniRoute gateway security contract", () => {
       expect(source).toContain("OMNIROUTE_CLI_SALT");
       expect(source).toMatch(/\x60OMNIROUTE_CLI_SALT=\$\{randomBytes/);
       expect(source).toContain("INITIAL_PASSWORD=");
-      expect(source).toContain("authenticateOmniRouteDashboard(dashboardWindow)");
+      expect(source).toContain(
+        "authenticateOmniRouteDashboard(dashboardWindow)",
+      );
       expect(source).toContain("readInitialManagementPassword()");
       expect(source).toContain("createOmniRouteClientKey(node, true)");
       expect(source).not.toContain("createOmniRouteClientKey(node, false)");
