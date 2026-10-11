@@ -318,15 +318,28 @@ async function isOmniRouteDashboardReachable(): Promise<boolean> {
         redirect: "error",
         signal: AbortSignal.timeout(1500),
       }),
+      // OmniRoute 3.8.50 intentionally redirects "/" to "/dashboard".
+      // Inspect the redirect instead of treating a normal same-origin redirect
+      // as a failed health check.
       fetch(`${OMNIROUTE_ORIGIN}/`, {
         headers: { Accept: "text/html" },
-        redirect: "error",
+        redirect: "manual",
         signal: AbortSignal.timeout(1500),
       }),
     ]);
-    if (![200, 401, 403].includes(modelsResponse.status) || !homeResponse.ok) {
-      return false;
+    if (![200, 401, 403].includes(modelsResponse.status)) return false;
+
+    if (homeResponse.status >= 300 && homeResponse.status < 400) {
+      const location = homeResponse.headers.get("location");
+      if (!location) return false;
+      const destination = new URL(location, OMNIROUTE_ORIGIN);
+      return (
+        destination.origin === OMNIROUTE_ORIGIN &&
+        ["/dashboard", "/login"].includes(destination.pathname)
+      );
     }
+
+    if (!homeResponse.ok) return false;
     if (new URL(homeResponse.url).origin !== OMNIROUTE_ORIGIN) return false;
     const dashboard = (await homeResponse.text()).slice(0, 500_000);
     return /omniroute/i.test(dashboard);
