@@ -9,7 +9,7 @@ import {
 import { revalidateLogic } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import * as v from "valibot";
 
@@ -600,6 +600,34 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragStart = useRef<{
+    pointerX: number;
+    pointerY: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+  const onDragStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    dragStart.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = dragStart.current;
+    if (!start) return;
+    setOffset({
+      x: start.offsetX + event.clientX - start.pointerX,
+      y: start.offsetY + event.clientY - start.pointerY,
+    });
+  };
+  const onDragEnd = () => {
+    dragStart.current = null;
+  };
   const status = useQuery(
     transport.orpc.settings.omniRoute.status.queryOptions({ input: {} })
   );
@@ -657,14 +685,28 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-[620px] max-h-[85vh] resize overflow-auto">
-        <DialogHeader>
-          <DialogTitle>OmniRoute</DialogTitle>
-          <DialogDescription>
-            A local routing window for your AI providers. Add your own provider
-            credentials; model-provider quotas and costs still apply.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className="sm:max-w-[620px] max-h-[85vh] resize overflow-auto"
+        style={{
+          left: `calc(50% + ${offset.x}px)`,
+          top: `calc(50% + ${offset.y}px)`,
+        }}
+      >
+        <div
+          className="cursor-move select-none touch-none"
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        >
+          <DialogHeader>
+            <DialogTitle>OmniRoute</DialogTitle>
+            <DialogDescription>
+              Drag this header to move the window or resize its lower-right edge.
+              Add your own provider credentials; provider costs and quotas apply.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         <div className="space-y-4">
           <div className="rounded-md border p-3 text-sm space-y-1">
