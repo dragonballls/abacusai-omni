@@ -401,3 +401,13 @@ jobs:
             echo "::error::the main process logged a fatal error on startup"
             exit 1
           fi
+      - name: Upload tested Windows portable app
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: AbacusAI-Bot-Windows-${{ github.sha }}
+          # Keep the runtime files beside AbacusBot.exe; the exe alone is not portable.
+          path: apps/desktop/release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 14
+
