@@ -200,9 +200,10 @@ async function installedVersion(node: string): Promise<string | null> {
 /**
  * On a truly empty data directory, create the required persistent secrets
  * before npm's postinstall can copy the package's publicly known CHANGEME
- * starter password. Empty INITIAL_PASSWORD lets OmniRoute present its
- * first-run password setup. Existing data directories are deliberately left
- * alone so we cannot rotate secrets for a database that already has keys.
+ * starter password. A random INITIAL_PASSWORD enables management authentication,
+ * and the embedded dashboard logs in with it automatically. Existing data
+ * directories are deliberately left alone so we cannot rotate secrets for a
+ * database that already has keys.
  */
 function prepareFreshOmniRouteEnvironment(): void {
   const envPath = join(omniRouteDataDir, ".env");
@@ -497,7 +498,13 @@ async function authenticateOmniRouteDashboard(window: BrowserWindow): Promise<vo
     });
     if (!response.ok) return;
 
-    const setCookie = response.headers.get("set-cookie") || "";
+    const cookieHeaders = response.headers as Headers & {
+      getSetCookie?: () => string[];
+    };
+    const setCookie =
+      cookieHeaders.getSetCookie?.().join(", ") ||
+      response.headers.get("set-cookie") ||
+      "";
     const token = /(?:^|,\s*)auth_token=([^;,\s]+)/.exec(setCookie)?.[1];
     if (!token) return;
 
