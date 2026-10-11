@@ -63,6 +63,7 @@ import { NotchController } from "./notch/controller";
 import { CueArbiter } from "./notch/cue-arbiter";
 import { wireMainNotchEvents } from "./notch/main-events";
 import { NotchNotificationPolicy } from "./notch/notifications";
+import { stopOmniRoute } from "./services/providers/omniroute.js";
 import { abacusBotHome, userTempDir, WORKSPACE_DIR_NAME } from "./paths";
 import { profileBaseDir } from "./profile-home";
 import { resetUserDataDirectories } from "./profile-home-init";
@@ -1899,6 +1900,11 @@ app.on("before-quit", (event) => {
     } catch (err) {
       console.warn("[quit] graceful shutdown failed:", err);
     } finally {
+      try {
+        await stopOmniRoute();
+      } catch (error) {
+        console.warn("[omniroute] graceful shutdown failed", error);
+      }
       app.exit(0);
     }
   })();
