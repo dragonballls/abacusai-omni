@@ -4,6 +4,7 @@ import {
   isPlausibleApiKey,
   type ProviderKeyField,
   OMNIROUTE_PROVIDER_IDS,
+  type OmniRouteConnection,
   type OmniRouteProvider,
 } from "@abacus-ai/contract/settings";
 import { revalidateLogic } from "@tanstack/react-form";
@@ -597,6 +598,7 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
   const { transport, credentialsChanged } = useAppContext();
   const cache = useQueryClient();
   const [provider, setProvider] = useState<OmniRouteProvider>("gemini");
+  const [connectionName, setConnectionName] = useState("Gemini 1");
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -618,26 +620,34 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const onDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const start = dragStart.current;
-    if (!start) return;
+    const startPosition = dragStart.current;
+    if (!startPosition) return;
     setOffset({
-      x: start.offsetX + event.clientX - start.pointerX,
-      y: start.offsetY + event.clientY - start.pointerY,
+      x: startPosition.offsetX + event.clientX - startPosition.pointerX,
+      y: startPosition.offsetY + event.clientY - startPosition.pointerY,
     });
   };
   const onDragEnd = () => {
     dragStart.current = null;
   };
+
   const status = useQuery(
     transport.orpc.settings.omniRoute.status.queryOptions({ input: {} })
   );
   const statusKey = transport.orpc.settings.omniRoute.status.queryKey({ input: {} });
+  const connections = useQuery(
+    transport.orpc.settings.omniRoute.listConnections.queryOptions({ input: {} })
+  );
+  const connectionsKey = transport.orpc.settings.omniRoute.listConnections.queryKey({ input: {} });
+
   const refreshModels = async () => {
     await cache.invalidateQueries({ queryKey: statusKey });
+    await cache.invalidateQueries({ queryKey: connectionsKey });
     await transport.client.models.list({ refresh: true });
     await credentialsChanged();
   };
-  const start = useMutation(
+
+  const startRouter = useMutation(
     transport.orpc.settings.omniRoute.start.mutationOptions({
       onSuccess: async (result) => {
         setMessage(result.message || "OmniRoute is ready.");
@@ -658,8 +668,8 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
       onError: (e) => setError(errorText(e)),
     })
   );
-  const testProvider = useMutation(
-    transport.orpc.settings.omniRoute.testProvider.mutationOptions({
+  const testConnection = useMutation(
+    transport.orpc.settings.omniRoute.testConnection.mutationOptions({
       onSuccess: (result) => {
         if (result.ok) {
           setMessage(result.message);
@@ -674,13 +684,18 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
   );
 
   const submitKey = () => {
+    const name = connectionName.trim();
+    if (!name || name.length > 64) {
+      setError("Give this API key a connection name (up to 64 characters).");
+      return;
+    }
     if (key.trim().length < 8) {
       setError("Enter a valid provider API key.");
       return;
     }
     setError(null);
     setMessage(null);
-    addKey.mutate({ provider, key: key.trim() });
+    addKey.mutate({ provider, name, key: key.trim() });
   };
 
   return (
@@ -688,8 +703,8 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
       <DialogContent
         className="sm:max-w-[620px] max-h-[85vh] resize overflow-auto"
         style={{
-          left: `calc(50% + ${offset.x}px)`,
-          top: `calc(50% + ${offset.y}px)`,
+          left: \`calc(50% + \${offset.x}px)\`,
+          top: \`calc(50% + \${offset.y}px)\`,
         }}
       >
         <div
@@ -703,7 +718,7 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
             <DialogTitle>OmniRoute</DialogTitle>
             <DialogDescription>
               Drag this header to move the window or resize its lower-right edge.
-              Add your own provider credentials; provider costs and quotas apply.
+              Save several named keys per provider. Provider charges and quotas still apply.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -721,14 +736,18 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button
-                disabled={start.isPending}
+                disabled={startRouter.isPending}
                 onClick={() => {
                   setError(null);
                   setMessage(null);
-                  start.mutate({});
+                  startRouter.mutate({});
                 }}
               >
-                {start.isPending ? "Starting…" : status.data?.running ? "Connect to running OmniRoute" : "Start and use OmniRoute"}
+                {startRouter.isPending
+                  ? "Starting…"
+                  : status.data?.running
+                    ? "Connect to running OmniRoute"
+                    : "Start and use OmniRoute"}
               </Button>
             </div>
           </div>
@@ -742,13 +761,39 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
                 id="omniroute-provider"
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
                 value={provider}
-                onChange={(event) => setProvider(event.target.value as OmniRouteProvider)}
+                onChange={(event) => {
+                  const nextProvider = event.target.value as OmniRouteProvider;
+                  setProvider(nextProvider);
+                  const count = (connections.data ?? []).filter(
+                    (item) => item.provider === nextProvider
+                  ).length;
+                  setConnectionName(OMNI_ROUTE_LABELS[nextProvider] + " " + (count + 1));
+                }}
               >
                 {OMNIROUTE_PROVIDER_IDS.map((id) => (
                   <option key={id} value={id}>{OMNI_ROUTE_LABELS[id]}</option>
                 ))}
               </select>
             </div>
+
+            <div>
+              <label htmlFor="omniroute-connection-name" className="text-sm font-medium">
+                Connection name
+              </label>
+              <Input
+                id="omniroute-connection-name"
+                type="text"
+                autoComplete="off"
+                maxLength={64}
+                value={connectionName}
+                onChange={(event) => setConnectionName(event.target.value)}
+                placeholder="For example: Gemini 2"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use a different name for each key. Each saved key is a separate OmniRoute connection.
+              </p>
+            </div>
+
             <div>
               <label htmlFor="omniroute-api-key" className="text-sm font-medium">
                 Provider API key
@@ -766,25 +811,49 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
                 Sent to OmniRoute over stdin. This key is not written to Abacus Bot's config.json.
               </p>
             </div>
+
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={addKey.isPending || key.trim().length < 8}
+                disabled={addKey.isPending || key.trim().length < 8 || !connectionName.trim()}
                 onClick={submitKey}
               >
                 {addKey.isPending ? "Saving key…" : "Save key to OmniRoute"}
               </Button>
-              <Button
-                variant="secondary"
-                disabled={testProvider.isPending || !status.data?.running}
-                onClick={() => {
-                  setError(null);
-                  setMessage(null);
-                  testProvider.mutate({ provider });
-                }}
-              >
-                {testProvider.isPending ? "Testing…" : "Test provider"}
-              </Button>
             </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="font-medium text-sm">Saved OmniRoute connections</div>
+            {connections.isPending && (
+              <p className="text-xs text-muted-foreground">Loading saved connections…</p>
+            )}
+            {!connections.isPending && (connections.data?.length ?? 0) === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No saved connections yet. Add a provider key above.
+              </p>
+            )}
+            {(connections.data ?? []).map((connection: OmniRouteConnection) => (
+              <div key={connection.id} className="flex items-center justify-between gap-3 border-t pt-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{connection.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {connection.provider} · {connection.isActive ? "active" : "inactive"} · {connection.testStatus ?? "not tested"}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={testConnection.isPending || !status.data?.available || !connection.isActive}
+                  onClick={() => {
+                    setError(null);
+                    setMessage(null);
+                    testConnection.mutate({ id: connection.id });
+                  }}
+                >
+                  {testConnection.isPending ? "Testing…" : "Test"}
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
 
