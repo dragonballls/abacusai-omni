@@ -475,7 +475,6 @@ function startOmniRoute(node: string, requireApiKey: boolean): ChildProcess {
 async function ensureOmniRoute(): Promise<string> {
   if (ensurePromise) return ensurePromise;
   ensurePromise = (async () => {
-    const node = await ensureRuntimeInstalled();
     let clientKey = readOmniRouteClientKey();
     if (clientKey && (await isOmniRouteReady(clientKey))) return clientKey;
 
@@ -483,6 +482,7 @@ async function ensureOmniRoute(): Promise<string> {
     // Creating an API key uses OmniRoute's loopback-only CLI management auth;
     // it does not require stopping or reconfiguring a process owned by Brahma.
     if (await isOmniRouteDashboardReachable()) {
+      const node = await ensureRuntimeInstalled();
       clientKey = await createOmniRouteClientKey(node);
       if (await isOmniRouteReady(clientKey)) return clientKey;
       throw new Error(
@@ -498,6 +498,8 @@ async function ensureOmniRoute(): Promise<string> {
           "before starting the gateway."
       );
     }
+
+    const node = await ensureRuntimeInstalled();
 
     // Bootstrap only long enough to create a real key in OmniRoute's own API-key
     // store. Immediately restart with REQUIRE_API_KEY=true before exposing this
