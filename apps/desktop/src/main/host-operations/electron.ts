@@ -19,6 +19,7 @@ import {
   rememberSessionAccount,
 } from "../services/providers/sign-in-session";
 import { requestMicrophoneAccess } from "../services/voice/microphone";
+import { omniRouteService } from "../services/omniroute/omniroute-service";
 
 let localModels: LocalModelService | null = null;
 export const disposeLocalModels = (): void => {
@@ -56,5 +57,11 @@ export const electronHostPlatform: HostPlatformOperations = {
     remove: (id) => {
       localModels?.remove(id);
     },
+  },
+  omniRoute: {
+    status: () => omniRouteService.status(),
+    start: () => omniRouteService.start(),
+    addKey: (provider, key) => omniRouteService.addKey(provider, key),
+    testProvider: (provider) => omniRouteService.testProvider(provider),
   },
 };
