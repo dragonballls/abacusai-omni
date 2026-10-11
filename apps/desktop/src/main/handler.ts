@@ -56,6 +56,7 @@ import {
 import { listAvailableModels } from "./services/providers/models";
 import { clearOpenRouterCache } from "./services/providers/openrouter";
 import { getUsageSnapshot } from "./services/providers/usage";
+import { omniRouteService } from "./services/omniroute/omniroute-service";
 import { accountStashKey } from "./services/session/account-session-stash";
 
 type AdoptCredentialResult =
@@ -497,6 +498,35 @@ export const createHostOperations = (
     requestMicrophoneAccess: () => requestMicrophoneAccess(),
     adoptAbacusCredential,
     localModels: platform.localModels,
+    omniRoute: {
+      status: () => omniRouteService.status(),
+      start: async () => {
+        const status = await omniRouteService.start();
+        serviceHost.refreshAgentProviders();
+        await listAvailableModels(true);
+        dispatchEvent({
+          type: "credentials-changed",
+          provider: "omniroute",
+          configured: status.running,
+          emittedAt: new Date().toISOString(),
+        });
+        return status;
+      },
+      addKey: async (provider: Parameters<typeof omniRouteService.addKey>[0], key: string) => {
+        const result = await omniRouteService.addKey(provider, key);
+        serviceHost.refreshAgentProviders();
+        await listAvailableModels(true);
+        dispatchEvent({
+          type: "credentials-changed",
+          provider: "omniroute",
+          configured: true,
+          emittedAt: new Date().toISOString(),
+        });
+        return result;
+      },
+      testProvider: (provider: Parameters<typeof omniRouteService.testProvider>[0]) =>
+        omniRouteService.testProvider(provider),
+    },
   };
 };
 

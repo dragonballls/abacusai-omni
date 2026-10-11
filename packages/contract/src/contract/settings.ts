@@ -8,7 +8,7 @@ import type {
   SandboxSupport,
 } from "../contracts";
 import type { BackendId } from "../exec-backends";
-import type { AbacusBotSettings } from "../settings";
+import { OMNIROUTE_PROVIDER_IDS, type AbacusBotSettings, type OmniRouteOperationResult, type OmniRouteStatus } from "../settings";
 import { mutation, query, subscription } from "./base";
 import { NoInput } from "./ids";
 
@@ -67,6 +67,22 @@ export const settings = {
         })
       )
       .output(type<AbacusBotSettings>()),
+  },
+  omniRoute: {
+    /** Status never installs or starts anything. */
+    status: query.input(NoInput).output(type<OmniRouteStatus>()),
+    /** Install/start the local router, register its model, and select it for new chats. */
+    start: mutation.input(NoInput).output(type<OmniRouteStatus>()),
+    /** The key is sent to OmniRoute over stdin and is not stored in Abacus config.json. */
+    addKey: mutation
+      .input(v.object({
+        provider: v.picklist([...OMNIROUTE_PROVIDER_IDS]),
+        key: v.pipe(v.string(), v.trim(), v.minLength(8)),
+      }))
+      .output(type<OmniRouteOperationResult>()),
+    testProvider: mutation
+      .input(v.object({ provider: v.picklist([...OMNIROUTE_PROVIDER_IDS]) }))
+      .output(type<OmniRouteOperationResult>()),
   },
   setDefaultModel: mutation
     .input(v.object({ modelId: v.pipe(v.string(), v.nonEmpty()) }))

@@ -99,6 +99,36 @@ export const PROVIDER_ENV_VARS: Record<string, string> = {
   zai: "ZAI_API_KEY",
 };
 
+/** Approved upstream IDs shown in the local OmniRoute credentials window. */
+export const OMNIROUTE_PROVIDER_IDS = [
+  "anthropic",
+  "openai",
+  "gemini",
+  "openrouter",
+  "deepseek",
+  "groq",
+  "cerebras",
+  "mistral",
+  "xai",
+  "cohere",
+] as const;
+
+export type OmniRouteProvider = (typeof OMNIROUTE_PROVIDER_IDS)[number];
+
+export interface OmniRouteStatus {
+  available: boolean;
+  running: boolean;
+  baseUrl: string;
+  version: string | null;
+  message: string;
+}
+
+export interface OmniRouteOperationResult {
+  ok: boolean;
+  provider?: OmniRouteProvider;
+  message: string;
+}
+
 /**
  * Whether the Abacus.AI account is one this app can sign out of. Tests the
  * stored key, not whether an Abacus model resolves: a key exported in the

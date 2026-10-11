@@ -50,6 +50,20 @@ export const settingsRouter = impl.settings.router({
       )
     ),
   },
+  omniRoute: {
+    status: impl.settings.omniRoute.status.handler(({ context }) =>
+      context.deps.host.omniRoute.status()
+    ),
+    start: impl.settings.omniRoute.start.handler(({ context }) =>
+      context.deps.host.omniRoute.start()
+    ),
+    addKey: impl.settings.omniRoute.addKey.handler(({ input, context }) =>
+      context.deps.host.omniRoute.addKey(input.provider, input.key)
+    ),
+    testProvider: impl.settings.omniRoute.testProvider.handler(({ input, context }) =>
+      context.deps.host.omniRoute.testProvider(input.provider)
+    ),
+  },
   setDefaultModel: impl.settings.setDefaultModel.handler(
     async ({ input, context }) =>
       forConnection(

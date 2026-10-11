@@ -3,6 +3,8 @@ import {
   PROVIDER_KEY_FIELDS,
   isPlausibleApiKey,
   type ProviderKeyField,
+  OMNIROUTE_PROVIDER_IDS,
+  type OmniRouteProvider,
 } from "@abacus-ai/contract/settings";
 import { revalidateLogic } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +75,7 @@ export const ModelsPage = ({
   );
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [omniRouteOpen, setOmniRouteOpen] = useState(false);
   const now = useNow();
   const mark = creditMarkState(
     account.data,
@@ -205,6 +208,20 @@ export const ModelsPage = ({
         title={t("settings.pages.models")}
         description={t("phase5.settings.modelsDetail")}
       >
+        {IS_ELECTRON && (
+          <GroupCard title="OmniRoute · multi-provider routing">
+            <p className="p-3 text-sm">
+              Add provider API keys to OmniRoute, then route new chats through its
+              automatic model selector. Keys are passed to OmniRoute over stdin
+              and are not stored in Abacus Bot settings.
+            </p>
+            <div className="px-3 pb-3">
+              <Button onClick={() => setOmniRouteOpen(true)}>
+                Open OmniRoute window
+              </Button>
+            </div>
+          </GroupCard>
+        )}
         {mark === "show" && (
           <GroupCard title={t("phase5.creditsExhausted")}>
             <p className="p-3 text-sm">{t("phase5.creditsAlternatives")}</p>
@@ -367,6 +384,9 @@ export const ModelsPage = ({
         )}
         {error && <p role="alert">{error}</p>}
       </AreaPage>
+      {IS_ELECTRON && omniRouteOpen && (
+        <OmniRouteDialog onClose={() => setOmniRouteOpen(false)} />
+      )}
       {search.provider &&
         search.provider !== "local" &&
         fields.find((f) => f.provider === search.provider) && (
@@ -553,6 +573,183 @@ export const ProviderDialog = ({
           <Button variant="secondary" onClick={close}>
             {t("phase5.close")}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+const OMNI_ROUTE_LABELS: Record<OmniRouteProvider, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  gemini: "Google Gemini",
+  openrouter: "OpenRouter",
+  deepseek: "DeepSeek",
+  groq: "Groq",
+  cerebras: "Cerebras",
+  mistral: "Mistral",
+  xai: "xAI",
+  cohere: "Cohere",
+};
+
+export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
+  const { transport, credentialsChanged } = useAppContext();
+  const cache = useQueryClient();
+  const [provider, setProvider] = useState<OmniRouteProvider>("gemini");
+  const [key, setKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const status = useQuery(
+    transport.orpc.settings.omniRoute.status.queryOptions({ input: {} })
+  );
+  const statusKey = transport.orpc.settings.omniRoute.status.queryKey({ input: {} });
+  const refreshModels = async () => {
+    await cache.invalidateQueries({ queryKey: statusKey });
+    await transport.client.models.list({ refresh: true });
+    await credentialsChanged();
+  };
+  const start = useMutation(
+    transport.orpc.settings.omniRoute.start.mutationOptions({
+      onSuccess: async (result) => {
+        setMessage(result.message || "OmniRoute is ready.");
+        setError(null);
+        await refreshModels();
+      },
+      onError: (e) => setError(errorText(e)),
+    })
+  );
+  const addKey = useMutation(
+    transport.orpc.settings.omniRoute.addKey.mutationOptions({
+      onSuccess: async (result) => {
+        setKey("");
+        setMessage(result.message);
+        setError(null);
+        await refreshModels();
+      },
+      onError: (e) => setError(errorText(e)),
+    })
+  );
+  const testProvider = useMutation(
+    transport.orpc.settings.omniRoute.testProvider.mutationOptions({
+      onSuccess: (result) => {
+        if (result.ok) {
+          setMessage(result.message);
+          setError(null);
+        } else {
+          setError(result.message);
+          setMessage(null);
+        }
+      },
+      onError: (e) => setError(errorText(e)),
+    })
+  );
+
+  const submitKey = () => {
+    if (key.trim().length < 8) {
+      setError("Enter a valid provider API key.");
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    addKey.mutate({ provider, key: key.trim() });
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-[620px] max-h-[85vh] resize overflow-auto">
+        <DialogHeader>
+          <DialogTitle>OmniRoute</DialogTitle>
+          <DialogDescription>
+            A local routing window for your AI providers. Add your own provider
+            credentials; model-provider quotas and costs still apply.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="rounded-md border p-3 text-sm space-y-1">
+            <div className="font-medium">
+              Status: {status.data?.running ? "Running" : status.data?.available ? "Installed · stopped" : "Not installed"}
+            </div>
+            <div className="text-muted-foreground break-all">
+              {status.data?.baseUrl ?? "http://127.0.0.1:20128/v1"}
+            </div>
+            <p className="text-muted-foreground">
+              {status.data?.message ?? "OmniRoute starts only when you click Start."}
+            </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                disabled={start.isPending || status.data?.running === true}
+                onClick={() => {
+                  setError(null);
+                  setMessage(null);
+                  start.mutate({});
+                }}
+              >
+                {start.isPending ? "Starting…" : status.data?.running ? "Running" : "Start and use OmniRoute"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="omniroute-provider" className="text-sm font-medium">
+                Provider
+              </label>
+              <select
+                id="omniroute-provider"
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={provider}
+                onChange={(event) => setProvider(event.target.value as OmniRouteProvider)}
+              >
+                {OMNIROUTE_PROVIDER_IDS.map((id) => (
+                  <option key={id} value={id}>{OMNI_ROUTE_LABELS[id]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="omniroute-api-key" className="text-sm font-medium">
+                Provider API key
+              </label>
+              <Input
+                id="omniroute-api-key"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={key}
+                onChange={(event) => setKey(event.target.value)}
+                placeholder="Paste a provider API key"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Sent to OmniRoute over stdin. This key is not written to Abacus Bot's config.json.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={addKey.isPending || key.trim().length < 8}
+                onClick={submitKey}
+              >
+                {addKey.isPending ? "Saving key…" : "Save key to OmniRoute"}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={testProvider.isPending || !status.data?.running}
+                onClick={() => {
+                  setError(null);
+                  setMessage(null);
+                  testProvider.mutate({ provider });
+                }}
+              >
+                {testProvider.isPending ? "Testing…" : "Test provider"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {message && <p role="status" className="text-sm text-foreground">{message}</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
