@@ -215,6 +215,9 @@ function prepareFreshOmniRouteEnvironment(): void {
   const contents = [
     `JWT_SECRET=${randomBytes(48).toString("base64url")}`,
     `API_KEY_SECRET=${randomBytes(32).toString("hex")}`,
+    // The CLI's default machine-token salt is public. A private per-install salt
+    // prevents unrelated local accounts from deriving the management token.
+    `OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}`,
     "INITIAL_PASSWORD=",
     "",
   ].join("\n");
