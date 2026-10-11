@@ -121,8 +121,10 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
 }
 
 function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
+  const initialPassword = readInitialManagementPassword();
   return {
     ...process.env,
+    ...(initialPassword ? { INITIAL_PASSWORD: initialPassword } : {}),
     DATA_DIR: omniRouteDataDir,
     PORT: String(OMNIROUTE_PORT),
     OMNIROUTE_SERVER_HOST: "127.0.0.1",
@@ -496,7 +498,7 @@ async function authenticateOmniRouteDashboard(window: BrowserWindow): Promise<vo
     if (!response.ok) return;
 
     const setCookie = response.headers.get("set-cookie") || "";
-    const token = /(?:^|,\\s*)auth_token=([^;,\\s]+)/.exec(setCookie)?.[1];
+    const token = /(?:^|,\s*)auth_token=([^;,\s]+)/.exec(setCookie)?.[1];
     if (!token) return;
 
     await window.webContents.session.cookies.set({
