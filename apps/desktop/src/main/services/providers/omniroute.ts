@@ -218,9 +218,9 @@ function prepareFreshOmniRouteEnvironment(): void {
   const contents = [
     `JWT_SECRET=${randomBytes(48).toString("base64url")}`,
     `API_KEY_SECRET=${randomBytes(32).toString("hex")}`,
-    // OmniRoute 3.8.50's bundled CLI ignores custom OMNIROUTE_CLI_SALT values.
-    // Keep its legacy loopback management-token fallback compatible; the gateway
-    // itself is restricted to 127.0.0.1 below.
+    // A per-install salt prevents unrelated local accounts from deriving the
+    // management token; OmniRoute 3.8.50's bundled CLI honors this variable.
+    `OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}`,
     // Keep first-run management endpoints authenticated without requiring the
     // user to manually type a password in Abacus' embedded dashboard.
     `INITIAL_PASSWORD=${randomBytes(32).toString("base64url")}`,
