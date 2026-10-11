@@ -57,9 +57,8 @@ export const settingsRouter = impl.settings.router({
           "The OmniRoute window is available in the desktop app only."
         );
       }
-      const { openOmniRouteWindow } = await import(
-        "../../services/providers/omniroute.js"
-      );
+      const { openOmniRouteWindow } =
+        await import("../../services/providers/omniroute.js");
       const result = await openOmniRouteWindow();
       context.deps.serviceHost.refreshAgentProviders();
       return result;
