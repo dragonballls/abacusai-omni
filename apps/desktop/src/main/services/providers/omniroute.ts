@@ -218,7 +218,9 @@ function prepareFreshOmniRouteEnvironment(): void {
     // The CLI's default machine-token salt is public. A private per-install salt
     // prevents unrelated local accounts from deriving the management token.
     `OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}`,
-    "INITIAL_PASSWORD=",
+    // Keep first-run management endpoints authenticated without requiring the
+    // user to manually type a password in Abacus' embedded dashboard.
+    `INITIAL_PASSWORD=${randomBytes(32).toString("base64url")}`,
     "",
   ].join("\n");
   try {
