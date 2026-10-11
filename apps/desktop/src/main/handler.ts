@@ -17,6 +17,7 @@ import {
 } from "@abacus-ai/contract/contracts";
 import {
   PROVIDER_ENV_VARS,
+  type OmniRouteConnection,
   type OmniRouteOperationResult,
   type OmniRouteProvider,
   type OmniRouteStatus,
@@ -101,14 +102,14 @@ export interface HostPlatformOperations {
   /** Desktop-local OmniRoute integration; hosted Node uses a safe stub. */
   omniRoute: {
     status: () => Promise<OmniRouteStatus>;
+    listConnections: () => Promise<OmniRouteConnection[]>;
     start: () => Promise<OmniRouteStatus>;
     addKey: (
       provider: OmniRouteProvider,
+      name: string,
       key: string
     ) => Promise<OmniRouteOperationResult>;
-    testProvider: (
-      provider: OmniRouteProvider
-    ) => Promise<OmniRouteOperationResult>;
+    testConnection: (id: string) => Promise<OmniRouteOperationResult>;
   };
 }
 
@@ -516,6 +517,7 @@ export const createHostOperations = (
     localModels: platform.localModels,
     omniRoute: {
       status: () => platform.omniRoute.status(),
+      listConnections: () => platform.omniRoute.listConnections(),
       start: async () => {
         const status = await platform.omniRoute.start();
         serviceHost.refreshAgentProviders();
@@ -528,8 +530,8 @@ export const createHostOperations = (
         });
         return status;
       },
-      addKey: async (provider: OmniRouteProvider, key: string) => {
-        const result = await platform.omniRoute.addKey(provider, key);
+      addKey: async (provider: OmniRouteProvider, name: string, key: string) => {
+        const result = await platform.omniRoute.addKey(provider, name, key);
         serviceHost.refreshAgentProviders();
         await listAvailableModels(true);
         dispatchEvent({
@@ -540,8 +542,8 @@ export const createHostOperations = (
         });
         return result;
       },
-      testProvider: (provider: OmniRouteProvider) =>
-        platform.omniRoute.testProvider(provider),
+      testConnection: (id: string) =>
+        platform.omniRoute.testConnection(id),
     },
   };
 };
