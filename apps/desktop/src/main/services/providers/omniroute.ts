@@ -1,3 +1,4 @@
+import { spawn, type ChildProcess } from "node:child_process";
 /**
  * Local OmniRoute gateway integration for AbacusAI Bot.
  *
@@ -6,7 +7,6 @@
  * own dashboard and are never copied into AbacusAI Bot settings.
  */
 import { randomBytes } from "node:crypto";
-import { spawn, type ChildProcess } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -16,9 +16,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
-import { app, BrowserWindow, shell } from "electron";
 
 import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
+import { app, BrowserWindow, shell } from "electron";
 import { isSafeExternalUrl } from "../../external-links.js";
 import { setDefaultModel, upsertCustomProvider } from "../config/settings.js";
 
@@ -166,9 +166,7 @@ function runCommand(
       settled = true;
       child.kill();
       reject(
-        new Error(
-          "OmniRoute setup timed out. Check Node.js/npm and try again."
-        )
+        new Error("OmniRoute setup timed out. Check Node.js/npm and try again.")
       );
     }, timeoutMs);
     child.once("error", (error) => {
@@ -425,9 +423,9 @@ function extractCreatedClientKey(stdout: string): string | null {
         depth--;
         if (depth === 0) {
           try {
-            const parsed = JSON.parse(
-              stdout.slice(start, end + 1)
-            ) as { key?: unknown };
+            const parsed = JSON.parse(stdout.slice(start, end + 1)) as {
+              key?: unknown;
+            };
             if (typeof parsed.key === "string" && parsed.key.length >= 16) {
               return parsed.key;
             }
