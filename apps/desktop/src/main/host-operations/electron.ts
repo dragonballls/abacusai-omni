@@ -1,6 +1,7 @@
 import { app } from "electron";
 
 import type { HostPlatformOperations } from "../handler";
+import type { OmniRouteProvider } from "@abacus-ai/contract/settings";
 import { registerLoginItem } from "../login-item";
 import { LocalModelService } from "../services/local-models/local-model-service";
 import {
@@ -60,8 +61,10 @@ export const electronHostPlatform: HostPlatformOperations = {
   },
   omniRoute: {
     status: () => omniRouteService.status(),
+    listConnections: () => omniRouteService.listConnections(),
     start: () => omniRouteService.start(),
-    addKey: (provider, key) => omniRouteService.addKey(provider, key),
-    testProvider: (provider) => omniRouteService.testProvider(provider),
+    addKey: (provider: OmniRouteProvider, name: string, key: string) =>
+      omniRouteService.addKey(provider, name, key),
+    testConnection: (id: string) => omniRouteService.testConnection(id),
   },
 };
