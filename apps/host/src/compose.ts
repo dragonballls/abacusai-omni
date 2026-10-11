@@ -65,6 +65,18 @@ const nodeHostPlatform: HostPlatformOperations = {
     cancelInstall: () => {},
     remove: refuse("localModels.remove"),
   },
+  omniRoute: {
+    status: async () => ({
+      available: false,
+      running: false,
+      baseUrl: "http://127.0.0.1:20128/v1",
+      version: null,
+      message: "OmniRoute credentials can only be managed in the desktop app.",
+    }),
+    start: refuse("settings.omniRoute.start"),
+    addKey: refuse("settings.omniRoute.addKey"),
+    testProvider: refuse("settings.omniRoute.testProvider"),
+  },
 };
 
 const IDLE_UPDATE = {
