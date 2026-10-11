@@ -82,7 +82,8 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   );
   if (!node) {
     throw new Error(
-      "OmniRoute needs Node.js installed on this computer. Install Node.js 24, reopen AbacusAI Bot, and try again."
+      "OmniRoute needs Node.js installed on this computer. " +
+        "Install Node.js 24, reopen AbacusAI Bot, and try again."
     );
   }
 
@@ -98,7 +99,8 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
     );
     if (!existsSync(npmCli)) {
       throw new Error(
-        "The Node.js installation was found, but npm's CLI is missing. Repair/reinstall Node.js with npm, then retry OmniRoute."
+        "The Node.js installation was found, but npm's CLI is missing. " +
+          "Repair/reinstall Node.js with npm, then retry OmniRoute."
       );
     }
     return { node, npmArgs: [npmCli] };
@@ -202,7 +204,7 @@ function prepareFreshOmniRouteEnvironment(): void {
     `API_KEY_SECRET=${randomBytes(32).toString("hex")}`,
     "INITIAL_PASSWORD=",
     "",
-  ].join("\\n");
+  ].join("\n");
   try {
     writeFileSync(envPath, contents, { encoding: "utf8", flag: "wx", mode: 0o600 });
     try {
@@ -239,7 +241,8 @@ async function ensureRuntimeInstalled(): Promise<string> {
     if (result.code !== 0) {
       // Do not expose potentially noisy installer output to the renderer.
       throw new Error(
-        "Could not install the pinned OmniRoute runtime. Check your internet connection and Node.js/npm installation, then retry."
+        "Could not install the pinned OmniRoute runtime. " +
+          "Check your internet connection and Node.js/npm installation, then retry."
       );
     }
   }
@@ -247,7 +250,8 @@ async function ensureRuntimeInstalled(): Promise<string> {
   const verifiedVersion = await installedVersion(node);
   if (verifiedVersion !== OMNIROUTE_VERSION) {
     throw new Error(
-      `OmniRoute version verification failed; expected ${OMNIROUTE_VERSION}. No provider keys were changed.`
+      `OmniRoute version verification failed; expected ${OMNIROUTE_VERSION}. ` +
+        "No provider keys were changed."
     );
   }
   return node;
@@ -304,7 +308,8 @@ async function ensureOmniRoute(): Promise<void> {
     if (await isOmniRouteReady()) return;
     if (await portIsOccupied()) {
       throw new Error(
-        `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass the OmniRoute health checks. Close or verify that service before starting the gateway.`
+        `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass ` +
+          "the OmniRoute health checks. Close or verify that service before starting the gateway."
       );
     }
 
@@ -422,7 +427,8 @@ export async function openOmniRouteWindow(): Promise<{
   return {
     ok: true,
     message:
-      "OmniRoute is ready. Add provider API keys in the OmniRoute window; AbacusAI Bot now defaults new sessions to OmniRoute Auto.",
+      "OmniRoute is ready. Add provider API keys in the OmniRoute window; " +
+      "AbacusAI Bot now defaults new sessions to OmniRoute Auto.",
   };
 }
 
