@@ -14,9 +14,10 @@ Gateway**.
 - If this app starts the gateway, it explicitly binds it to **127.0.0.1**,
   disables telemetry, and starts with `REQUIRE_API_KEY=true` before listening
   for model traffic. It creates a real app-specific OmniRoute API key through
-  the loopback-only management CLI. The client key is kept in the user's local
-  OmniRoute data folder with restrictive file permissions; it is not committed
-  to Git.
+  the loopback-only management CLI. Fresh data folders also receive a random
+  per-install `OMNIROUTE_CLI_SALT` so other local accounts cannot derive the
+  default management token. The client key is kept in the user's local OmniRoute
+  data folder with restrictive file permissions; it is not committed to Git.
 - If Brahma or another app already owns a healthy shared gateway, Abacus creates
   its own API key through OmniRoute's loopback-only CLI authentication and does
   not stop or reconfigure that other app's process. In that case API-key
