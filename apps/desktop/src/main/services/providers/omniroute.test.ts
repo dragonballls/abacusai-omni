@@ -18,6 +18,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain('JSON.stringify({ name: "AbacusAI Bot" })');
     expect(source).toContain("function persistOmniRouteClientKey(apiKey: string)");
     expect(source).toContain("chmodSync(omniRouteClientKeyPath, 0o600)");
+    expect(source).toContain("OMNIROUTE_CLI_SALT");
     expect(source).toContain("apiKey: clientKey");
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
