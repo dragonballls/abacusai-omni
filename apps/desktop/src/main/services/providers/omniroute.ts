@@ -307,10 +307,12 @@ async function isOmniRouteDashboardReachable(): Promise<boolean> {
     const [modelsResponse, homeResponse] = await Promise.all([
       fetch(`${OMNIROUTE_BASE_URL}/models`, {
         headers: { Accept: "application/json" },
+        redirect: "error",
         signal: AbortSignal.timeout(1500),
       }),
       fetch(`${OMNIROUTE_ORIGIN}/`, {
         headers: { Accept: "text/html" },
+        redirect: "error",
         signal: AbortSignal.timeout(1500),
       }),
     ]);
@@ -333,6 +335,7 @@ async function isOmniRouteReady(apiKey: string): Promise<boolean> {
           Accept: "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
+        redirect: "error",
         signal: AbortSignal.timeout(1500),
       }),
       fetch(`${OMNIROUTE_ORIGIN}/`, {
