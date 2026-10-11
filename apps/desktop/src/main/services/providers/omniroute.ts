@@ -645,7 +645,7 @@ async function ensureOmniRoute(): Promise<string> {
     }
 
     try {
-      clientKey = await createOmniRouteClientKey(node, false);
+      clientKey = await createOmniRouteClientKey(node, true);
       if (!(await waitForOmniRoute(child, clientKey, 30_000))) {
         throw new Error(
           "OmniRoute did not pass its authenticated readiness check after " +
