@@ -721,14 +721,14 @@ export const OmniRouteDialog = ({ onClose }: { onClose: () => void }) => {
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button
-                disabled={start.isPending || status.data?.running === true}
+                disabled={start.isPending}
                 onClick={() => {
                   setError(null);
                   setMessage(null);
                   start.mutate({});
                 }}
               >
-                {start.isPending ? "Starting…" : status.data?.running ? "Running" : "Start and use OmniRoute"}
+                {start.isPending ? "Starting…" : status.data?.running ? "Connect to running OmniRoute" : "Start and use OmniRoute"}
               </Button>
             </div>
           </div>
