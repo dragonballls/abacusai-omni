@@ -457,8 +457,9 @@ async function createOmniRouteClientKey(
     );
   }
 
-  // A shared gateway is owned by another app, so do not change its management
-  // setup. Use the loopback-only CLI token with that existing gateway instead.
+  // When dashboard login is unavailable (for example on an existing install),
+  // use OmniRoute's loopback-only CLI token to provision the app-specific key.
+  // This fallback does not turn off API-key enforcement for inference requests.
   const result = await runCommand(
     node,
     [
