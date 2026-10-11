@@ -200,8 +200,9 @@ async function installedVersion(node: string): Promise<string | null> {
 /**
  * On a truly empty data directory, create the required persistent secrets
  * before npm's postinstall can copy the package's publicly known CHANGEME
- * starter password. A random INITIAL_PASSWORD enables management authentication,
- * and the embedded dashboard logs in with it automatically. Existing data
+ * starter password. A random INITIAL_PASSWORD enables management
+ * authentication, and the embedded dashboard logs in with it automatically.
+ * Existing data
  * directories are deliberately left alone so we cannot rotate secrets for a
  * database that already has keys.
  */
@@ -380,7 +381,9 @@ function readOmniRouteClientKey(): string | null {
     return value.length >= 16 ? value : null;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw new Error("The saved OmniRoute client key could not be read securely.");
+    throw new Error(
+      "The saved OmniRoute client key could not be read securely."
+    );
   }
 }
 
@@ -400,7 +403,11 @@ function persistOmniRouteClientKey(apiKey: string): string {
 function extractCreatedClientKey(stdout: string): string | null {
   // CLI diagnostics may precede its JSON response. Parse complete JSON objects
   // without assuming that the response starts at byte zero.
-  for (let start = stdout.indexOf("{"); start >= 0; start = stdout.indexOf("{", start + 1)) {
+  for (
+    let start = stdout.indexOf("{");
+    start >= 0;
+    start = stdout.indexOf("{", start + 1)
+  ) {
     let depth = 0;
     let quoted = false;
     let escaped = false;
@@ -418,7 +425,9 @@ function extractCreatedClientKey(stdout: string): string | null {
         depth--;
         if (depth === 0) {
           try {
-            const parsed = JSON.parse(stdout.slice(start, end + 1)) as { key?: unknown };
+            const parsed = JSON.parse(
+              stdout.slice(start, end + 1)
+            ) as { key?: unknown };
             if (typeof parsed.key === "string" && parsed.key.length >= 16) {
               return parsed.key;
             }
@@ -514,7 +523,10 @@ function readInitialManagementPassword(): string | null {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
       const separator = trimmed.indexOf("=");
-      if (separator < 0 || trimmed.slice(0, separator).trim() !== "INITIAL_PASSWORD") {
+      if (
+        separator < 0 ||
+        trimmed.slice(0, separator).trim() !== "INITIAL_PASSWORD"
+      ) {
         continue;
       }
       let value = trimmed.slice(separator + 1).trim();
@@ -563,7 +575,9 @@ async function loginOmniRouteManagement(): Promise<string | null> {
   }
 }
 
-async function authenticateOmniRouteDashboard(window: BrowserWindow): Promise<void> {
+async function authenticateOmniRouteDashboard(
+  window: BrowserWindow
+): Promise<void> {
   const token = await loginOmniRouteManagement();
   if (!token) return;
 
@@ -636,7 +650,7 @@ async function ensureOmniRoute(): Promise<string> {
 
     if (await portIsOccupied()) {
       throw new Error(
-        `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass ` +
+        `Port ${OMNIROUTE_PORT} is already in use by a service that did not ` +
           "the OmniRoute health checks. Close or verify that service " +
           "before starting the gateway."
       );
@@ -646,7 +660,8 @@ async function ensureOmniRoute(): Promise<string> {
 
     // Start with API-key enforcement enabled before listening on the port.
     // OmniRoute's management API accepts its loopback-only CLI token, so the
-    // app can create a real client key without exposing unauthenticated /v1 routes.
+    // app can create a real client key without exposing unauthenticated
+    // /v1 routes.
     const child = startOmniRoute(node, true);
     if (!(await waitForOmniRouteDashboard(child, 30_000))) {
       if (child.exitCode === null && child.signalCode === null) {
