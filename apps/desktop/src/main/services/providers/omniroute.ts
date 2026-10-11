@@ -447,6 +447,72 @@ async function createOmniRouteClientKey(node: string): Promise<string> {
   return persistOmniRouteClientKey(apiKey);
 }
 
+function readInitialManagementPassword(): string | null {
+  const environmentValue = process.env.INITIAL_PASSWORD;
+  if (typeof environmentValue === "string" && environmentValue.length > 0) {
+    return environmentValue;
+  }
+
+  try {
+    const contents = readFileSync(join(omniRouteDataDir, ".env"), "utf8");
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const separator = trimmed.indexOf("=");
+      if (separator < 0 || trimmed.slice(0, separator).trim() !== "INITIAL_PASSWORD") {
+        continue;
+      }
+      let value = trimmed.slice(separator + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      return value.length > 0 ? value : null;
+    }
+  } catch {
+    // Existing installs may manage their password in the dashboard instead.
+  }
+  return null;
+}
+
+async function authenticateOmniRouteDashboard(window: BrowserWindow): Promise<void> {
+  const password = readInitialManagementPassword();
+  if (!password) return;
+
+  try {
+    const response = await fetch(`${OMNIROUTE_ORIGIN}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Origin: OMNIROUTE_ORIGIN,
+      },
+      body: JSON.stringify({ password }),
+      redirect: "error",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return;
+
+    const setCookie = response.headers.get("set-cookie") || "";
+    const token = /(?:^|,\\s*)auth_token=([^;,\\s]+)/.exec(setCookie)?.[1];
+    if (!token) return;
+
+    await window.webContents.session.cookies.set({
+      url: OMNIROUTE_ORIGIN,
+      name: "auth_token",
+      value: token,
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
+  } catch {
+    // Never block the dashboard from opening if auto-login is unavailable.
+  }
+}
+
 async function portIsOccupied(): Promise<boolean> {
   try {
     const response = await fetch(OMNIROUTE_ORIGIN, {
@@ -623,6 +689,7 @@ export async function openOmniRouteWindow(): Promise<{
     dashboardWindow.once("closed", () => {
       dashboardWindow = null;
     });
+    await authenticateOmniRouteDashboard(dashboardWindow);
     await dashboardWindow.loadURL(OMNIROUTE_ORIGIN);
   } else {
     dashboardWindow.show();
