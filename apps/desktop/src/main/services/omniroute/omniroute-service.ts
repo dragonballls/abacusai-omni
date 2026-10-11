@@ -12,6 +12,7 @@ import path from "node:path";
 import { app } from "electron";
 
 import type {
+  OmniRouteConnection,
   OmniRouteOperationResult,
   OmniRouteProvider,
   OmniRouteStatus,
@@ -195,7 +196,7 @@ export class OmniRouteService {
     args: string[],
     stdinText?: string,
     timeoutMs = CLI_TIMEOUT_MS
-  ): Promise<{ ok: boolean }> {
+  ): Promise<{ ok: boolean; stdout: string }> {
     this.installRuntime();
     return await new Promise((resolve, reject) => {
       const node = this.nodeExecutable();
@@ -205,11 +206,12 @@ export class OmniRouteService {
       }
       const child = spawn(node, [this.entryPath, ...args], {
         env,
-        stdio: ["pipe", "ignore", "ignore"],
+        stdio: ["pipe", "pipe", "ignore"],
         windowsHide: true,
       });
       let settled = false;
-      const finish = (value: { ok: boolean }, error?: Error) => {
+      let stdout = "";
+      const finish = (value: { ok: boolean; stdout: string }, error?: Error) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -218,15 +220,51 @@ export class OmniRouteService {
       };
       const timer = setTimeout(() => {
         child.kill();
-        finish({ ok: false }, new Error("OmniRoute command timed out."));
+        finish({ ok: false, stdout: "" }, new Error("OmniRoute command timed out."));
       }, timeoutMs);
       child.once("error", () =>
-        finish({ ok: false }, new Error("Could not start the OmniRoute command."))
+        finish({ ok: false, stdout: "" }, new Error("Could not start the OmniRoute command."))
       );
-      child.once("close", (code) => finish({ ok: code === 0 }));
+      child.stdout.on("data", (chunk: Buffer | string) => {
+        // The CLI redacts provider credentials from structured output.
+        // Cap captured text and never expose raw output in errors or UI messages.
+        if (stdout.length < 1_000_000) stdout += String(chunk).slice(0, 1_000_000 - stdout.length);
+      });
+      child.once("close", (code) => finish({ ok: code === 0, stdout }));
       // Credentials travel through stdin only; never argv, logs, or responses.
       child.stdin.end(stdinText == null ? undefined : stdinText.trim() + "\n");
     });
+  }
+
+  async listConnections(): Promise<OmniRouteConnection[]> {
+    if (!fs.existsSync(this.entryPath)) return [];
+    const result = await this.runCli(
+      ["--non-interactive", "providers", "list", "--json"],
+      undefined,
+      15_000
+    );
+    if (!result.ok) return [];
+    try {
+      const payload = JSON.parse(result.stdout) as { providers?: unknown };
+      if (!Array.isArray(payload.providers)) return [];
+      return payload.providers.flatMap((item): OmniRouteConnection[] => {
+        if (item == null || typeof item !== "object") return [];
+        const row = item as Record<string, unknown>;
+        const id = typeof row.id === "string" ? row.id.trim() : "";
+        const name = typeof row.name === "string" ? row.name.trim() : "";
+        const provider = typeof row.provider === "string" ? row.provider.trim() : "";
+        if (!id || !name || !provider) return [];
+        return [{
+          id,
+          name,
+          provider,
+          isActive: row.isActive !== false,
+          testStatus: typeof row.testStatus === "string" ? row.testStatus : null,
+        }];
+      });
+    } catch {
+      return [];
+    }
   }
 
   async start(): Promise<OmniRouteStatus> {
@@ -298,46 +336,62 @@ export class OmniRouteService {
 
   async addKey(
     provider: OmniRouteProvider,
+    rawName: string,
     rawKey: string
   ): Promise<OmniRouteOperationResult> {
     if (!isProvider(provider)) throw new Error("Choose a supported AI provider.");
+    const name = String(rawName ?? "").trim();
+    if (!name || name.length > 64 || /[\u0000-\u001f\u007f]/.test(name)) {
+      throw new Error("Connection name must be 1–64 characters without control characters.");
+    }
     const key = rawKey.trim();
     if (key.length < 8 || !/^[\u0021-\u007e]+$/.test(key)) {
       throw new Error("Enter a valid-looking API key without spaces or line breaks.");
     }
     await this.start();
     const result = await this.runCli(
-      ["--non-interactive", "providers", "add", provider, "--credential-stdin"],
+      ["--non-interactive", "providers", "add", provider, "--name", name, "--credential-stdin", "--json"],
       key
     );
     if (!result.ok) {
       throw new Error(
-        "OmniRoute could not save the " + providerLabel[provider] + " credential. Check the provider and key, then retry."
+        "OmniRoute could not save connection '" + name + "' for " + providerLabel[provider] + ". Check the provider and key, then retry."
       );
+    }
+    let connectionId: string | undefined;
+    try {
+      const payload = JSON.parse(result.stdout) as { connection?: { id?: unknown } };
+      if (typeof payload.connection?.id === "string") connectionId = payload.connection.id;
+    } catch {
+      // An older compatible build may return a non-JSON success line.
     }
     return {
       ok: true,
       provider,
-      message:
-        providerLabel[provider] +
-        " key was handed to OmniRoute. The key was not saved in Abacus Bot settings.",
+      ...(connectionId ? { connectionId } : {}),
+      connectionName: name,
+      message: "Saved '" + name + "' to OmniRoute. The key was not stored in Abacus Bot settings.",
     };
   }
 
-  async testProvider(
-    provider: OmniRouteProvider
-  ): Promise<OmniRouteOperationResult> {
-    if (!isProvider(provider)) throw new Error("Choose a supported AI provider.");
-    await this.start();
+  async testConnection(rawId: string): Promise<OmniRouteOperationResult> {
+    const id = String(rawId ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+      throw new Error("Choose a saved OmniRoute connection to test.");
+    }
+    const connection = (await this.listConnections()).find((item) => item.id === id);
+    if (!connection) throw new Error("That OmniRoute connection no longer exists. Refresh the list and retry.");
     const result = await this.runCli(
-      ["--non-interactive", "providers", "test", provider]
+      ["--non-interactive", "providers", "test", id, "--json"]
     );
     return {
       ok: result.ok,
-      provider,
+      provider: connection.provider,
+      connectionId: id,
+      connectionName: connection.name,
       message: result.ok
-        ? providerLabel[provider] + " connection test passed."
-        : providerLabel[provider] + " connection test failed. Check that provider's saved key and quota.",
+        ? "Connection test passed for '" + connection.name + "'."
+        : "Connection test failed for '" + connection.name + "'. Check its saved key, provider status and quota.",
     };
   }
 
