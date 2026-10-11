@@ -416,8 +416,12 @@ export async function openOmniRouteWindow(): Promise<{
       },
     });
     dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
-      if (new URL(url).origin === OMNIROUTE_ORIGIN) {
-        return { action: "allow" };
+      try {
+        if (new URL(url).origin === OMNIROUTE_ORIGIN) {
+          return { action: "allow" };
+        }
+      } catch {
+        // Malformed or non-URL targets are denied below.
       }
       openExternalHttps(url);
       return { action: "deny" };
