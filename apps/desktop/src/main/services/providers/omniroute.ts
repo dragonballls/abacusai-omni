@@ -108,7 +108,9 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
 
   const npm = findExecutable(["npm"]);
   if (!npm) {
-    throw new Error("npm was not found. Install Node.js with npm, then retry OmniRoute.");
+    throw new Error(
+      "npm was not found. Install Node.js with npm, then retry OmniRoute."
+    );
   }
   return { node, npmArgs: [npm] };
 }
@@ -206,7 +208,11 @@ function prepareFreshOmniRouteEnvironment(): void {
     "",
   ].join("\n");
   try {
-    writeFileSync(envPath, contents, { encoding: "utf8", flag: "wx", mode: 0o600 });
+    writeFileSync(envPath, contents, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
     try {
       chmodSync(envPath, 0o600);
     } catch {
@@ -242,7 +248,8 @@ async function ensureRuntimeInstalled(): Promise<string> {
       // Do not expose potentially noisy installer output to the renderer.
       throw new Error(
         "Could not install the pinned OmniRoute runtime. " +
-          "Check your internet connection and Node.js/npm installation, then retry."
+          "Check your internet connection and Node.js/npm installation, " +
+          "then retry."
       );
     }
   }
@@ -312,7 +319,8 @@ async function ensureOmniRoute(): Promise<void> {
     if (await portIsOccupied()) {
       throw new Error(
         `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass ` +
-          "the OmniRoute health checks. Close or verify that service before starting the gateway."
+          "the OmniRoute health checks. Close or verify that service " +
+          "before starting the gateway."
       );
     }
 
@@ -339,7 +347,8 @@ async function ensureOmniRoute(): Promise<void> {
       if (child.exitCode === null) child.kill();
       if (gatewayProcess === child) gatewayProcess = null;
       throw new Error(
-        "OmniRoute did not become ready on its local port. Check Node.js/npm, then retry."
+        "OmniRoute did not become ready on its local port. " +
+          "Check Node.js/npm, then retry."
       );
     }
   })();
@@ -379,7 +388,9 @@ function openExternalHttps(target: string): void {
   }
 }
 
-/** Start/attach to the local gateway, register its model, and open its window. */
+/**
+ * Start/attach to the local gateway, register its model, and open its window.
+ */
 export async function openOmniRouteWindow(): Promise<{
   ok: true;
   message: string;
