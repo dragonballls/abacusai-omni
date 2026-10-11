@@ -73,10 +73,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Temporary oxfmt diagnostic for OmniRoute integration files
-        run: |
-          pnpm exec oxfmt .github/workflows/ci.yml apps/desktop/src/main/index.ts apps/desktop/src/main/rpc/procedures/settings.ts apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts
-          git diff -- .github/workflows/ci.yml apps/desktop/src/main/index.ts apps/desktop/src/main/rpc/procedures/settings.ts apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts || true
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
@@ -416,4 +412,3 @@ jobs:
           path: apps/desktop/release/win-unpacked/
           if-no-files-found: error
           retention-days: 14
-
