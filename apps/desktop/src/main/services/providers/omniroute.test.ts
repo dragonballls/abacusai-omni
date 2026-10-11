@@ -12,6 +12,17 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain("startOmniRoute(node, false)");
   });
 
+  it("accepts OmniRoute's normal same-origin dashboard redirect during startup", () => {
+    const start = source.indexOf("async function isOmniRouteDashboardReachable()");
+    const end = source.indexOf("async function isOmniRouteReady", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const probe = source.slice(start, end);
+    expect(probe).toContain('redirect: "manual"');
+    expect(probe).toContain('["/dashboard", "/login"].includes(destination.pathname)');
+    expect(probe).toContain("destination.origin === OMNIROUTE_ORIGIN");
+  });
+
   it("provisions a real OmniRoute client key and persists it with restrictive permissions", () => {
     expect(source).toContain('"api-keys"');
     expect(source).toContain('"post-api-keys"');
