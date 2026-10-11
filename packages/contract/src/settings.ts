@@ -123,9 +123,19 @@ export interface OmniRouteStatus {
   message: string;
 }
 
+export interface OmniRouteConnection {
+  id: string;
+  provider: string;
+  name: string;
+  isActive: boolean;
+  testStatus: string | null;
+}
+
 export interface OmniRouteOperationResult {
   ok: boolean;
-  provider?: OmniRouteProvider;
+  provider?: string;
+  connectionId?: string;
+  connectionName?: string;
   message: string;
 }
 
