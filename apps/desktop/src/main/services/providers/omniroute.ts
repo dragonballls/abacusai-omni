@@ -257,11 +257,14 @@ async function ensureRuntimeInstalled(): Promise<string> {
   return node;
 }
 
-async function waitForOmniRoute(timeoutMs: number): Promise<boolean> {
+async function waitForOmniRoute(
+  child: ChildProcess,
+  timeoutMs: number
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await isOmniRouteReady()) return true;
-    if (gatewayProcess && gatewayProcess.exitCode !== null) return false;
+    if (child.exitCode !== null || child.signalCode !== null) return false;
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   return isOmniRouteReady();
@@ -332,7 +335,7 @@ async function ensureOmniRoute(): Promise<void> {
       if (gatewayProcess === child) gatewayProcess = null;
     });
 
-    if (!(await waitForOmniRoute(30_000))) {
+    if (!(await waitForOmniRoute(child, 30_000))) {
       if (child.exitCode === null) child.kill();
       if (gatewayProcess === child) gatewayProcess = null;
       throw new Error(
