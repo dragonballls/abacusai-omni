@@ -11,6 +11,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   writeFileSync,
 } from "node:fs";
@@ -48,12 +49,16 @@ const omniRouteEntry = join(
   "bin",
   "omniroute.mjs"
 );
+const omniRouteClientKeyPath = join(
+  omniRouteDataDir,
+  "abacusai-bot-client-api-key"
+);
 
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
 let ensurePromise: Promise<void> | null = null;
 
-type CommandResult = { code: number | null; output: string };
+type CommandResult = { code: number | null; output: string; stdout: string };
 
 function pathEntries(): string[] {
   return (process.env.PATH || "")
@@ -115,7 +120,7 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   return { node, npmArgs: [npm] };
 }
 
-function runtimeEnvironment(): NodeJS.ProcessEnv {
+function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
   return {
     ...process.env,
     DATA_DIR: omniRouteDataDir,
@@ -123,30 +128,36 @@ function runtimeEnvironment(): NodeJS.ProcessEnv {
     OMNIROUTE_SERVER_HOST: "127.0.0.1",
     OMNIROUTE_TELEMETRY: "false",
     NODE_ENV: "production",
-    // Safe only because the listener is explicitly restricted to loopback.
-    // This avoids asking for a second, unrelated proxy key in Abacus settings.
-    REQUIRE_API_KEY: "false",
+    // Requests from Abacus use a generated, persisted OmniRoute client key.
+    // A temporary unauthenticated bootstrap is used only to create that key,
+    // then the gateway is restarted with enforcement enabled.
+    REQUIRE_API_KEY: requireApiKey ? "true" : "false",
   };
 }
 
 function runCommand(
   command: string,
   args: string[],
-  timeoutMs: number
+  timeoutMs: number,
+  env: NodeJS.ProcessEnv = runtimeEnvironment()
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: omniRouteDataDir,
-      env: runtimeEnvironment(),
+      env,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
+    let stdout = "";
     let settled = false;
     const append = (chunk: unknown) => {
       output = (output + String(chunk)).slice(-5000);
     };
-    child.stdout?.on("data", append);
+    child.stdout?.on("data", (chunk) => {
+      stdout = (stdout + String(chunk)).slice(-5000);
+      append(chunk);
+    });
     child.stderr?.on("data", append);
     const timer = setTimeout(() => {
       if (settled) return;
@@ -172,7 +183,7 @@ function runCommand(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve({ code, output });
+      resolve({ code, output, stdout });
     });
   });
 }
@@ -264,24 +275,64 @@ async function ensureRuntimeInstalled(): Promise<string> {
   return node;
 }
 
-async function waitForOmniRoute(
+async function waitForOmniRouteDashboard(
   child: ChildProcess,
   timeoutMs: number
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await isOmniRouteReady()) return true;
+    if (await isOmniRouteDashboardReachable()) return true;
     if (child.exitCode !== null || child.signalCode !== null) return false;
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
-  return isOmniRouteReady();
+  return isOmniRouteDashboardReachable();
 }
 
-async function isOmniRouteReady(): Promise<boolean> {
+async function waitForOmniRoute(
+  child: ChildProcess,
+  apiKey: string,
+  timeoutMs: number
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await isOmniRouteReady(apiKey)) return true;
+    if (child.exitCode !== null || child.signalCode !== null) return false;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return isOmniRouteReady(apiKey);
+}
+
+async function isOmniRouteDashboardReachable(): Promise<boolean> {
   try {
     const [modelsResponse, homeResponse] = await Promise.all([
       fetch(`${OMNIROUTE_BASE_URL}/models`, {
         headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(1500),
+      }),
+      fetch(`${OMNIROUTE_ORIGIN}/`, {
+        headers: { Accept: "text/html" },
+        signal: AbortSignal.timeout(1500),
+      }),
+    ]);
+    if (![200, 401, 403].includes(modelsResponse.status) || !homeResponse.ok) {
+      return false;
+    }
+    if (new URL(homeResponse.url).origin !== OMNIROUTE_ORIGIN) return false;
+    const dashboard = (await homeResponse.text()).slice(0, 500_000);
+    return /omniroute/i.test(dashboard);
+  } catch {
+    return false;
+  }
+}
+
+async function isOmniRouteReady(apiKey: string): Promise<boolean> {
+  try {
+    const [modelsResponse, homeResponse] = await Promise.all([
+      fetch(`${OMNIROUTE_BASE_URL}/models`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
         signal: AbortSignal.timeout(1500),
       }),
       fetch(`${OMNIROUTE_ORIGIN}/`, {
@@ -299,6 +350,95 @@ async function isOmniRouteReady(): Promise<boolean> {
   }
 }
 
+function readOmniRouteClientKey(): string | null {
+  try {
+    const value = readFileSync(omniRouteClientKeyPath, "utf8").trim();
+    return value.length >= 16 ? value : null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new Error("The saved OmniRoute client key could not be read securely.");
+  }
+}
+
+function persistOmniRouteClientKey(apiKey: string): string {
+  writeFileSync(omniRouteClientKeyPath, `${apiKey.trim()}\\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  try {
+    chmodSync(omniRouteClientKeyPath, 0o600);
+  } catch {
+    // On Windows, inherit the private ACL of the user's LocalAppData folder.
+  }
+  return apiKey.trim();
+}
+
+function extractCreatedClientKey(stdout: string): string | null {
+  // CLI diagnostics may precede its JSON response. Parse complete JSON objects
+  // without assuming that the response starts at byte zero.
+  for (let start = stdout.indexOf("{"); start >= 0; start = stdout.indexOf("{", start + 1)) {
+    let depth = 0;
+    let quoted = false;
+    let escaped = false;
+    for (let end = start; end < stdout.length; end++) {
+      const char = stdout[end];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\\\") escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') quoted = true;
+      else if (char === "{") depth++;
+      else if (char === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            const parsed = JSON.parse(stdout.slice(start, end + 1)) as { key?: unknown };
+            if (typeof parsed.key === "string" && parsed.key.length >= 16) {
+              return parsed.key;
+            }
+          } catch {
+            // Keep scanning later object starts in case logs contained braces.
+          }
+          break;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function createOmniRouteClientKey(node: string): Promise<string> {
+  const result = await runCommand(
+    node,
+    [
+      omniRouteEntry,
+      "--output",
+      "json",
+      "--base-url",
+      OMNIROUTE_ORIGIN,
+      "api-keys",
+      "post-api-keys",
+      "--body",
+      JSON.stringify({ name: "AbacusAI Bot" }),
+    ],
+    45_000,
+    { ...runtimeEnvironment(false), OMNIROUTE_API_KEY: "" }
+  );
+  if (result.code !== 0) {
+    throw new Error(
+      "OmniRoute could not create an app-specific client key. " +
+        "Open the OmniRoute dashboard and verify its first-run setup."
+    );
+  }
+  const apiKey = extractCreatedClientKey(result.stdout);
+  if (!apiKey) {
+    throw new Error("OmniRoute did not return a valid client API key.");
+  }
+  return persistOmniRouteClientKey(apiKey);
+}
+
 async function portIsOccupied(): Promise<boolean> {
   try {
     const response = await fetch(OMNIROUTE_ORIGIN, {
@@ -311,11 +451,46 @@ async function portIsOccupied(): Promise<boolean> {
   }
 }
 
-async function ensureOmniRoute(): Promise<void> {
-  if (await isOmniRouteReady()) return;
+function startOmniRoute(node: string, requireApiKey: boolean): ChildProcess {
+  const child = spawn(
+    node,
+    [omniRouteEntry, "--no-open", "--port", String(OMNIROUTE_PORT)],
+    {
+      cwd: omniRouteDataDir,
+      env: runtimeEnvironment(requireApiKey),
+      windowsHide: true,
+      stdio: "ignore",
+    }
+  );
+  gatewayProcess = child;
+  child.once("error", () => {
+    if (gatewayProcess === child) gatewayProcess = null;
+  });
+  child.once("exit", () => {
+    if (gatewayProcess === child) gatewayProcess = null;
+  });
+  return child;
+}
+
+async function ensureOmniRoute(): Promise<string> {
   if (ensurePromise) return ensurePromise;
   ensurePromise = (async () => {
-    if (await isOmniRouteReady()) return;
+    const node = await ensureRuntimeInstalled();
+    let clientKey = readOmniRouteClientKey();
+    if (clientKey && (await isOmniRouteReady(clientKey))) return clientKey;
+
+    // Prefer a shared Brahma/OmniRoute process when one is already healthy.
+    // Creating an API key uses OmniRoute's loopback-only CLI management auth;
+    // it does not require stopping or reconfiguring a process owned by Brahma.
+    if (await isOmniRouteDashboardReachable()) {
+      clientKey = await createOmniRouteClientKey(node);
+      if (await isOmniRouteReady(clientKey)) return clientKey;
+      throw new Error(
+        "OmniRoute created a client key but the authenticated model endpoint " +
+          "did not pass its readiness check."
+      );
+    }
+
     if (await portIsOccupied()) {
       throw new Error(
         `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass ` +
@@ -324,50 +499,56 @@ async function ensureOmniRoute(): Promise<void> {
       );
     }
 
-    const node = await ensureRuntimeInstalled();
-    const child = spawn(
-      node,
-      [omniRouteEntry, "--no-open", "--port", String(OMNIROUTE_PORT)],
-      {
-        cwd: omniRouteDataDir,
-        env: runtimeEnvironment(),
-        windowsHide: true,
-        stdio: "ignore",
+    // Bootstrap only long enough to create a real key in OmniRoute's own API-key
+    // store. Immediately restart with REQUIRE_API_KEY=true before exposing this
+    // service to the app's model client.
+    const bootstrap = startOmniRoute(node, false);
+    if (!(await waitForOmniRouteDashboard(bootstrap, 30_000))) {
+      if (bootstrap.exitCode === null && bootstrap.signalCode === null) {
+        await stopOmniRoute();
       }
-    );
-    gatewayProcess = child;
-    child.once("error", () => {
-      if (gatewayProcess === child) gatewayProcess = null;
-    });
-    child.once("exit", () => {
-      if (gatewayProcess === child) gatewayProcess = null;
-    });
-
-    if (!(await waitForOmniRoute(child, 30_000))) {
-      if (child.exitCode === null) child.kill();
-      if (gatewayProcess === child) gatewayProcess = null;
       throw new Error(
-        "OmniRoute did not become ready on its local port. " +
+        "OmniRoute did not become ready for secure key provisioning. " +
           "Check Node.js/npm, then retry."
       );
     }
+
+    try {
+      clientKey = await createOmniRouteClientKey(node);
+    } catch (error) {
+      await stopOmniRoute();
+      throw error;
+    }
+    await stopOmniRoute();
+
+    const secureChild = startOmniRoute(node, true);
+    if (!(await waitForOmniRoute(secureChild, clientKey, 30_000))) {
+      if (secureChild.exitCode === null && secureChild.signalCode === null) {
+        await stopOmniRoute();
+      }
+      throw new Error(
+        "OmniRoute did not pass its authenticated readiness check after " +
+          "API-key enforcement was enabled."
+      );
+    }
+    return clientKey;
   })();
 
   try {
-    await ensurePromise;
+    return await ensurePromise;
   } finally {
     ensurePromise = null;
   }
 }
 
-function ensureAbacusProvider(): void {
+function ensureAbacusProvider(clientKey: string): void {
   const provider: CustomProviderEntry = {
     id: PROVIDER_ID,
     name: "OmniRoute",
     baseUrl: OMNIROUTE_BASE_URL,
-    // OmniRoute is bound to loopback with its upstream keys managed by its
-    // dashboard. This is a local placeholder, not a real provider credential.
-    apiKey: "local-omniroute",
+    // This is an API key generated and persisted by OmniRoute itself, not an
+    // upstream provider credential or a hard-coded placeholder.
+    apiKey: clientKey,
     models: [
       {
         id: "auto",
@@ -395,8 +576,8 @@ export async function openOmniRouteWindow(): Promise<{
   ok: true;
   message: string;
 }> {
-  await ensureOmniRoute();
-  ensureAbacusProvider();
+  const clientKey = await ensureOmniRoute();
+  ensureAbacusProvider(clientKey);
 
   if (!dashboardWindow || dashboardWindow.isDestroyed()) {
     dashboardWindow = new BrowserWindow({
