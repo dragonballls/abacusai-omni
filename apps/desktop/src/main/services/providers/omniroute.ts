@@ -501,12 +501,12 @@ async function ensureOmniRoute(): Promise<string> {
 
     const node = await ensureRuntimeInstalled();
 
-    // Bootstrap only long enough to create a real key in OmniRoute's own API-key
-    // store. Immediately restart with REQUIRE_API_KEY=true before exposing this
-    // service to the app's model client.
-    const bootstrap = startOmniRoute(node, false);
-    if (!(await waitForOmniRouteDashboard(bootstrap, 30_000))) {
-      if (bootstrap.exitCode === null && bootstrap.signalCode === null) {
+    // Start with API-key enforcement enabled before listening on the port.
+    // OmniRoute's management API accepts its loopback-only CLI token, so the
+    // app can create a real client key without exposing unauthenticated /v1 routes.
+    const child = startOmniRoute(node, true);
+    if (!(await waitForOmniRouteDashboard(child, 30_000))) {
+      if (child.exitCode === null && child.signalCode === null) {
         await stopOmniRoute();
       }
       throw new Error(
@@ -517,21 +517,17 @@ async function ensureOmniRoute(): Promise<string> {
 
     try {
       clientKey = await createOmniRouteClientKey(node);
+      if (!(await waitForOmniRoute(child, clientKey, 30_000))) {
+        throw new Error(
+          "OmniRoute did not pass its authenticated readiness check after " +
+            "client key creation."
+        );
+      }
     } catch (error) {
-      await stopOmniRoute();
-      throw error;
-    }
-    await stopOmniRoute();
-
-    const secureChild = startOmniRoute(node, true);
-    if (!(await waitForOmniRoute(secureChild, clientKey, 30_000))) {
-      if (secureChild.exitCode === null && secureChild.signalCode === null) {
+      if (child.exitCode === null && child.signalCode === null) {
         await stopOmniRoute();
       }
-      throw new Error(
-        "OmniRoute did not pass its authenticated readiness check after " +
-          "API-key enforcement was enabled."
-      );
+      throw error;
     }
     return clientKey;
   })();
