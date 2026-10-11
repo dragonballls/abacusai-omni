@@ -56,7 +56,7 @@ const omniRouteClientKeyPath = join(
 
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
-let ensurePromise: Promise<void> | null = null;
+let ensurePromise: Promise<string> | null = null;
 
 type CommandResult = { code: number | null; output: string; stdout: string };
 
@@ -361,7 +361,7 @@ function readOmniRouteClientKey(): string | null {
 }
 
 function persistOmniRouteClientKey(apiKey: string): string {
-  writeFileSync(omniRouteClientKeyPath, `${apiKey.trim()}\\n`, {
+  writeFileSync(omniRouteClientKeyPath, `${apiKey.trim()}\n`, {
     encoding: "utf8",
     mode: 0o600,
   });
@@ -384,7 +384,7 @@ function extractCreatedClientKey(stdout: string): string | null {
       const char = stdout[end];
       if (quoted) {
         if (escaped) escaped = false;
-        else if (char === "\\\\") escaped = true;
+        else if (char === "\\") escaped = true;
         else if (char === '"') quoted = false;
         continue;
       }
