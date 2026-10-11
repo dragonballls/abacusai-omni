@@ -11,14 +11,22 @@ Gateway**.
 - If the expected OmniRoute dashboard and OpenAI-compatible `/v1/models`
   endpoint already respond on `127.0.0.1:20128`, the app reuses that gateway
   instead of starting a second one.
-- If this app starts the gateway, it explicitly binds it to **127.0.0.1** and
-  disables telemetry. It never intentionally exposes the gateway on the LAN.
+- If this app starts the gateway, it explicitly binds it to **127.0.0.1**,
+  disables telemetry, creates a real app-specific OmniRoute API key, and
+  restarts with `REQUIRE_API_KEY=true` before model requests. The client key is
+  kept in the user's local OmniRoute data folder with restrictive file
+  permissions; it is not committed to Git.
+- If Brahma or another app already owns a healthy shared gateway, Abacus creates
+  its own API key through OmniRoute's loopback-only CLI authentication and does
+  not stop or reconfigure that other app's process. In that case API-key
+  enforcement remains controlled by the running gateway's existing settings.
 - Add Gemini, OpenRouter, Anthropic, OpenAI, or other upstream keys inside
   OmniRoute's own dashboard. Those credentials are managed by OmniRoute and are
   not copied into AbacusAI Bot's provider-key settings or committed to Git.
 - AbacusAI Bot registers an OpenAI-compatible `omniroute/auto` model and sets
-  it as the default for new sessions. The gateway must have at least one usable
-  upstream provider configured before inference can succeed.
+  it as the default for new sessions. Authenticated `/v1/models` checks use the
+  same app-specific API key as model requests. The gateway must have at least
+  one usable upstream provider configured before inference can succeed.
 - Node.js and npm must be installed. The app installs only the pinned OmniRoute
   package into the per-user runtime directory; it does not install packages
   globally.
