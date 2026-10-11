@@ -63,7 +63,6 @@ import { NotchController } from "./notch/controller";
 import { CueArbiter } from "./notch/cue-arbiter";
 import { wireMainNotchEvents } from "./notch/main-events";
 import { NotchNotificationPolicy } from "./notch/notifications";
-import { stopOmniRoute } from "./services/providers/omniroute.js";
 import { abacusBotHome, userTempDir, WORKSPACE_DIR_NAME } from "./paths";
 import { profileBaseDir } from "./profile-home";
 import { resetUserDataDirectories } from "./profile-home-init";
@@ -131,6 +130,7 @@ import {
   signOut,
   skipOnboarding,
 } from "./services/providers/account-service";
+import { stopOmniRoute } from "./services/providers/omniroute.js";
 import { getLocalUsageSnapshot } from "./services/providers/usage";
 import { accountStashKey } from "./services/session/account-session-stash";
 import { ArtifactResolverService } from "./services/session/artifact-resolver-service";
