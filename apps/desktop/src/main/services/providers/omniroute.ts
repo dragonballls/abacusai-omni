@@ -435,7 +435,7 @@ async function createOmniRouteClientKey(
           Cookie: `auth_token=${sessionToken}`,
           Origin: OMNIROUTE_ORIGIN,
         },
-        body: JSON.stringify({ name: "AbacusAI Bot", scopes: ["chat"] }),
+        body: JSON.stringify({ name: "AbacusAI Bot" }),
         redirect: "error",
         signal: AbortSignal.timeout(15_000),
       });
@@ -471,7 +471,7 @@ async function createOmniRouteClientKey(
       "api-keys",
       "post-api-keys",
       "--body",
-      JSON.stringify({ name: "AbacusAI Bot", scopes: ["chat"] }),
+      JSON.stringify({ name: "AbacusAI Bot" }),
     ],
     45_000,
     { ...runtimeEnvironment(false), OMNIROUTE_API_KEY: "" }
