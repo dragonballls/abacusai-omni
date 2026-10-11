@@ -236,7 +236,9 @@ export const ModelsPage = ({
                 disabled={omniRouteBusy}
                 onClick={() => void openOmniRoute()}
               >
-                {omniRouteBusy ? "Starting OmniRoute…" : "Open OmniRoute window"}
+                {omniRouteBusy
+                  ? "Starting OmniRoute…"
+                  : "Open OmniRoute window"}
               </Button>
               {omniRouteMessage && (
                 <span role="status" className="text-muted-foreground text-xs">
