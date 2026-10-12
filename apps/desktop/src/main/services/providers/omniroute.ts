@@ -243,6 +243,14 @@ function prepareFreshOmniRouteEnvironment(): void {
   }
 }
 
+async function findExistingPinnedRuntimeNode(): Promise<string | null> {
+  const node = findExecutable(
+    process.platform === "win32" ? ["node.exe", "node"] : ["node"]
+  );
+  if (!node || !existsSync(omniRouteEntry)) return null;
+  return (await installedVersion(node)) === OMNIROUTE_VERSION ? node : null;
+}
+
 async function ensureRuntimeInstalled(): Promise<string> {
   mkdirSync(omniRouteDataDir, { recursive: true });
   prepareFreshOmniRouteEnvironment();
@@ -442,7 +450,7 @@ function extractCreatedClientKey(stdout: string): string | null {
 }
 
 async function createOmniRouteClientKey(
-  node: string,
+  node: string | null,
   allowCliFallback: boolean
 ): Promise<string> {
   const sessionToken = await loginOmniRouteManagement();
@@ -481,6 +489,13 @@ async function createOmniRouteClientKey(
   // When dashboard login is unavailable (for example on an existing install),
   // use OmniRoute's loopback-only CLI token to provision the app-specific key.
   // This fallback does not turn off API-key enforcement for inference requests.
+  if (!node) {
+    throw new Error(
+      "OmniRoute could not create the client key through its dashboard session, " +
+        "and the matching pinned local CLI is unavailable. The shared gateway " +
+        "was left untouched; verify dashboard login or the OmniRoute 3.8.50 install."
+    );
+  }
   const result = await runCommand(
     node,
     [
@@ -638,7 +653,10 @@ async function ensureOmniRoute(): Promise<string> {
     // Creating an API key uses OmniRoute's loopback-only CLI management auth;
     // it does not require stopping or reconfiguring a process owned by Brahma.
     if (await isOmniRouteDashboardReachable()) {
-      const node = await ensureRuntimeInstalled();
+      // Never npm-install or replace files underneath a gateway another app
+      // already owns. Dashboard-session provisioning needs no local CLI; the
+      // CLI fallback is allowed only when the matching pinned runtime exists.
+      const node = await findExistingPinnedRuntimeNode();
       clientKey = await createOmniRouteClientKey(node, true);
       if (await isOmniRouteReady(clientKey)) return clientKey;
       throw new Error(
