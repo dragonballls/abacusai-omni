@@ -86,6 +86,8 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run check:knip
       - run: pnpm run check:scripts
+      - name: Smoke test pinned OmniRoute authentication and client-key provisioning
+        run: node scripts/omniroute-gateway-smoke.mjs
       # The guard compares the browser graph with the Electron renderer's, so
       # both builds have to exist; turbo builds the desktop's dependencies too.
       # Electron 44 fetches its binary on first require, not on install, and
