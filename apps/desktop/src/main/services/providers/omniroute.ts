@@ -497,8 +497,7 @@ function deriveOmniRouteCliToken(): string | null {
       default?: { machineIdSync?: (original?: boolean) => string };
     };
     const machineIdSync =
-      machineIdModule.machineIdSync ||
-      machineIdModule.default?.machineIdSync;
+      machineIdModule.machineIdSync || machineIdModule.default?.machineIdSync;
     if (typeof machineIdSync !== "function") return null;
     const rawMachineId = machineIdSync(true);
     if (!rawMachineId) return null;
@@ -554,50 +553,53 @@ async function createOmniRouteClientKey(
   }
 
   // When dashboard login is unavailable (for example on an existing install),
-  // use OmniRoute's loopback-only CLI token to provision the app-specific key.
+  // use OmniRoute's loopback-only machine-token header to provision the key.
   // This fallback does not turn off API-key enforcement for inference requests.
   if (!node) {
     throw new Error(
       "OmniRoute could not create the client key through its dashboard session, " +
-        "and the matching pinned local CLI is unavailable. The shared gateway " +
+        "and the matching pinned local runtime is unavailable. The shared gateway " +
         "was left untouched; verify dashboard login or the OmniRoute 3.8.50 install."
     );
   }
   const cliToken = deriveOmniRouteCliToken();
   if (!cliToken) {
     throw new Error(
-      "OmniRoute's local CLI-token could not be derived from this installation. " +
+      "OmniRoute's local machine token could not be derived from this installation. " +
         "The existing gateway was left running and untouched."
     );
   }
-  const result = await runCommand(
-    node,
-    [
-      omniRouteEntry,
-      "--output",
-      "json",
-      "--base-url",
-      OMNIROUTE_ORIGIN,
-      "api-keys",
-      "post-api-keys",
-      "--body",
-      JSON.stringify({ name: "AbacusAI Bot" }),
-    ],
-    45_000,
-    {
-      ...runtimeEnvironment(false),
-      OMNIROUTE_API_KEY: "",
-      OMNIROUTE_CLI_TOKEN: cliToken,
-    }
-  );
-  if (result.code !== 0) {
+  let response: Response;
+  try {
+    response = await fetch(`${OMNIROUTE_ORIGIN}/api/keys`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "x-omniroute-cli-token": cliToken,
+        Origin: OMNIROUTE_ORIGIN,
+      },
+      body: JSON.stringify({ name: "AbacusAI Bot" }),
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
     throw new Error(
-      "OmniRoute could not create an app-specific client key. " +
-        "Open the OmniRoute dashboard and verify its first-run setup."
+      "Could not reach OmniRoute's loopback key provisioning endpoint. " +
+        "The existing gateway was left running and untouched."
     );
   }
-  const apiKey = extractCreatedClientKey(result.stdout);
-  if (!apiKey) {
+  if (!response.ok) {
+    throw new Error(
+      `OmniRoute rejected loopback client-key provisioning (HTTP ${response.status}). ` +
+        "The existing gateway was left running and untouched."
+    );
+  }
+  const payload = (await response.json().catch(() => null)) as {
+    key?: unknown;
+  } | null;
+  const apiKey = payload?.key;
+  if (typeof apiKey !== "string" || apiKey.length < 16) {
     throw new Error("OmniRoute did not return a valid client API key.");
   }
   if (!(await isOmniRouteReady(apiKey))) {

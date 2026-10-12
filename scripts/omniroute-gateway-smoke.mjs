@@ -8,7 +8,6 @@ import { spawn } from "node:child_process";
  * credential is needed, and no persistent user data is touched.
  */
 import { createHmac, randomBytes } from "node:crypto";
-import { createRequire } from "node:module";
 import {
   mkdirSync,
   mkdtempSync,
@@ -16,6 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -209,54 +209,28 @@ function deriveCliToken(entry, salt) {
   return createHmac("sha256", rawMachineId).update(salt).digest("hex");
 }
 
-async function createCliProvisionedKey(
-  gatewayOrigin,
-  dataDir,
-  entry,
-  cliSalt
-) {
-  const result = await runCommand(
-    process.execPath,
-    [
-      entry,
-      "--output",
-      "json",
-      "--base-url",
-      gatewayOrigin,
-      "api-keys",
-      "post-api-keys",
-      "--body",
-      JSON.stringify({ name: "AbacusAI Bot CLI fallback smoke test" }),
-    ],
-    {
-      cwd: dataDir,
-      env: {
-        ...process.env,
-        DATA_DIR: dataDir,
-        OMNIROUTE_API_KEY: "",
-        OMNIROUTE_CLI_TOKEN: deriveCliToken(entry, cliSalt),
-      },
+async function createCliProvisionedKey(gatewayOrigin, entry, cliSalt) {
+  const cliToken = deriveCliToken(entry, cliSalt);
+  const response = await fetch(`${gatewayOrigin}/api/keys`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "x-omniroute-cli-token": cliToken,
+      Origin: gatewayOrigin,
     },
-    45_000
-  );
-  const safeOutput = result.output
-    .replace(
-      /("(?:key|token|api_key|apikey|authorization)"\s*:\s*")[^"]+(")/gi,
-      "$1[redacted]$2"
-    )
-    .replace(/(Bearer\s+)\S+/gi, "$1[redacted]")
-    .slice(-1200);
+    body: JSON.stringify({ name: "AbacusAI Bot CLI fallback smoke test" }),
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = await response.json().catch(() => null);
   assert(
-    result.code === 0,
-    `CLI-token client API-key creation failed (exit ${result.code}). ` +
-      safeOutput
+    response.status === 201 &&
+      typeof payload?.key === "string" &&
+      payload.key.length >= 16,
+    `CLI-token API-key creation failed (HTTP ${response.status}).`
   );
-  const match = /"key"\s*:\s*"([^"]+)"/.exec(result.output);
-  assert(
-    match && match[1].length >= 16,
-    "CLI-token key creation returned no usable API key."
-  );
-  return match[1];
+  return payload.key;
 }
 
 async function assertAuthenticatedModels(gatewayOrigin, clientKey, label) {
@@ -374,7 +348,6 @@ async function main() {
     const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
     const cliKey = await createCliProvisionedKey(
       gatewayOrigin,
-      dataDir,
       entry,
       cliSalt
     );
