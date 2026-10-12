@@ -1,5 +1,3 @@
-"use no memo";
-
 /**
  * TanStack Virtual exposes a mutable virtualizer instance whose methods cannot
  * safely be memoized by React Compiler. Keep the opt-out at this adapter
@@ -14,5 +12,8 @@ export function useArtifactVirtualizer<
 >(
   options: Parameters<typeof useVirtualizer<TScrollElement, TItemElement>>[0]
 ): ReturnType<typeof useVirtualizer<TScrollElement, TItemElement>> {
+  "use no memo";
+
+  // oxlint-disable-next-line incompatible-library -- Keep TanStack Virtual inside this explicit non-compiled adapter.
   return useVirtualizer<TScrollElement, TItemElement>(options);
 }
