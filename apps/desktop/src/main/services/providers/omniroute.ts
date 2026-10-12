@@ -19,6 +19,7 @@ import { delimiter, dirname, join } from "node:path";
 
 import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";
+
 import { isSafeExternalUrl } from "../../external-links.js";
 import { setDefaultModel, upsertCustomProvider } from "../config/settings.js";
 
