@@ -101,7 +101,38 @@ jobs:
         run: |
           pnpm run check:licenses
           pnpm --filter @abacus-ai/desktop run generate:notices
-      - run: pnpm --filter @abacus-ai/desktop run check:ui-registry
+      - name: Check shadcn registry snapshot when its inputs change
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags origin "$BASE_REF"
+            base="origin/$BASE_REF"
+          else
+            # New branch pushes have an all-zero 'before' SHA; fail closed and
+            # run the guard rather than accidentally skipping its first check.
+            if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+              pnpm --filter @abacus-ai/desktop run check:ui-registry
+              exit $?
+            fi
+            if ! git fetch --no-tags origin "$BASE_SHA"; then
+              pnpm --filter @abacus-ai/desktop run check:ui-registry
+              exit $?
+            fi
+            base="$BASE_SHA"
+          fi
+
+          changed_paths="$(git diff --name-only "$base...HEAD")"
+          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/(ui|lib|styles)/|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|\.nvmrc$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
+            pnpm --filter @abacus-ai/desktop run check:ui-registry
+          else
+            echo "Shadcn registry inputs unchanged; snapshot replay is not applicable to this change." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Skipping shadcn registry snapshot replay because none of its inputs changed."
+          fi
       - name: i18n and locale guards
         run: |
           pnpm --filter @abacus-ai/web run check:i18n
