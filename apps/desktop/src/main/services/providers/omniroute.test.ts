@@ -40,7 +40,7 @@ describe("local OmniRoute gateway security contract", () => {
     );
     expect(source).toContain("chmodSync(omniRouteClientKeyPath, 0o600)");
     expect(source).toContain("OMNIROUTE_CLI_SALT");
-    expect(source).toMatch(/\\x60OMNIROUTE_CLI_SALT=\\$\\{randomBytes/);
+    expect(source).toContain('OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}');
     expect(source).toContain("INITIAL_PASSWORD=");
     expect(source).toContain("authenticateOmniRouteDashboard(dashboardWindow)");
     expect(source).toContain("readInitialManagementPassword()");
@@ -50,6 +50,22 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("Cookie: `auth_token=${sessionToken}`");
     expect(source).toContain("apiKey: clientKey");
     expect(source).not.toContain('apiKey: "local-omniroute"');
+  });
+
+  it("sets OmniRoute Auto as the remote model and refreshes providers without reinstalling a shared gateway", () => {
+    expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
+    expect(source).toContain('id: "auto"');
+    expect(source).toContain("upsertCustomProvider(provider)");
+    expect(source).toContain("context.deps.serviceHost.refreshAgentProviders()");
+    expect(source).toContain("findExistingPinnedRuntimeNode()");
+    expect(source).toContain("The shared gateway was left untouched");
+  });
+
+  it("shuts down the app-owned Windows gateway tree rather than just its supervisor", () => {
+    expect(source).toContain('"/PID", String(child.pid), "/T", "/F"');
+    expect(source).toContain("taskkill.exe");
+    expect(source).toContain('child.kill("SIGTERM")');
+    expect(source).toContain('child.kill("SIGKILL")');
   });
 
   it("authenticates model readiness probes and refuses redirects", () => {
