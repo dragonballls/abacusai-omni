@@ -36,6 +36,8 @@ jobs:
     name: Diagnostic — clean base renderer totals
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      ABACUS_BUILD_COMMIT: ${{ github.event.pull_request.base.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,6 +114,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # TEMPORARY: emit Oxfmt's exact diff for the two files that failed formatting.
+      # Remove after applying this output to the branch.
+      - name: Temporary Oxfmt diagnostic
+        run: |
+          pnpm exec oxfmt apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts
+          git diff -- apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
