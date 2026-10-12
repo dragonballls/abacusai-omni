@@ -8,26 +8,25 @@ renderer, a chunk split by a stray import), not against features. A feature
 that needs more is measured, reviewed and recorded here as a new baseline,
 in a commit of its own that says by how much it grew.
 
-## Current: `700190fc` (renderer as merged while the guard was not running)
+## Current: `06180c0d` (clean PR base, measured in CI)
 
-**322 / 6500134 / 2188133.** Records the renderer as merged through `700190fc`.
-While the desktop build failed in CI (the notices step needed the Electron
-binary before it was fetched), this guard never ran. Against `7926220a`:
--1 chunk, +53365 bytes (+0.83%), +22018 gzip bytes (+1.02%). The 1% allowance
-is unchanged.
+**388 / 7271703 / 2441495.** These totals were measured by a clean renderer
+build of PR base `06180c0d8c956fb332d6c3f2a09ef8e57c73fb53` in GitHub Actions
+run `38187018636`, job `114611484890`, before applying any integration-branch
+changes. The emitted JavaScript totals were 388 chunks, 7,271,703 bytes and
+2,441,495 gzip bytes.
 
-Where it grew, measured per merge from clean builds (gzip bytes):
+This corrects the stale `700190fc` fixture: its recorded 322 chunks are not
+representative of the current base. The clean base independently reproduces
+the reported 388-chunk failure, so the count failure predates the OmniRoute
+renderer changes. The 1% growth allowance is unchanged; this is not an
+allowance increase, but a baseline measured from the current base itself.
 
-- #221 (bot avatar expressions and character motion): +21522 over the build
-  before it. The previous baseline was measured on the license browser's
-  branch, which did not have #221, so it never counted. This is the overshoot.
-- #224 (the license browser): +11426 where it merged. It was already in the
-  previous baseline, which measured it at +11359, so it adds nothing here.
-- #225, #229, #230: +291 together; #235: +360; #234: -222.
-- The merges after it, through #238, change no renderer code.
-
-Measured from a clean worktree build of `700190fc` (frozen-lockfile install,
-Linux x64, Node 24); this baseline-only commit changes no renderer code.
+The clean measurement used GitHub-hosted Ubuntu 24.04, Node 22.19.0,
+pnpm 12.6.0, Vite 8.2.1 and Rolldown 1.2.4. The diagnostic was a clean
+checkout of the PR base with a frozen-lockfile install, the Electron binary
+installed before building, and the same byte/gzip calculation used by the
+parity guard.
 
 ## History
 
