@@ -56,7 +56,7 @@ describe("local OmniRoute gateway security contract", () => {
 
   it("verifies generated keys before persisting them", () => {
     const start = source.indexOf(
-      "async function createOmniRouteClientKey()"
+      "async function createOmniRouteClientKey("
     );
     const end = source.indexOf(
       "function readInitialManagementPassword()",
