@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 /**
  * Real OmniRoute 3.8.50 smoke test with a disposable data directory.
  *
@@ -14,10 +15,9 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createServer } from "node:net";
 
 const VERSION = "3.8.50";
 const INSTALL_TIMEOUT_MS = 5 * 60_000;
@@ -39,7 +39,10 @@ async function freeLoopbackPort() {
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address();
-  assert(address && typeof address === "object", "Could not reserve a loopback port.");
+  assert(
+    address && typeof address === "object",
+    "Could not reserve a loopback port."
+  );
   const { port } = address;
   await new Promise((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve()))
@@ -134,7 +137,9 @@ async function waitForSecureGateway(child, gatewayOrigin) {
     if (ready) return ready;
     await delay(500);
   }
-  throw new Error("OmniRoute did not become ready with API-key enforcement enabled.");
+  throw new Error(
+    "OmniRoute did not become ready with API-key enforcement enabled."
+  );
 }
 
 async function createAuthenticatedKey(gatewayOrigin, password) {
@@ -163,7 +168,10 @@ async function createAuthenticatedKey(gatewayOrigin, password) {
   const token = cookies
     .map((cookie) => /(?:^|;\s*)auth_token=([^;,\s]+)/.exec(cookie)?.[1])
     .find(Boolean);
-  assert(token, "Management login succeeded but did not return an auth_token cookie.");
+  assert(
+    token,
+    "Management login succeeded but did not return an auth_token cookie."
+  );
 
   const createResponse = await fetch(`${gatewayOrigin}/api/keys`, {
     method: "POST",
@@ -240,9 +248,15 @@ async function main() {
       "omniroute.mjs"
     );
     const metadata = JSON.parse(
-      readFileSync(join(dataDir, "node_modules", "omniroute", "package.json"), "utf8")
+      readFileSync(
+        join(dataDir, "node_modules", "omniroute", "package.json"),
+        "utf8"
+      )
     );
-    assert(metadata.version === VERSION, `Expected OmniRoute ${VERSION}, got ${metadata.version}.`);
+    assert(
+      metadata.version === VERSION,
+      `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
+    );
 
     gateway = spawn(
       process.execPath,
