@@ -830,11 +830,10 @@ export async function stopOmniRoute(): Promise<void> {
         clearTimeout(timer);
         resolve();
       };
-      const killer = spawn(
-        taskkill,
-        ["/PID", String(child.pid), "/T", "/F"],
-        { windowsHide: true, stdio: "ignore" }
-      );
+      const killer = spawn(taskkill, ["/PID", String(child.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
       const timer = setTimeout(() => {
         killer.kill();
         finish();
