@@ -43,6 +43,7 @@ const READS: Record<string, string> = {
   files:
     "events listDirectory readImageAsDataUrl readPptx readText search treeChildren treeRoot",
   git: "branches checkoutStatus currentBranch diff listDirectory prInfo watch worktrees.list",
+  links: "preview",
   localModels: "progress state",
   mcp: "list runtime.events runtime.logs runtime.servers",
   memory: "bots customInstructions.get events",
