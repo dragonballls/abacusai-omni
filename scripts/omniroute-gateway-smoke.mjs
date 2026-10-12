@@ -16,8 +16,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { createServer } from "node:net";
 import { createServer as createHttpServer } from "node:http";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -288,7 +288,9 @@ async function startMockOpenAI() {
           sendJson(400, { error: { message: "Invalid JSON body" } });
           return;
         }
-        if (request.headers.authorization !== "Bearer " + MOCK_UPSTREAM_API_KEY) {
+        if (
+          request.headers.authorization !== "Bearer " + MOCK_UPSTREAM_API_KEY
+        ) {
           sendJson(401, { error: { message: "Invalid mock upstream key" } });
           return;
         }
@@ -323,7 +325,10 @@ async function startMockOpenAI() {
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address();
-  assert(address && typeof address === "object", "Mock upstream did not bind to loopback.");
+  assert(
+    address && typeof address === "object",
+    "Mock upstream did not bind to loopback."
+  );
   return {
     origin: origin(address.port),
     chats,
@@ -334,7 +339,12 @@ async function startMockOpenAI() {
   };
 }
 
-async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, mock) {
+async function assertRoutedChatCompletion(
+  gatewayOrigin,
+  clientKey,
+  authToken,
+  mock
+) {
   const managementHeaders = {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -382,10 +392,7 @@ async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, m
   const connectionId = connectionPayload?.connection?.id;
   assert(
     connectionResponse.status === 201 && typeof connectionId === "string",
-    "Could not create the disposable OpenAI-compatible provider connection (HTTP " +
-      connectionResponse.status +
-      "): " +
-      JSON.stringify(connectionPayload)
+    `Could not create the disposable OpenAI-compatible provider connection (HTTP ${connectionResponse.status}): ${JSON.stringify(connectionPayload)}`
   );
 
   const syncResponse = await fetch(
@@ -409,7 +416,9 @@ async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, m
       JSON.stringify(syncPayload)
   );
 
-  const completionResponse = await fetch(gatewayOrigin + "/v1/chat/completions", {
+  const completionResponse = await fetch(
+    gatewayOrigin + "/v1/chat/completions",
+    {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -424,8 +433,9 @@ async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, m
       stream: false,
     }),
     redirect: "error",
-    signal: AbortSignal.timeout(30_000),
-  });
+      signal: AbortSignal.timeout(30_000),
+    }
+  );
   const completion = await completionResponse.json().catch(() => null);
   assert(
     completionResponse.ok,
@@ -436,8 +446,7 @@ async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, m
   );
   assert(
     completion?.choices?.[0]?.message?.content === "omniroute-smoke-ok",
-    "Auto returned an unexpected response instead of the mocked upstream completion: " +
-      JSON.stringify(completion)
+    `Auto returned an unexpected response instead of the mocked upstream completion: ${JSON.stringify(completion)}`
   );
   assert(
     mock.chats.length > 0 &&
@@ -451,7 +460,8 @@ async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, m
               typeof message.content === "string"
           )
       ),
-    "OmniRoute did not forward an authenticated chat request to the mock upstream."
+    "OmniRoute did not forward an authenticated chat request to the " +
+      "mock upstream."
   );
 }
 
@@ -573,7 +583,9 @@ async function main() {
       mockUpstream
     );
     console.log(
-      `[omniroute-smoke] v${VERSION}: secure loopback startup, real dashboard/CLI API-key provisioning, authenticated model listing, and end-to-end Auto chat completion through a disposable mocked OpenAI-compatible provider passed.`
+      `[omniroute-smoke] v${VERSION}: secure loopback startup, real dashboard/CLI API-key ` +
+        "provisioning, authenticated model listing, and end-to-end Auto chat completion " +
+        "through a disposable mocked OpenAI-compatible provider passed."
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
