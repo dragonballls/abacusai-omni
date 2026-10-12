@@ -219,10 +219,7 @@ async function createCliProvisionedKey(gatewayOrigin, dataDir, entry) {
     },
     45_000
   );
-  assert(
-    result.code === 0,
-    "CLI-token client API-key creation failed."
-  );
+  assert(result.code === 0, "CLI-token client API-key creation failed.");
   const match = /"key"\s*:\s*"([^"]+)"/.exec(result.output);
   assert(
     match && match[1].length >= 16,
@@ -344,7 +341,11 @@ async function main() {
 
     const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
     const cliKey = await createCliProvisionedKey(gatewayOrigin, dataDir, entry);
-    await assertAuthenticatedModels(gatewayOrigin, dashboardKey, "Dashboard-created");
+    await assertAuthenticatedModels(
+      gatewayOrigin,
+      dashboardKey,
+      "Dashboard-created"
+    );
     await assertAuthenticatedModels(gatewayOrigin, cliKey, "CLI-token-created");
     console.log(
       `[omniroute-smoke] v${VERSION}: secure loopback startup, dashboard login, dashboard and CLI-token key creation, and authenticated /v1/models checks passed (upstream providers intentionally unconfigured).`
