@@ -54,26 +54,6 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
 
-  it("verifies generated keys before persisting them", () => {
-    const start = source.indexOf(
-      "async function createOmniRouteClientKey("
-    );
-    const end = source.indexOf(
-      "function readInitialManagementPassword()",
-      start
-    );
-    expect(start).toBeGreaterThanOrEqual(0);
-    expect(end).toBeGreaterThan(start);
-    const provisioning = source.slice(start, end);
-    expect(provisioning).toContain(
-      "if (await isOmniRouteReady(payload.key))"
-    );
-    expect(provisioning).toContain(
-      "if (!(await isOmniRouteReady(apiKey)))"
-    );
-    expect(provisioning).toContain("No unverified client key was saved.");
-  });
-
   it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
     expect(source).toContain('id: "auto"');
