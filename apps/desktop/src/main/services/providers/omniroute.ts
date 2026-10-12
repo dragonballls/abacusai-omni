@@ -788,22 +788,57 @@ export async function openOmniRouteWindow(): Promise<{
 }
 
 /**
- * Stop only the gateway process this app started; never stop a shared instance.
+ * Stop only the gateway process tree this app started; never stop a shared instance.
+ * OmniRoute's CLI starts a supervisor and a separate server child. On Windows,
+ * terminating just the CLI can orphan that server, so taskkill is scoped to the
+ * owned CLI PID and its descendants.
  */
 export async function stopOmniRoute(): Promise<void> {
   const child = gatewayProcess;
   gatewayProcess = null;
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
 
+  if (process.platform === "win32" && child.pid) {
+    const taskkill = join(
+      process.env.SystemRoot || process.env.WINDIR || "C:\\Windows",
+      "System32",
+      "taskkill.exe"
+    );
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const killer = spawn(
+        taskkill,
+        ["/PID", String(child.pid), "/T", "/F"],
+        { windowsHide: true, stdio: "ignore" }
+      );
+      const timer = setTimeout(() => {
+        killer.kill();
+        finish();
+      }, 5000);
+      killer.once("error", finish);
+      killer.once("close", finish);
+    });
+  } else {
+    child.kill("SIGTERM");
+  }
+
+  if (child.exitCode !== null || child.signalCode !== null) return;
   await new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) child.kill();
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
       resolve();
-    }, 2500);
+    }, 2000);
     child.once("exit", () => {
       clearTimeout(timer);
       resolve();
     });
-    child.kill();
   });
 }
