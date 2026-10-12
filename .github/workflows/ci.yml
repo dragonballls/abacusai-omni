@@ -73,12 +73,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # TEMPORARY: reveal Oxfmt's exact output for the one failing integration file.
-      # Remove this step after applying the printed formatter diff to the branch.
-      - name: Temporary OmniRoute formatter diagnostic
-        run: |
-          pnpm exec oxfmt apps/desktop/src/main/services/providers/omniroute.ts
-          git diff -- apps/desktop/src/main/services/providers/omniroute.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
