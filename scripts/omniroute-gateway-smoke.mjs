@@ -17,6 +17,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -193,7 +194,7 @@ async function createAuthenticatedKey(gatewayOrigin, password) {
       payload.key.length >= 16,
     `Real API-key creation failed (HTTP ${createResponse.status}).`
   );
-  return payload.key;
+  return { key: payload.key, authToken: token };
 }
 
 function deriveCliToken(entry, salt) {
@@ -249,6 +250,211 @@ async function assertAuthenticatedModels(gatewayOrigin, clientKey, label) {
   );
 }
 
+const MOCK_UPSTREAM_API_KEY = "abacus-omniroute-smoke-upstream-key";
+
+async function startMockOpenAI() {
+  const chats = [];
+  const server = createHttpServer(async (request, response) => {
+    const chunks = [];
+    const sendJson = (status, payload) => {
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(JSON.stringify(payload));
+    };
+    try {
+      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      const pathname = new URL(
+        request.url || "/",
+        "http://127.0.0.1"
+      ).pathname;
+      if (request.method === "GET" && pathname === "/v1/models") {
+        sendJson(200, {
+          object: "list",
+          data: [
+            {
+              id: "smoke-model",
+              object: "model",
+              created: 0,
+              owned_by: "abacus-omniroute-smoke",
+            },
+          ],
+        });
+        return;
+      }
+      if (request.method === "POST" && pathname === "/v1/chat/completions") {
+        let body;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        } catch {
+          sendJson(400, { error: { message: "Invalid JSON body" } });
+          return;
+        }
+        if (request.headers.authorization !== "Bearer " + MOCK_UPSTREAM_API_KEY) {
+          sendJson(401, { error: { message: "Invalid mock upstream key" } });
+          return;
+        }
+        chats.push({ body, authorization: request.headers.authorization });
+        sendJson(200, {
+          id: "chatcmpl-abacus-omniroute-smoke",
+          object: "chat.completion",
+          created: 0,
+          model: body.model || "smoke-model",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content: "omniroute-smoke-ok" },
+              finish_reason: "stop",
+            },
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        });
+        return;
+      }
+      sendJson(404, { error: { message: "Unknown mock upstream path" } });
+    } catch (error) {
+      sendJson(500, {
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert(address && typeof address === "object", "Mock upstream did not bind to loopback.");
+  return {
+    origin: origin(address.port),
+    chats,
+    close: () =>
+      new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      ),
+  };
+}
+
+async function assertRoutedChatCompletion(gatewayOrigin, clientKey, authToken, mock) {
+  const managementHeaders = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Cookie: "auth_token=" + authToken,
+    Origin: gatewayOrigin,
+  };
+
+  const nodeResponse = await fetch(gatewayOrigin + "/api/provider-nodes", {
+    method: "POST",
+    headers: managementHeaders,
+    body: JSON.stringify({
+      name: "Abacus OmniRoute smoke upstream",
+      prefix: "abacus-omniroute-smoke",
+      apiType: "chat",
+      type: "openai-compatible",
+      baseUrl: mock.origin + "/v1",
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+  });
+  const nodePayload = await nodeResponse.json().catch(() => null);
+  const node = nodePayload?.node;
+  assert(
+    nodeResponse.status === 201 && typeof node?.id === "string",
+    "Could not register the disposable OpenAI-compatible provider node (HTTP " +
+      nodeResponse.status +
+      "): " +
+      JSON.stringify(nodePayload)
+  );
+
+  const connectionResponse = await fetch(gatewayOrigin + "/api/providers", {
+    method: "POST",
+    headers: managementHeaders,
+    body: JSON.stringify({
+      provider: node.id,
+      apiKey: MOCK_UPSTREAM_API_KEY,
+      name: "Abacus OmniRoute smoke connection",
+      priority: 1,
+      defaultModel: "smoke-model",
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+  });
+  const connectionPayload = await connectionResponse.json().catch(() => null);
+  const connectionId = connectionPayload?.connection?.id;
+  assert(
+    connectionResponse.status === 201 && typeof connectionId === "string",
+    "Could not create the disposable OpenAI-compatible provider connection (HTTP " +
+      connectionResponse.status +
+      "): " +
+      JSON.stringify(connectionPayload)
+  );
+
+  const syncResponse = await fetch(
+    gatewayOrigin +
+      "/api/providers/" +
+      encodeURIComponent(connectionId) +
+      "/sync-models?mode=import",
+    {
+      method: "POST",
+      headers: managementHeaders,
+      redirect: "error",
+      signal: AbortSignal.timeout(30_000),
+    }
+  );
+  const syncPayload = await syncResponse.json().catch(() => null);
+  assert(
+    syncResponse.ok && syncPayload?.ok === true,
+    "Mock provider model discovery failed (HTTP " +
+      syncResponse.status +
+      "): " +
+      JSON.stringify(syncPayload)
+  );
+
+  const completionResponse = await fetch(gatewayOrigin + "/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + clientKey,
+    },
+    body: JSON.stringify({
+      model: "auto",
+      messages: [
+        { role: "user", content: "Reply with any short greeting." },
+      ],
+      stream: false,
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
+  });
+  const completion = await completionResponse.json().catch(() => null);
+  assert(
+    completionResponse.ok,
+    "Authenticated Auto chat completion failed (HTTP " +
+      completionResponse.status +
+      "): " +
+      JSON.stringify(completion)
+  );
+  assert(
+    completion?.choices?.[0]?.message?.content === "omniroute-smoke-ok",
+    "Auto returned an unexpected response instead of the mocked upstream completion: " +
+      JSON.stringify(completion)
+  );
+  assert(
+    mock.chats.length > 0 &&
+      mock.chats.some(
+        (entry) =>
+          entry.authorization === "Bearer " + MOCK_UPSTREAM_API_KEY &&
+          Array.isArray(entry.body?.messages) &&
+          entry.body.messages.some(
+            (message) =>
+              message.role === "user" &&
+              typeof message.content === "string"
+          )
+      ),
+    "OmniRoute did not forward an authenticated chat request to the mock upstream."
+  );
+}
+
 async function main() {
   const temp = mkdtempSync(join(tmpdir(), "abacus-omniroute-smoke-"));
   const dataDir = join(temp, "data");
@@ -265,6 +471,7 @@ async function main() {
   ].join("\n");
   let gateway = null;
   let gatewayOutput = "";
+  let mockUpstream = null;
 
   try {
     // Match the app's first-install order: create random secrets before npm's
@@ -326,6 +533,7 @@ async function main() {
           DASHBOARD_PORT: String(port),
           OMNIROUTE_SERVER_HOST: "127.0.0.1",
           OMNIROUTE_TELEMETRY: "false",
+          OMNIROUTE_ALLOW_PRIVATE_PROVIDER_URLS: "true",
           REQUIRE_API_KEY: "true",
           NODE_ENV: "production",
           JWT_SECRET: envFile.match(/^JWT_SECRET=(.+)$/m)[1],
@@ -345,7 +553,10 @@ async function main() {
     });
     await waitForSecureGateway(gateway, gatewayOrigin);
 
-    const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
+    const { key: dashboardKey, authToken } = await createAuthenticatedKey(
+      gatewayOrigin,
+      password
+    );
     const cliKey = await createCliProvisionedKey(gatewayOrigin, entry, cliSalt);
     await assertAuthenticatedModels(
       gatewayOrigin,
@@ -353,14 +564,23 @@ async function main() {
       "Dashboard-created"
     );
     await assertAuthenticatedModels(gatewayOrigin, cliKey, "CLI-token-created");
+
+    mockUpstream = await startMockOpenAI();
+    await assertRoutedChatCompletion(
+      gatewayOrigin,
+      dashboardKey,
+      authToken,
+      mockUpstream
+    );
     console.log(
-      `[omniroute-smoke] v${VERSION}: secure loopback startup, dashboard login, dashboard and CLI-token key creation, and authenticated /v1/models checks passed (upstream providers intentionally unconfigured).`
+      `[omniroute-smoke] v${VERSION}: secure loopback startup, real dashboard/CLI API-key provisioning, authenticated model listing, and end-to-end Auto chat completion through a disposable mocked OpenAI-compatible provider passed.`
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${message}\nLast OmniRoute output:\n${gatewayOutput}`);
   } finally {
     await stopGateway(gateway);
+    if (mockUpstream) await mockUpstream.close();
     rmSync(temp, { recursive: true, force: true });
   }
 }
