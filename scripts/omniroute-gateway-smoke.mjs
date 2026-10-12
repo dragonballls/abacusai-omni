@@ -8,6 +8,7 @@
  */
 import { randomBytes } from "node:crypto";
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -160,7 +161,7 @@ async function createAuthenticatedKey(gatewayOrigin, password) {
       ? headers.getSetCookie()
       : [headers.get("set-cookie") ?? ""];
   const token = cookies
-    .map((cookie) => /(?:^|;\\s*)auth_token=([^;,\\s]+)/.exec(cookie)?.[1])
+    .map((cookie) => /(?:^|;\s*)auth_token=([^;,\s]+)/.exec(cookie)?.[1])
     .find(Boolean);
   assert(token, "Management login succeeded but did not return an auth_token cookie.");
 
@@ -205,9 +206,7 @@ async function main() {
   try {
     // Match the app's first-install order: create random secrets before npm's
     // install scripts can initialize the data folder.
-    await import("node:fs").then(({ mkdirSync }) =>
-      mkdirSync(dataDir, { recursive: true })
-    );
+    mkdirSync(dataDir, { recursive: true });
     writeFileSync(join(dataDir, ".env"), envFile, {
       encoding: "utf8",
       flag: "wx",
