@@ -240,8 +240,8 @@ async function createCliProvisionedKey(
     45_000
   );
   const safeOutput = result.output
-    .replace(/("(?:key|token|api_key|apikey|authorization)"\\s*:\\s*")[^"]+(")/gi, "$1[redacted]$2")
-    .replace(/(Bearer\\s+)\\S+/gi, "$1[redacted]")
+    .replace(/("(?:key|token|api_key|apikey|authorization)"\s*:\s*")[^"]+(")/gi, "$1[redacted]$2")
+    .replace(/(Bearer\s+)\S+/gi, "$1[redacted]")
     .slice(-1200);
   assert(
     result.code === 0,
