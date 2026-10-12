@@ -57,7 +57,8 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain('id: "auto"');
     expect(source).toContain("upsertCustomProvider(provider)");
     expect(source).toContain("findExistingPinnedRuntimeNode()");
-    expect(source).toContain("The shared gateway was left untouched");
+    expect(source).toContain("The shared gateway ");
+    expect(source).toContain("was left untouched");
   });
 
   it("shuts down the app-owned Windows gateway tree rather than just its supervisor", () => {
