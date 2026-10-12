@@ -2,7 +2,6 @@ import type { ArtifactRow } from "@abacus-ai/contract/contract/rows";
 import { sessionConversationKey } from "@abacus-ai/contract/conversation-scope";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useSearch } from "@tanstack/react-router";
-import { useArtifactVirtualizer } from "./use-artifact-virtualizer";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +46,7 @@ import {
 } from "./data";
 import { artifactStressRows } from "./gallery";
 import { ArtifactThumbnail } from "./thumbnail";
+import { useArtifactVirtualizer } from "./use-artifact-virtualizer";
 const useArtifacts = (fixtureRows?: readonly ArtifactRow[]) => {
   const c = useCollections();
   const liveRows = useLiveQuery(c.artifacts).data ?? [];
