@@ -346,11 +346,7 @@ async function main() {
     await waitForSecureGateway(gateway, gatewayOrigin);
 
     const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
-    const cliKey = await createCliProvisionedKey(
-      gatewayOrigin,
-      entry,
-      cliSalt
-    );
+    const cliKey = await createCliProvisionedKey(gatewayOrigin, entry, cliSalt);
     await assertAuthenticatedModels(
       gatewayOrigin,
       dashboardKey,

@@ -408,48 +408,6 @@ function persistOmniRouteClientKey(apiKey: string): string {
   return apiKey.trim();
 }
 
-function extractCreatedClientKey(stdout: string): string | null {
-  // CLI diagnostics may precede its JSON response. Parse complete JSON objects
-  // without assuming that the response starts at byte zero.
-  for (
-    let start = stdout.indexOf("{");
-    start >= 0;
-    start = stdout.indexOf("{", start + 1)
-  ) {
-    let depth = 0;
-    let quoted = false;
-    let escaped = false;
-    for (let end = start; end < stdout.length; end++) {
-      const char = stdout[end];
-      if (quoted) {
-        if (escaped) escaped = false;
-        else if (char === "\\") escaped = true;
-        else if (char === '"') quoted = false;
-        continue;
-      }
-      if (char === '"') quoted = true;
-      else if (char === "{") depth++;
-      else if (char === "}") {
-        depth--;
-        if (depth === 0) {
-          try {
-            const parsed = JSON.parse(stdout.slice(start, end + 1)) as {
-              key?: unknown;
-            };
-            if (typeof parsed.key === "string" && parsed.key.length >= 16) {
-              return parsed.key;
-            }
-          } catch {
-            // Keep scanning later object starts in case logs contained braces.
-          }
-          break;
-        }
-      }
-    }
-  }
-  return null;
-}
-
 function readOmniRouteCliSalt(): string {
   const builtinDefaultSalt = "omniroute-cli-auth-v1";
   if (process.env.OMNIROUTE_CLI_SALT !== undefined) {
