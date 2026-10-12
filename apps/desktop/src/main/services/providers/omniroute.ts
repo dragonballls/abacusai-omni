@@ -471,7 +471,13 @@ async function createOmniRouteClientKey(
       if (response.ok) {
         const payload = (await response.json()) as { key?: unknown };
         if (typeof payload.key === "string" && payload.key.length >= 16) {
-          return persistOmniRouteClientKey(payload.key);
+          // A successful create response is not proof that OmniRoute accepts
+          // the key on the OpenAI-compatible endpoint. Verify it before saving.
+          if (await isOmniRouteReady(payload.key)) {
+            return persistOmniRouteClientKey(payload.key);
+          }
+          // Continue to the CLI-token route below. Some 3.8.50 installs have
+          // returned dashboard-created keys that fail Bearer authentication.
         }
       }
     } catch {
@@ -521,6 +527,12 @@ async function createOmniRouteClientKey(
   const apiKey = extractCreatedClientKey(result.stdout);
   if (!apiKey) {
     throw new Error("OmniRoute did not return a valid client API key.");
+  }
+  if (!(await isOmniRouteReady(apiKey))) {
+    throw new Error(
+      "OmniRoute created a client key, but the authenticated /v1/models " +
+        "check rejected it. No unverified client key was saved."
+    );
   }
   return persistOmniRouteClientKey(apiKey);
 }
