@@ -98,7 +98,7 @@ export const run = async ({ serve }) => {
 
 mkdirSync(OUT, { recursive: true });
 const entryFile = join(OUT, "entry.ts");
-const bundleFile = join(BUILD, "smoke.mjs");
+const bundleFile = join(BUILD, "smoke.cjs");
 writeFileSync(entryFile, entry);
 mkdirSync(BUILD, { recursive: true });
 
@@ -142,9 +142,9 @@ await build({
   logLevel: "silent",
   output: {
     dir: BUILD,
-    entryFileNames: "smoke.mjs",
-    chunkFileNames: "chunks/[name]-[hash].mjs",
-    format: "esm",
+    entryFileNames: "smoke.cjs",
+    chunkFileNames: "chunks/[name]-[hash].cjs",
+    format: "cjs",
   },
   write: true,
 });
