@@ -7,8 +7,6 @@
  * eligible for compilation. Sync scroll notifications flush immediately to
  * keep the visible window aligned with the scroll position.
  */
-import { flushSync } from "react-dom";
-import { useEffect, useLayoutEffect, useReducer, useState } from "react";
 import {
   Virtualizer,
   elementScroll,
@@ -17,6 +15,8 @@ import {
   type PartialKeys,
   type VirtualizerOptions,
 } from "@tanstack/react-virtual";
+import { useEffect, useLayoutEffect, useReducer, useState } from "react";
+import { flushSync } from "react-dom";
 
 const useIsomorphicLayoutEffect =
   typeof document === "undefined" ? useEffect : useLayoutEffect;
@@ -47,8 +47,11 @@ export function useArtifactVirtualizer<
       instance: Virtualizer<TScrollElement, TItemElement>,
       sync: boolean,
     ) => {
-      if (sync) flushSync(rerender);
-      else rerender();
+      if (sync) {
+        flushSync(rerender);
+      } else {
+        rerender();
+      }
       options.onChange?.(instance, sync);
     },
   };
@@ -57,7 +60,7 @@ export function useArtifactVirtualizer<
   );
 
   instance.setOptions(resolvedOptions);
-  useIsomorphicLayoutEffect(() => instance._didMount(), []);
+  useIsomorphicLayoutEffect(() => instance._didMount(), [instance]);
   useIsomorphicLayoutEffect(() => instance._willUpdate());
 
   return instance;
