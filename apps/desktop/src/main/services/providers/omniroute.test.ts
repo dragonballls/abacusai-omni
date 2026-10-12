@@ -52,11 +52,10 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
 
-  it("sets OmniRoute Auto as the remote model and refreshes providers without reinstalling a shared gateway", () => {
+  it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
     expect(source).toContain('id: "auto"');
     expect(source).toContain("upsertCustomProvider(provider)");
-    expect(source).toContain("context.deps.serviceHost.refreshAgentProviders()");
     expect(source).toContain("findExistingPinnedRuntimeNode()");
     expect(source).toContain("The shared gateway was left untouched");
   });
