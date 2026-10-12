@@ -73,7 +73,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec oxfmt scripts/omniroute-gateway-smoke.mjs && git diff -- scripts/omniroute-gateway-smoke.mjs && pnpm run format:check
+      - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
       # import) belong to no workspace package, so `pnpm run typecheck` never

@@ -15,8 +15,8 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 import { createServer as createHttpServer } from "node:http";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -262,10 +262,7 @@ async function startMockOpenAI() {
     };
     try {
       for await (const chunk of request) chunks.push(Buffer.from(chunk));
-      const pathname = new URL(
-        request.url || "/",
-        "http://127.0.0.1"
-      ).pathname;
+      const pathname = new URL(request.url || "/", "http://127.0.0.1").pathname;
       if (request.method === "GET" && pathname === "/v1/models") {
         sendJson(200, {
           object: "list",
@@ -289,7 +286,8 @@ async function startMockOpenAI() {
           return;
         }
         if (
-          request.headers.authorization !== "Bearer " + MOCK_UPSTREAM_API_KEY
+          request.headers.authorization !==
+          "Bearer " + MOCK_UPSTREAM_API_KEY
         ) {
           sendJson(401, { error: { message: "Invalid mock upstream key" } });
           return;
@@ -419,20 +417,18 @@ async function assertRoutedChatCompletion(
   const completionResponse = await fetch(
     gatewayOrigin + "/v1/chat/completions",
     {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + clientKey,
-    },
-    body: JSON.stringify({
-      model: "auto",
-      messages: [
-        { role: "user", content: "Reply with any short greeting." },
-      ],
-      stream: false,
-    }),
-    redirect: "error",
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + clientKey,
+      },
+      body: JSON.stringify({
+        model: "auto",
+        messages: [{ role: "user", content: "Reply with any short greeting." }],
+        stream: false,
+      }),
+      redirect: "error",
       signal: AbortSignal.timeout(30_000),
     }
   );
@@ -456,8 +452,7 @@ async function assertRoutedChatCompletion(
           Array.isArray(entry.body?.messages) &&
           entry.body.messages.some(
             (message) =>
-              message.role === "user" &&
-              typeof message.content === "string"
+              message.role === "user" && typeof message.content === "string"
           )
       ),
     "OmniRoute did not forward an authenticated chat request to the " +
