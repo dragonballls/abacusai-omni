@@ -2,7 +2,7 @@ import type { ArtifactRow } from "@abacus-ai/contract/contract/rows";
 import { sessionConversationKey } from "@abacus-ai/contract/conversation-scope";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useSearch } from "@tanstack/react-router";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useArtifactVirtualizer } from "./use-artifact-virtualizer";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
@@ -84,8 +84,7 @@ const useArtifactWindow = (
   selected?: string
 ) => {
   "use no memo";
-  // oxlint-disable-next-line incompatible-library -- This hook explicitly opts out of compiler caching.
-  const virtualizer = useVirtualizer({
+  const virtualizer = useArtifactVirtualizer({
     count: Math.ceil(entries.length / columns),
     getScrollElement: () => viewport.current,
     estimateSize: () => (list ? 72 : 190),
