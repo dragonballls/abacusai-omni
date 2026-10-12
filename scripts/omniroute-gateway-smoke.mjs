@@ -195,6 +195,58 @@ async function createAuthenticatedKey(gatewayOrigin, password) {
   return payload.key;
 }
 
+async function createCliProvisionedKey(gatewayOrigin, dataDir, entry) {
+  const result = await runCommand(
+    process.execPath,
+    [
+      entry,
+      "--output",
+      "json",
+      "--base-url",
+      gatewayOrigin,
+      "api-keys",
+      "post-api-keys",
+      "--body",
+      JSON.stringify({ name: "AbacusAI Bot CLI fallback smoke test" }),
+    ],
+    {
+      cwd: dataDir,
+      env: {
+        ...process.env,
+        DATA_DIR: dataDir,
+        OMNIROUTE_API_KEY: "",
+      },
+    },
+    45_000
+  );
+  assert(
+    result.code === 0,
+    "CLI-token client API-key creation failed."
+  );
+  const match = /"key"\s*:\s*"([^"]+)"/.exec(result.output);
+  assert(
+    match && match[1].length >= 16,
+    "CLI-token key creation returned no usable API key."
+  );
+  return match[1];
+}
+
+async function assertAuthenticatedModels(gatewayOrigin, clientKey, label) {
+  const response = await fetch(`${gatewayOrigin}/v1/models`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${clientKey}`,
+    },
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+  });
+  const payload = await response.json().catch(() => null);
+  assert(
+    response.ok && Array.isArray(payload?.data),
+    `${label} API key was rejected by /v1/models (HTTP ${response.status}).`
+  );
+}
+
 async function main() {
   const temp = mkdtempSync(join(tmpdir(), "abacus-omniroute-smoke-"));
   const dataDir = join(temp, "data");
@@ -290,22 +342,12 @@ async function main() {
     });
     await waitForSecureGateway(gateway, gatewayOrigin);
 
-    const clientKey = await createAuthenticatedKey(gatewayOrigin, password);
-    const modelsResponse = await fetch(`${gatewayOrigin}/v1/models`, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${clientKey}`,
-      },
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-    });
-    const models = await modelsResponse.json().catch(() => null);
-    assert(
-      modelsResponse.ok && Array.isArray(models?.data),
-      `Generated client key was not accepted by /v1/models (HTTP ${modelsResponse.status}).`
-    );
+    const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
+    const cliKey = await createCliProvisionedKey(gatewayOrigin, dataDir, entry);
+    await assertAuthenticatedModels(gatewayOrigin, dashboardKey, "Dashboard-created");
+    await assertAuthenticatedModels(gatewayOrigin, cliKey, "CLI-token-created");
     console.log(
-      `[omniroute-smoke] v${VERSION}: secure loopback startup, dashboard login, real key creation, and authenticated /v1/models passed (upstream providers intentionally unconfigured).`
+      `[omniroute-smoke] v${VERSION}: secure loopback startup, dashboard login, dashboard and CLI-token key creation, and authenticated /v1/models checks passed (upstream providers intentionally unconfigured).`
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
