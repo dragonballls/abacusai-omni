@@ -126,7 +126,7 @@ jobs:
             base="$BASE_SHA"
           fi
 
-          changed_paths="$(git diff --name-only "$base...HEAD")"
+          changed_paths="$(git diff --name-only "$base" HEAD)"
           if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/(ui|lib|styles)/|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|\.nvmrc$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
             pnpm --filter @abacus-ai/desktop run check:ui-registry
           else
