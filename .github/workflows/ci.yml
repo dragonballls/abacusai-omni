@@ -73,6 +73,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # TEMPORARY: capture the exact Oxfmt output for the new runtime smoke script.
+      - name: Temporary Oxfmt smoke-script diagnostic
+        run: |
+          pnpm exec oxfmt scripts/omniroute-gateway-smoke.mjs
+          git diff -- scripts/omniroute-gateway-smoke.mjs
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
