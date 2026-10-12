@@ -33,7 +33,7 @@ export function useArtifactVirtualizer<
   TScrollElement extends Element,
   TItemElement extends Element,
 >(
-  options: ArtifactVirtualizerOptions<TScrollElement, TItemElement>,
+  options: ArtifactVirtualizerOptions<TScrollElement, TItemElement>
 ): Virtualizer<TScrollElement, TItemElement> {
   "use no memo";
 
@@ -45,7 +45,7 @@ export function useArtifactVirtualizer<
     ...options,
     onChange: (
       instance: Virtualizer<TScrollElement, TItemElement>,
-      sync: boolean,
+      sync: boolean
     ) => {
       if (sync) {
         flushSync(rerender);
@@ -56,7 +56,7 @@ export function useArtifactVirtualizer<
     },
   };
   const [instance] = useState(
-    () => new Virtualizer<TScrollElement, TItemElement>(resolvedOptions),
+    () => new Virtualizer<TScrollElement, TItemElement>(resolvedOptions)
   );
 
   instance.setOptions(resolvedOptions);
