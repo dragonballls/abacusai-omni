@@ -88,9 +88,8 @@ export const ModelsPage = ({
       setOmniRouteMessage(result.message);
     } catch (cause) {
       setError(errorText(cause));
-    } finally {
-      setOmniRouteBusy(false);
     }
+    setOmniRouteBusy(false);
   };
   const now = useNow();
   const mark = creditMarkState(
