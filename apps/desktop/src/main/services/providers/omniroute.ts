@@ -490,7 +490,9 @@ function readOmniRouteCliSalt(): string {
  */
 function deriveOmniRouteCliToken(): string | null {
   try {
-    const machineIdModule = createRequire(omniRouteEntry)("node-machine-id") as {
+    const machineIdModule = createRequire(omniRouteEntry)(
+      "node-machine-id"
+    ) as {
       machineIdSync?: (original?: boolean) => string;
       default?: { machineIdSync?: (original?: boolean) => string };
     };

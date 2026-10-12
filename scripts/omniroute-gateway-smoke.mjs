@@ -240,12 +240,16 @@ async function createCliProvisionedKey(
     45_000
   );
   const safeOutput = result.output
-    .replace(/("(?:key|token|api_key|apikey|authorization)"\s*:\s*")[^"]+(")/gi, "$1[redacted]$2")
+    .replace(
+      /("(?:key|token|api_key|apikey|authorization)"\s*:\s*")[^"]+(")/gi,
+      "$1[redacted]$2"
+    )
     .replace(/(Bearer\s+)\S+/gi, "$1[redacted]")
     .slice(-1200);
   assert(
     result.code === 0,
-    `CLI-token client API-key creation failed (exit ${result.code}). ${safeOutput}`
+    `CLI-token client API-key creation failed (exit ${result.code}). ` +
+      safeOutput
   );
   const match = /"key"\s*:\s*"([^"]+)"/.exec(result.output);
   assert(
