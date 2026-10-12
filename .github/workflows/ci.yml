@@ -73,6 +73,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TEMP diagnostic - print Oxfmt's exact edits for the artifact adapter
+        run: |
+          pnpm exec oxfmt apps/web/src/features/artifacts/use-artifact-virtualizer.ts
+          git diff -- apps/web/src/features/artifacts/use-artifact-virtualizer.ts
+          exit 1
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
