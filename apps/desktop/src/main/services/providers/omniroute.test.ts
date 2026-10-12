@@ -40,6 +40,8 @@ describe("local OmniRoute gateway security contract", () => {
     );
     expect(source).toContain("chmodSync(omniRouteClientKeyPath, 0o600)");
     expect(source).toContain("OMNIROUTE_CLI_SALT");
+    expect(source).toContain("deriveOmniRouteCliToken");
+    expect(source).toContain("OMNIROUTE_CLI_TOKEN: cliToken");
     expect(source).toContain(
       'OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}'
     );

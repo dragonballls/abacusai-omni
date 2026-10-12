@@ -6,7 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
  * data directory. Upstream provider credentials are entered in OmniRoute's
  * own dashboard and are never copied into AbacusAI Bot settings.
  */
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -15,6 +15,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
 
 import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
@@ -449,6 +450,64 @@ function extractCreatedClientKey(stdout: string): string | null {
   return null;
 }
 
+function readOmniRouteCliSalt(): string {
+  const builtinDefaultSalt = "omniroute-cli-auth-v1";
+  if (process.env.OMNIROUTE_CLI_SALT !== undefined) {
+    return process.env.OMNIROUTE_CLI_SALT || builtinDefaultSalt;
+  }
+
+  try {
+    const contents = readFileSync(join(omniRouteDataDir, ".env"), "utf8");
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const separator = trimmed.indexOf("=");
+      if (
+        separator < 0 ||
+        trimmed.slice(0, separator).trim() !== "OMNIROUTE_CLI_SALT"
+      ) {
+        continue;
+      }
+      let value = trimmed.slice(separator + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      return value || builtinDefaultSalt;
+    }
+  } catch {
+    // Older shared installations may use OmniRoute's built-in salt.
+  }
+  return builtinDefaultSalt;
+}
+
+/**
+ * Match OmniRoute 3.8.50's server-side machine-token derivation locally.
+ * Only the HMAC token is sent, as a loopback-only CLI header; the machine ID
+ * itself never leaves this process.
+ */
+function deriveOmniRouteCliToken(): string | null {
+  try {
+    const machineIdModule = createRequire(omniRouteEntry)("node-machine-id") as {
+      machineIdSync?: (original?: boolean) => string;
+      default?: { machineIdSync?: (original?: boolean) => string };
+    };
+    const machineIdSync =
+      machineIdModule.machineIdSync ||
+      machineIdModule.default?.machineIdSync;
+    if (typeof machineIdSync !== "function") return null;
+    const rawMachineId = machineIdSync(true);
+    if (!rawMachineId) return null;
+    return createHmac("sha256", rawMachineId)
+      .update(readOmniRouteCliSalt())
+      .digest("hex");
+  } catch {
+    return null;
+  }
+}
+
 async function createOmniRouteClientKey(
   node: string | null,
   allowCliFallback: boolean
@@ -502,6 +561,13 @@ async function createOmniRouteClientKey(
         "was left untouched; verify dashboard login or the OmniRoute 3.8.50 install."
     );
   }
+  const cliToken = deriveOmniRouteCliToken();
+  if (!cliToken) {
+    throw new Error(
+      "OmniRoute's local CLI-token could not be derived from this installation. " +
+        "The existing gateway was left running and untouched."
+    );
+  }
   const result = await runCommand(
     node,
     [
@@ -516,7 +582,11 @@ async function createOmniRouteClientKey(
       JSON.stringify({ name: "AbacusAI Bot" }),
     ],
     45_000,
-    { ...runtimeEnvironment(false), OMNIROUTE_API_KEY: "" }
+    {
+      ...runtimeEnvironment(false),
+      OMNIROUTE_API_KEY: "",
+      OMNIROUTE_CLI_TOKEN: cliToken,
+    }
   );
   if (result.code !== 0) {
     throw new Error(

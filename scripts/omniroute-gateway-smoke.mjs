@@ -7,7 +7,8 @@ import { spawn } from "node:child_process";
  * authentication on /v1/models, and authenticated model discovery. No upstream
  * credential is needed, and no persistent user data is touched.
  */
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
 import {
   mkdirSync,
   mkdtempSync,
@@ -195,7 +196,25 @@ async function createAuthenticatedKey(gatewayOrigin, password) {
   return payload.key;
 }
 
-async function createCliProvisionedKey(gatewayOrigin, dataDir, entry) {
+function deriveCliToken(entry, salt) {
+  const machineIdModule = createRequire(entry)("node-machine-id");
+  const machineIdSync =
+    machineIdModule.machineIdSync || machineIdModule.default?.machineIdSync;
+  assert(
+    typeof machineIdSync === "function",
+    "Could not load OmniRoute's machine-id implementation."
+  );
+  const rawMachineId = machineIdSync(true);
+  assert(rawMachineId, "Could not derive the local OmniRoute machine ID.");
+  return createHmac("sha256", rawMachineId).update(salt).digest("hex");
+}
+
+async function createCliProvisionedKey(
+  gatewayOrigin,
+  dataDir,
+  entry,
+  cliSalt
+) {
   const result = await runCommand(
     process.execPath,
     [
@@ -215,11 +234,19 @@ async function createCliProvisionedKey(gatewayOrigin, dataDir, entry) {
         ...process.env,
         DATA_DIR: dataDir,
         OMNIROUTE_API_KEY: "",
+        OMNIROUTE_CLI_TOKEN: deriveCliToken(entry, cliSalt),
       },
     },
     45_000
   );
-  assert(result.code === 0, "CLI-token client API-key creation failed.");
+  const safeOutput = result.output
+    .replace(/("(?:key|token|api_key|apikey|authorization)"\\s*:\\s*")[^"]+(")/gi, "$1[redacted]$2")
+    .replace(/(Bearer\\s+)\\S+/gi, "$1[redacted]")
+    .slice(-1200);
+  assert(
+    result.code === 0,
+    `CLI-token client API-key creation failed (exit ${result.code}). ${safeOutput}`
+  );
   const match = /"key"\s*:\s*"([^"]+)"/.exec(result.output);
   assert(
     match && match[1].length >= 16,
@@ -250,10 +277,11 @@ async function main() {
   const port = await freeLoopbackPort();
   const gatewayOrigin = origin(port);
   const password = randomBytes(32).toString("base64url");
+  const cliSalt = randomBytes(32).toString("hex");
   const envFile = [
     `JWT_SECRET=${randomBytes(48).toString("base64url")}`,
     `API_KEY_SECRET=${randomBytes(32).toString("hex")}`,
-    `OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}`,
+    `OMNIROUTE_CLI_SALT=${cliSalt}`,
     `INITIAL_PASSWORD=${password}`,
     "",
   ].join("\n");
@@ -324,7 +352,7 @@ async function main() {
           NODE_ENV: "production",
           JWT_SECRET: envFile.match(/^JWT_SECRET=(.+)$/m)[1],
           API_KEY_SECRET: envFile.match(/^API_KEY_SECRET=(.+)$/m)[1],
-          OMNIROUTE_CLI_SALT: envFile.match(/^OMNIROUTE_CLI_SALT=(.+)$/m)[1],
+          OMNIROUTE_CLI_SALT: cliSalt,
           INITIAL_PASSWORD: password,
         },
         windowsHide: true,
@@ -340,7 +368,12 @@ async function main() {
     await waitForSecureGateway(gateway, gatewayOrigin);
 
     const dashboardKey = await createAuthenticatedKey(gatewayOrigin, password);
-    const cliKey = await createCliProvisionedKey(gatewayOrigin, dataDir, entry);
+    const cliKey = await createCliProvisionedKey(
+      gatewayOrigin,
+      dataDir,
+      entry,
+      cliSalt
+    );
     await assertAuthenticatedModels(
       gatewayOrigin,
       dashboardKey,
