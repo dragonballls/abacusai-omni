@@ -9,9 +9,9 @@ permissions:
 jobs:
   review:
     name: Review dependency changes
-    # Dependency review is free for public repositories. Keeping the workflow
-    # gated while this repository is private lets it switch on automatically at
-    # open-source launch without making today's PRs fail on an unavailable API.
+    # Run for public repositories. GitHub's dependency-review endpoint
+    # also requires Dependency graph to be enabled in repository security
+    # settings; keep this check visible rather than silently skipping it.
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
