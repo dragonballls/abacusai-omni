@@ -21,6 +21,7 @@ const DESKTOP = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(DESKTOP, "src");
 // Inside the package, so the bundle resolves its externals from node_modules.
 const OUT = join(DESKTOP, "node_modules", ".tmp", "rpc-ws-smoke");
+const BUILD = join(OUT, "build");
 const serve = process.argv.includes("--serve");
 
 const entry = `
@@ -97,8 +98,9 @@ export const run = async ({ serve }) => {
 
 mkdirSync(OUT, { recursive: true });
 const entryFile = join(OUT, "entry.ts");
-const bundleFile = join(OUT, "smoke.mjs");
+const bundleFile = join(BUILD, "smoke.mjs");
 writeFileSync(entryFile, entry);
+mkdirSync(BUILD, { recursive: true });
 
 const { build } = await import("rolldown");
 await build({
@@ -114,6 +116,20 @@ await build({
   },
   plugins: [
     {
+      // The settings router exposes a desktop-only integration. Keep this
+      // browser/RPC smoke independent of Electron and avoid bundling its
+      // process-owning gateway implementation into the test harness.
+      name: "smoke-omniroute-stub",
+      resolveId: (id) =>
+        id.includes("services/providers/omniroute.js")
+          ? "\0smoke-omniroute"
+          : null,
+      load: (id) =>
+        id === "\0smoke-omniroute"
+          ? 'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }'
+          : null,
+    },
+    {
       // The router must not need Electron: importing it fails the smoke.
       name: "no-electron",
       resolveId: (id) => (id === "electron" ? "\0no-electron" : null),
@@ -124,7 +140,12 @@ await build({
     },
   ],
   logLevel: "silent",
-  output: { file: bundleFile, format: "esm" },
+  output: {
+    dir: BUILD,
+    entryFileNames: "smoke.mjs",
+    chunkFileNames: "chunks/[name]-[hash].mjs",
+    format: "esm",
+  },
   write: true,
 });
 
