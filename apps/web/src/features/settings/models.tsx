@@ -225,20 +225,18 @@ export const ModelsPage = ({
         description={t("phase5.settings.modelsDetail")}
       >
         {IS_ELECTRON && (
-          <GroupCard title="OmniRoute Gateway">
-            <p className="p-3 text-sm">
-              Open a local, movable OmniRoute window to add provider API keys
-              and route new AbacusAI Bot sessions through OmniRoute Auto.
-              Provider keys are managed by OmniRoute, not stored in this app.
-            </p>
+          <GroupCard title={t("phase5.omniRouteGateway")}>
+            <p className="p-3 text-sm">{t("phase5.omniRouteDescription")}</p>
             <div className="flex flex-wrap items-center gap-2 p-3">
               <Button
                 disabled={omniRouteBusy}
                 onClick={() => void openOmniRoute()}
               >
-                {omniRouteBusy
-                  ? "Starting OmniRoute…"
-                  : "Open OmniRoute window"}
+                {t(
+                  omniRouteBusy
+                    ? "phase5.omniRouteStarting"
+                    : "phase5.omniRouteOpenWindow"
+                )}
               </Button>
               {omniRouteMessage && (
                 <span role="status" className="text-muted-foreground text-xs">
