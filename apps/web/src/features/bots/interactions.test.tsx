@@ -182,7 +182,9 @@ describe("bots interactions", () => {
     expect(count()).toBe(0);
   });
   it("keeps the model chip mounted while its popover has focus", async () => {
-    app = await renderApp("/bots/chief-of-staff?tab=details");
+    app = await renderApp("/bots/chief-of-staff?tab=details", {
+      procedures: configuredModelProcedures,
+    });
     await screen.findByTestId("bot-chat");
     fireEvent.focus(
       screen.getByRole("textbox", { name: /Message Chief of Staff/ })
