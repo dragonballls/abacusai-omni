@@ -338,6 +338,9 @@ describe("renderer guards", () => {
   });
 });
 
+// Short-lived per-tab navigation guard, not a persisted user draft.
+const NON_DRAFT_SESSION_KEYS = new Set(["abacusai-bot:sign-up-hop"]);
+
 const unregisteredSessionKeys = (source: string, ast: unknown): string[] => {
   const constants = new Map<string, Node>();
   walk(ast, (node) => {
@@ -380,9 +383,10 @@ const unregisteredSessionKeys = (source: string, ast: unknown): string[] => {
     const key = keyOf((node.arguments as Node[])[0]);
     if (
       key == null ||
-      !CONTINUITY_STORES.some((s) =>
-        s.prefix ? key.startsWith(s.storage) : key === s.storage
-      )
+      (!NON_DRAFT_SESSION_KEYS.has(key) &&
+        !CONTINUITY_STORES.some((s) =>
+          s.prefix ? key.startsWith(s.storage) : key === s.storage
+        ))
     )
       keys.push(key ?? "unresolved");
   });
@@ -401,6 +405,15 @@ it("every persisted sessionStorage draft has a continuity schema", () => {
       unregisteredSessionKeys(f.source, f.ast).map((key) => `${f.path}: ${key}`)
     );
   expect(hits).toEqual([]);
+});
+it("permits only the known non-draft sign-up redirect loop guard", () => {
+  const source = 'sessionStorage.setItem("abacusai-bot:sign-up-hop", String(Date.now()));';
+  expect(
+    unregisteredSessionKeys(
+      source,
+      parseAst(source, { lang: "ts" }, "canary.ts")
+    )
+  ).toEqual([]);
 });
 it("the session-store guard catches an extra unregistered key beside a registered one", () => {
   const source =
