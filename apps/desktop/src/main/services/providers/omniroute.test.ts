@@ -7,7 +7,7 @@ const source = readFileSync(new URL("./omniroute.ts", import.meta.url), "utf8");
 describe("local OmniRoute gateway security contract", () => {
   it("binds only to loopback and requires API keys for an app-owned gateway", () => {
     expect(source).toContain('OMNIROUTE_SERVER_HOST: "127.0.0.1"');
-    expect(source).toContain('OMNIROUTE_PORT: String(OMNIROUTE_PORT)');
+    expect(source).toContain("OMNIROUTE_PORT: String(OMNIROUTE_PORT)");
     expect(source).toContain(
       'REQUIRE_API_KEY: requireApiKey ? "true" : "false"'
     );
