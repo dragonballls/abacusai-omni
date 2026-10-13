@@ -42,7 +42,7 @@ const READS: Record<string, string> = {
   devices: "events list projectInfo simulatorWindowSource status stream.chunks",
   files:
     "events listDirectory readImageAsDataUrl readPptx readText search treeChildren treeRoot",
-  git: "branches checkoutStatus currentBranch diff listDirectory prInfo watch worktrees.list",
+  git: "branches checkoutStatus currentBranch diff prInfo watch worktrees.list",
   links: "preview",
   localModels: "progress state",
   mcp: "list runtime.events runtime.logs runtime.servers",
