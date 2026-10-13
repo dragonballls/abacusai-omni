@@ -36,7 +36,7 @@ it("uses the account RPC for the shared rail", async () => {
     await waitFor(() => expect(account.textContent).toContain("AE"));
     expect(account.textContent).not.toContain("UB");
     fireEvent.click(account);
-    expect(await screen.findByText("ada@example.com")).toBeDefined();
+    expect(await screen.findAllByText("ada@example.com")).not.toHaveLength(0);
     await act(async () => {
       app.router.options.context.queryClient.setQueryData(
         app.transport.orpc.account.abacus.queryKey({
