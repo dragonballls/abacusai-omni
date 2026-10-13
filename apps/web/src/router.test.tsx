@@ -170,7 +170,7 @@ describe("masked pop-ups", () => {
         masked
       );
       await screen.findByTestId(
-        /routine-dialog|connector-sheet|check-in-dialog/
+        /routine-dialog|connector-dialog|check-in-dialog/
       );
       // The background instance survived the pop-up opening.
       expect(screen.getAllByTestId(background)[0]).toBe(before);
