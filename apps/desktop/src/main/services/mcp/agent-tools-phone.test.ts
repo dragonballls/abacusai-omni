@@ -62,6 +62,7 @@ fs.mkdirSync(path.join(workspace, "site"));
 // A way out of the workspace, a pipe, and a credential store.
 const outside = fs.mkdtempSync(path.join(os.homedir(), ".phone-outside-"));
 fs.writeFileSync(path.join(outside, "secret.pdf"), "%PDF secret");
+fs.writeFileSync(path.join(outside, "environ"), "fixture environment");
 fs.symlinkSync(
   path.join(outside, "secret.pdf"),
   path.join(workspace, "linked.pdf")
@@ -311,7 +312,7 @@ describe("present_deliverable on the phone", () => {
         { path: path.join(outside, "secret.pdf") },
         { path: "pipe.txt" },
         { path: path.join(appHome, "config.json") },
-        { path: "/proc/self/environ" },
+        { path: path.join(outside, "environ") },
       ],
     });
 
