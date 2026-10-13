@@ -30,7 +30,7 @@ it("the web root HTML loads its source entry and carries no CSP", () => {
   expect(html).toContain('src="/src/entry.tsx"');
   expect(html).not.toContain("Content-Security-Policy");
 });
-it("the platform transform preserves the current entry without a static splash", async () => {
+it("keeps the entry and platform-specific splash behavior", async () => {
   const html = readFileSync(
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
