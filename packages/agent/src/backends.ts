@@ -120,7 +120,7 @@ export function killWindowsProcessTree(
     return;
   }
 
-  const taskkill = path.join(
+  const taskkill = path.win32.join(
     environment.SystemRoot || environment.WINDIR || "C:\\Windows",
     "System32",
     "taskkill.exe"
