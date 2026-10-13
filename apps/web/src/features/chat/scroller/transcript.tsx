@@ -835,7 +835,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
         ) : null}
         <MessageScrollerContent
           aria-busy={active}
-          className="mx-auto w-full max-w-(--content-max-w) min-w-0 gap-0 px-4 pt-6 pb-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+          className="mx-auto w-full max-w-(--content-max-w) min-w-0 gap-0 px-4 pt-6 pb-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
         >
           {orphans.map((outcome) => (
             <MessageScrollerItem key={`outcome-${outcome.runId}`}>
@@ -858,7 +858,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
       </MessageScrollerViewport>
       <MessageScrollerButton
         direction="end"
-        className="bg-popover text-popover-foreground phone:h-10 phone:min-w-10 phone:rounded-full phone:bg-popover/85 phone:backdrop-blur-lg border opacity-100 shadow-lg data-[direction=end]:bottom-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+        className="bg-popover text-popover-foreground phone:h-10 phone:min-w-10 phone:rounded-full phone:bg-popover/85 phone:backdrop-blur-lg border opacity-100 shadow-lg data-[direction=end]:bottom-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
         aria-label={
           marker.count > 0
             ? t("chat.transcript.jumpNew", { count: marker.count })
