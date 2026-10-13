@@ -35,21 +35,28 @@ it("the platform transform preserves the current entry without a static splash",
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
   );
-  const transform = async (platform: "electron" | "browser") => {
+  const transform = async (
+    platform: "electron" | "browser",
+    input = html
+  ) => {
     const plugins = await platformPlugin(platform);
     const hook = plugins.find(
       (plugin) => plugin.name === "abacus:platform"
     )?.transformIndexHtml;
     if (typeof hook !== "function")
       throw new Error("Missing platform HTML hook");
-    return (hook as (html: string) => { html: string })(html).html;
+    return (hook as (html: string) => { html: string })(input).html;
   };
   expect(html).toContain('src="/src/entry.tsx"');
   expect(html).toContain('id="root"');
-  for (const platform of ["electron", "browser"] as const) {
-    const output = await transform(platform);
-    expect(output).toContain('src="/src/entry.tsx"');
-    expect(output).toContain('id="root"');
-    expect(output).not.toContain('id="splash"');
-  }
+  expect(html).not.toContain('id="splash"');
+
+  // The current source HTML has no splash. Inject one to keep testing the
+  // platform-specific behavior: Electron strips it, while the browser keeps it.
+  const withSplash = html.replace(
+    "</body>",
+    '<!-- splash:fixture --><div id="splash"></div><!-- /splash --></body>'
+  );
+  expect(await transform("electron", withSplash)).not.toContain('id="splash"');
+  expect(await transform("browser", withSplash)).toContain('id="splash"');
 });
