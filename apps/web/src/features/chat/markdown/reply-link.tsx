@@ -20,7 +20,8 @@ import {
 
 import { usePrefs } from "#renderer/data/db/prefs";
 import { durations, useMotionPreference } from "#renderer/lib/motion";
-import { useAppContext } from "#renderer/lib/use-app-context";
+import { useOptionalAppContext } from "#renderer/lib/use-app-context";
+import type { Transport } from "#renderer/data/transport";
 import {
   HoverCard,
   HoverCardContent,
@@ -117,19 +118,30 @@ export const PreviewContent = ({ preview }: { preview: LinkPreview }) => {
 };
 
 type Anchor = ReactElement<ComponentPropsWithRef<"a">>;
-export const ReplyLink = ({
-  anchor,
-  message,
-  bare,
-}: {
+type ReplyLinkProps = {
   anchor: Anchor;
   message: UIMessage;
   bare: boolean;
-}) => {
+};
+
+export const ReplyLink = (props: ReplyLinkProps) => {
+  const context = useOptionalAppContext();
+  return context == null ? (
+    props.anchor
+  ) : (
+    <ReplyLinkWithPreview {...props} transport={context.transport} />
+  );
+};
+
+const ReplyLinkWithPreview = ({
+  anchor,
+  message,
+  bare,
+  transport,
+}: ReplyLinkProps & { transport: Transport }) => {
   const { session } = useChatView();
   const messages = useHost(session, (s) => s.messages);
   const prefs = usePrefs();
-  const { transport } = useAppContext();
   const ref = useRef<HTMLAnchorElement>(null);
   const [near, setNear] = useState(false);
   const [boundary, setBoundary] = useState<{
