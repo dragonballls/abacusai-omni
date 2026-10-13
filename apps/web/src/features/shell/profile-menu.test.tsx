@@ -288,7 +288,14 @@ it.each(["pinned", "collapsed", "strip", "floating", "phone"] as const)(
         })
       ).toHaveLength(1);
       fireEvent.keyDown(menu, { key: "Escape" });
-      await waitFor(() => expect(document.activeElement).toBe(trigger));
+      await waitFor(() => {
+        // The floating shell may remount the rail as it closes; focus must
+        // return to the current profile trigger, not a detached old node.
+        const currentTrigger = screen.getByRole("button", {
+          name: account.name,
+        });
+        expect(document.activeElement).toBe(currentTrigger);
+      });
     } finally {
       app.view.unmount();
       await app.cleanup();

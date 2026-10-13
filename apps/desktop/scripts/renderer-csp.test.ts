@@ -27,12 +27,10 @@ it("the web root HTML loads its source entry and carries no CSP", () => {
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
   );
-  expect(html).toContain('src="/src/main.tsx"');
+  expect(html).toContain('src="/src/entry.tsx"');
   expect(html).not.toContain("Content-Security-Policy");
 });
-it("strips the browser's static splash from the Electron HTML only", async () => {
-  // A regex over comment markers: editing them would ship the splash to the
-  // desktop app silently.
+it("the platform transform preserves the current entry without a static splash", async () => {
   const html = readFileSync(
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
@@ -46,8 +44,12 @@ it("strips the browser's static splash from the Electron HTML only", async () =>
       throw new Error("Missing platform HTML hook");
     return (hook as (html: string) => { html: string })(html).html;
   };
-  expect(html).toContain('id="splash"');
-  expect(await transform("electron")).not.toContain("splash");
-  expect(await transform("electron")).toContain('id="root"');
-  expect(await transform("browser")).toContain('id="splash"');
+  expect(html).toContain('src="/src/entry.tsx"');
+  expect(html).toContain('id="root"');
+  for (const platform of ["electron", "browser"] as const) {
+    const output = await transform(platform);
+    expect(output).toContain('src="/src/entry.tsx"');
+    expect(output).toContain('id="root"');
+    expect(output).not.toContain('id="splash"');
+  }
 });

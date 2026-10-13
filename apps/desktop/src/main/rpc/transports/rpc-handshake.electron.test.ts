@@ -64,7 +64,12 @@ const bundle = async (options: {
       },
     },
     logLevel: "silent",
-    output: { file: options.file, format: options.format },
+    output: {
+      file: options.file,
+      format: options.format,
+      // This harness deliberately emits a single file per entry point.
+      codeSplitting: false,
+    },
     write: true,
   });
 };
