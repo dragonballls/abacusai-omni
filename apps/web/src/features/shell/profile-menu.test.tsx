@@ -164,7 +164,7 @@ it("opens a referral dialog, copies the real link, selects it on clipboard failu
     const dialog = await screen.findByRole("dialog", {
       name: en.referrals.title,
     });
-    expect(within(dialog).getByText("2 of 5 invites sent")).toBeTruthy();
+    expect(await within(dialog).findByText("2 of 5 invites sent")).toBeTruthy();
     fireEvent.click(
       within(dialog).getByRole("button", { name: en.phase5.copyInvite })
     );
