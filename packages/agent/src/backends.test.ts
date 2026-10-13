@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 /**
  * The unit of `BashOperations.exec`'s timeout, pinned.
  *
@@ -22,6 +23,7 @@ import {
   backendOperations,
   deadline,
   hiddenStoreNote,
+  killWindowsProcessTree,
   selectedBackend,
 } from "./backends.js";
 import { budgetSecondsFor } from "./extensions/tool-timeouts.js";
@@ -84,6 +86,51 @@ describe("deadline", () => {
     for (const bogus of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(deadline(bogus, vi.fn())).toBeNull();
     }
+  });
+});
+
+describe("Windows process-tree termination", () => {
+  const childProcess = () => {
+    const kill = vi.fn();
+    const child = {
+      pid: 8123,
+      exitCode: null,
+      signalCode: null,
+      kill,
+    } as unknown as import("node:child_process").ChildProcess;
+    return { child, kill };
+  };
+
+  it("uses taskkill to terminate the shell and its descendants", () => {
+    const { child, kill } = childProcess();
+    const taskkill = new EventEmitter();
+    const launch = vi.fn(() => taskkill) as unknown as Parameters<
+      typeof killWindowsProcessTree
+    >[1];
+
+    killWindowsProcessTree(child, launch, { SystemRoot: "D:\\Windows" });
+
+    expect(launch).toHaveBeenCalledWith(
+      "D:\\Windows\\System32\\taskkill.exe",
+      ["/PID", "8123", "/T", "/F"],
+      { windowsHide: true, stdio: "ignore" }
+    );
+    taskkill.emit("close", 0, null);
+    expect(kill).not.toHaveBeenCalled();
+  });
+
+  it("falls back to killing the direct child if taskkill fails", () => {
+    const { child, kill } = childProcess();
+    const taskkill = new EventEmitter();
+    const launch = vi.fn(() => taskkill) as unknown as Parameters<
+      typeof killWindowsProcessTree
+    >[1];
+
+    killWindowsProcessTree(child, launch, { SystemRoot: "D:\\Windows" });
+    taskkill.emit("error", new Error("taskkill could not launch"));
+    expect(kill).toHaveBeenCalledWith("SIGKILL");
+    taskkill.emit("close", 1, null);
+    expect(kill).toHaveBeenCalledOnce();
   });
 });
 

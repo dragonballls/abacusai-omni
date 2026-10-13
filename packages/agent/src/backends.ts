@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { spawn, type ChildProcess } from "child_process";
 /**
  * Where the agent's shell commands actually run. A backend overrides pi's
  * `BashOperations` (designed for exactly this), so pi's tool keeps its schema,
@@ -7,6 +7,7 @@ import { spawn } from "child_process";
  * can show them with an honest reason.
  */
 import * as fs from "node:fs";
+import * as path from "node:path";
 
 import {
   createBashToolDefinition,
@@ -102,6 +103,57 @@ export function deadline(
  * host path, so paths the model learned from `read` or `grep` stay valid in a
  * shell command. `--rm` per command: nothing to poison the next one or leak.
  */
+/**
+ * Windows has no POSIX process group. Killing the shell alone can orphan
+ * descendants and leave command pipes open, so use taskkill's tree switch.
+ * The launcher is injectable so the exact command and fallback can be tested
+ * without requiring a Windows host for the unit test.
+ */
+export function killWindowsProcessTree(
+  child: Pick<ChildProcess, "pid" | "exitCode" | "signalCode" | "kill">,
+  launch: typeof spawn = spawn,
+  environment: NodeJS.ProcessEnv = process.env
+): void {
+  const killDirect = (): void => {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+    }
+  };
+
+  if (child.pid == null) {
+    killDirect();
+    return;
+  }
+
+  const taskkill = path.join(
+    environment.SystemRoot || environment.WINDIR || "C:\\Windows",
+    "System32",
+    "taskkill.exe"
+  );
+  let settled = false;
+  const fallback = (): void => {
+    if (settled) return;
+    settled = true;
+    killDirect();
+  };
+
+  try {
+    const killer = launch(
+      taskkill,
+      ["/PID", String(child.pid), "/T", "/F"],
+      { windowsHide: true, stdio: "ignore" }
+    );
+    killer.once("error", fallback);
+    killer.once("close", (code) => {
+      if (settled) return;
+      settled = true;
+      if (code !== 0) killDirect();
+    });
+  } catch {
+    fallback();
+  }
+}
+
 let containerCounter = 0;
 
 function dockerOperations(image: string): BashOperations {
@@ -313,9 +365,19 @@ function localSandboxedOperations(
       // A command that reads stdin would otherwise hang until the timeout.
       child.stdin.end();
 
+      let terminationRequested = false;
       const terminate = (): void => {
-        // Negative pid is the whole group; it fails only when already gone.
-        if (child.pid != null && process.platform !== "win32") {
+        if (terminationRequested) return;
+        terminationRequested = true;
+
+        if (process.platform === "win32") {
+          killWindowsProcessTree(child);
+          return;
+        }
+
+        // Negative pid is the whole POSIX process group; it fails only when
+        // the group is already gone.
+        if (child.pid != null) {
           try {
             process.kill(-child.pid, "SIGKILL");
             return;
