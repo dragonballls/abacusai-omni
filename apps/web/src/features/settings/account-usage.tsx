@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { forgetAccountAndResetOnboarding } from "#platform/account-reset";
 import { LocalDataReset } from "#platform/data-reset";
 import { signInAbacus } from "#platform/sign-in";
 import { signOutAbacus } from "#platform/sign-out";
@@ -12,7 +13,6 @@ import {
   GroupCard,
   SettingRow,
 } from "#renderer/components/form-kit/page";
-import { forgetAccountAndResetOnboarding } from "#platform/account-reset";
 import { ABACUS_BUY_CREDITS_URL } from "#renderer/lib/abacus-links";
 import { accountIdentity } from "#renderer/lib/account-identity";
 import { accountTier } from "#renderer/lib/credits";
