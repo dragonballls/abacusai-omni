@@ -42,7 +42,7 @@ describe("local OmniRoute gateway security contract", () => {
       source.indexOf("async function createOmniRouteClientKey("),
       source.indexOf("function readInitialManagementPassword(")
     );
-    expect(provisioning).toContain('`${OMNIROUTE_ORIGIN}/api/keys`');
+    expect(provisioning).toContain("`${OMNIROUTE_ORIGIN}/api/keys`");
     expect(provisioning.match(/method: "POST"/g)).toHaveLength(2);
     expect(
       source.match(/JSON\.stringify\(\{ name: "AbacusAI Bot" \}\)/g)
