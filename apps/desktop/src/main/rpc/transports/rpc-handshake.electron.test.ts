@@ -25,7 +25,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -47,7 +47,10 @@ const bundle = async (options: {
   await build({
     input: options.input,
     platform: options.platform,
-    external: ["electron"],
+    external:
+      options.platform === "node"
+        ? ["electron", "@silvia-odwyer/photon-node"]
+        : ["electron"],
     transform: {
       define: { __ABACUS_PLATFORM__: '"electron"', "import.meta.env": "{}" },
     },
@@ -94,6 +97,14 @@ const runElectron = (mode: "normal" | "delayed"): Record<string, unknown> => {
           ...process.env,
           ELECTRON_DISABLE_SECURITY_WARNINGS: "1",
           ELECTRON_ENABLE_LOGGING: "",
+          // Externalize Photon so its JS resolves the adjacent WASM beside
+          // the installed package rather than beside this temporary bundle.
+          NODE_PATH: [
+            join(DESKTOP, "node_modules"),
+            process.env.NODE_PATH,
+          ]
+            .filter((value): value is string => Boolean(value))
+            .join(delimiter),
           RPC_E2E_MODE: mode,
           RPC_E2E_RESULT: resultFile,
           RPC_E2E_PAGE: join(dir, "page.html"),
