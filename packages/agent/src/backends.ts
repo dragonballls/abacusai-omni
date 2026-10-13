@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "child_process";
+import { type ChildProcess, spawn } from "child_process";
 /**
  * Where the agent's shell commands actually run. A backend overrides pi's
  * `BashOperations` (designed for exactly this), so pi's tool keeps its schema,
