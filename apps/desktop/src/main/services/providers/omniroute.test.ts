@@ -7,9 +7,17 @@ const source = readFileSync(new URL("./omniroute.ts", import.meta.url), "utf8");
 describe("local OmniRoute gateway security contract", () => {
   it("binds only to loopback and requires API keys for an app-owned gateway", () => {
     expect(source).toContain('OMNIROUTE_SERVER_HOST: "127.0.0.1"');
+    expect(source).toContain('OMNIROUTE_PORT: String(OMNIROUTE_PORT)');
     expect(source).toContain(
       'REQUIRE_API_KEY: requireApiKey ? "true" : "false"'
     );
+    const environmentStart = source.indexOf("function runtimeEnvironment(");
+    const environmentEnd = source.indexOf("\n}\n", environmentStart);
+    const environment = source.slice(environmentStart, environmentEnd);
+    expect(environment).toContain("delete environment.API_PORT");
+    expect(environment).toContain("delete environment.DASHBOARD_PORT");
+    expect(environment).not.toContain("API_PORT:");
+    expect(environment).not.toContain("DASHBOARD_PORT:");
     expect(source).toContain("startOmniRoute(node, true)");
     expect(source).not.toContain("startOmniRoute(node, false)");
   });
