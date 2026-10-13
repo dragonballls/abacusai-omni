@@ -99,10 +99,7 @@ const runElectron = (mode: "normal" | "delayed"): Record<string, unknown> => {
           ELECTRON_ENABLE_LOGGING: "",
           // Externalize Photon so its JS resolves the adjacent WASM beside
           // the installed package rather than beside this temporary bundle.
-          NODE_PATH: [
-            join(DESKTOP, "node_modules"),
-            process.env.NODE_PATH,
-          ]
+          NODE_PATH: [join(DESKTOP, "node_modules"), process.env.NODE_PATH]
             .filter((value): value is string => Boolean(value))
             .join(delimiter),
           RPC_E2E_MODE: mode,
