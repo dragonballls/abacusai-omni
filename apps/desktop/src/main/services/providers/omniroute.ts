@@ -133,8 +133,9 @@ function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
     OMNIROUTE_TELEMETRY: "false",
     NODE_ENV: "production",
     // Requests from Abacus use a generated, persisted OmniRoute client key.
-    // A temporary unauthenticated bootstrap is used only to create that key,
-    // then the gateway is restarted with enforcement enabled.
+    // App-owned gateways always start with API-key enforcement enabled; key
+    // provisioning uses OmniRoute's loopback-only CLI management token. No
+    // unauthenticated bootstrap listener is opened.
     REQUIRE_API_KEY: requireApiKey ? "true" : "false",
   };
 }
