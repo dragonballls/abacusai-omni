@@ -99,11 +99,6 @@ export function deadline(
 }
 
 /**
- * Run commands inside a Docker container with the workspace bind-mounted at its
- * host path, so paths the model learned from `read` or `grep` stay valid in a
- * shell command. `--rm` per command: nothing to poison the next one or leak.
- */
-/**
  * Windows has no POSIX process group. Killing the shell alone can orphan
  * descendants and leave command pipes open, so use taskkill's tree switch.
  * The launcher is injectable so the exact command and fallback can be tested
@@ -154,6 +149,11 @@ export function killWindowsProcessTree(
   }
 }
 
+/**
+ * Run commands inside a Docker container with the workspace bind-mounted at its
+ * host path, so paths the model learned from `read` or `grep` stay valid in a
+ * shell command. `--rm` per command: nothing to poison the next one or leak.
+ */
 let containerCounter = 0;
 
 function dockerOperations(image: string): BashOperations {
