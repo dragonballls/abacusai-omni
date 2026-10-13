@@ -73,6 +73,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Diagnose formatter delta for agent backend
+        run: |
+          set -euo pipefail
+          cp packages/agent/src/backends.ts "$RUNNER_TEMP/backends-before-format.ts"
+          pnpm exec oxfmt packages/agent/src/backends.ts
+          diff -u "$RUNNER_TEMP/backends-before-format.ts" packages/agent/src/backends.ts || true
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
