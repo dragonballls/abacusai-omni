@@ -19,9 +19,9 @@ import {
 } from "react";
 
 import { usePrefs } from "#renderer/data/db/prefs";
+import type { Transport } from "#renderer/data/transport";
 import { durations, useMotionPreference } from "#renderer/lib/motion";
 import { useOptionalAppContext } from "#renderer/lib/use-app-context";
-import type { Transport } from "#renderer/data/transport";
 import {
   HoverCard,
   HoverCardContent,
