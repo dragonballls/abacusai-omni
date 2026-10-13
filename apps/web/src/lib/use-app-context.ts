@@ -5,6 +5,12 @@ import { useSelector } from "@tanstack/react-store";
 import type { RouterContext } from "#renderer/router";
 export const useAppContext = (): RouterContext =>
   useRouter().options.context as RouterContext;
+
+/** Optional context for portable chat-kit components rendered outside a route. */
+export const useOptionalAppContext = (): RouterContext | null => {
+  const router = useRouter({ strict: false });
+  return (router?.options.context as RouterContext | undefined) ?? null;
+};
 /**
  * The host's system facts. On the web a placeholder until the host answers
  * `system.info` (spec 09 D12); the component re-renders then.
