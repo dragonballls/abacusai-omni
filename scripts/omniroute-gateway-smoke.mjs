@@ -525,27 +525,31 @@ async function main() {
       `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
     );
 
+    // Mirror the app-owned wrapper: use one shared dashboard/API port and
+    // clear inherited split-port variables before starting the pinned runtime.
+    const gatewayEnvironment = { ...process.env };
+    delete gatewayEnvironment.API_PORT;
+    delete gatewayEnvironment.DASHBOARD_PORT;
+    Object.assign(gatewayEnvironment, {
+      DATA_DIR: dataDir,
+      PORT: String(port),
+      OMNIROUTE_PORT: String(port),
+      OMNIROUTE_SERVER_HOST: "127.0.0.1",
+      OMNIROUTE_TELEMETRY: "false",
+      OMNIROUTE_ALLOW_PRIVATE_PROVIDER_URLS: "true",
+      REQUIRE_API_KEY: "true",
+      NODE_ENV: "production",
+      JWT_SECRET: envFile.match(/^JWT_SECRET=(.+)$/m)[1],
+      API_KEY_SECRET: envFile.match(/^API_KEY_SECRET=(.+)$/m)[1],
+      OMNIROUTE_CLI_SALT: cliSalt,
+      INITIAL_PASSWORD: password,
+    });
     gateway = spawn(
       process.execPath,
       [entry, "--no-open", "--no-recovery", "--port", String(port)],
       {
         cwd: dataDir,
-        env: {
-          ...process.env,
-          DATA_DIR: dataDir,
-          PORT: String(port),
-          API_PORT: String(port),
-          DASHBOARD_PORT: String(port),
-          OMNIROUTE_SERVER_HOST: "127.0.0.1",
-          OMNIROUTE_TELEMETRY: "false",
-          OMNIROUTE_ALLOW_PRIVATE_PROVIDER_URLS: "true",
-          REQUIRE_API_KEY: "true",
-          NODE_ENV: "production",
-          JWT_SECRET: envFile.match(/^JWT_SECRET=(.+)$/m)[1],
-          API_KEY_SECRET: envFile.match(/^API_KEY_SECRET=(.+)$/m)[1],
-          OMNIROUTE_CLI_SALT: cliSalt,
-          INITIAL_PASSWORD: password,
-        },
+        env: gatewayEnvironment,
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       }
