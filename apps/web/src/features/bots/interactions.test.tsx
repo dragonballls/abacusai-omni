@@ -1,4 +1,6 @@
 /** R3-T4,T13,T14,T16,T20,T24: routed interaction checks over live collections. */
+import { contract } from "@abacus-ai/contract/contract";
+import { implement } from "@orpc/server";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { createElement, type ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +27,20 @@ vi.mock("motion/react", async (original) => {
     }),
   };
 });
+const configuredModelProcedures = {
+  models: {
+    list: implement(contract).models.list.handler(() => [
+      {
+        id: "openrouter/test-model",
+        label: "Test model",
+        provider: "openrouter",
+        tier: "fast",
+        configured: true,
+      },
+    ]),
+  },
+};
+
 let app: Awaited<ReturnType<typeof renderApp>> | undefined;
 afterEach(async () => {
   app?.view.unmount();
@@ -131,7 +147,9 @@ describe("bots interactions", () => {
     }
   );
   it("the four model locations have at most one value", async () => {
-    app = await renderApp("/bots/chief-of-staff?tab=details");
+    app = await renderApp("/bots/chief-of-staff?tab=details", {
+      procedures: configuredModelProcedures,
+    });
     expect(
       document.querySelector('[data-slot="topbar-actions"]')?.textContent ?? ""
     ).not.toContain("Details");
