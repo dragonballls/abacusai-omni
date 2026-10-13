@@ -124,11 +124,17 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
 
 function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
   const initialPassword = readInitialManagementPassword();
+  const environment = { ...process.env };
+  // OmniRoute treats these as an opt-in split-port configuration. Never inherit
+  // them from the parent app shell when this gateway expects one shared port.
+  delete environment.API_PORT;
+  delete environment.DASHBOARD_PORT;
   return {
-    ...process.env,
+    ...environment,
     ...(initialPassword ? { INITIAL_PASSWORD: initialPassword } : {}),
     DATA_DIR: omniRouteDataDir,
     PORT: String(OMNIROUTE_PORT),
+    OMNIROUTE_PORT: String(OMNIROUTE_PORT),
     OMNIROUTE_SERVER_HOST: "127.0.0.1",
     OMNIROUTE_TELEMETRY: "false",
     NODE_ENV: "production",
