@@ -86,7 +86,15 @@ const HELPERS = `(() => {
     },
     async settle() { await frame(); await frame(); await task(); },
     /** Clicks, then the time until the resulting work (render, commit, layout effects) is done. */
-    async timedClick(el) {
+    async timedClick(find) {
+      const deadline = performance.now() + 1500;
+      let el = find();
+      while (!(el instanceof Element && el.isConnected) && performance.now() < deadline) {
+        await frame();
+        el = find();
+      }
+      if (!(el instanceof Element) || !el.isConnected)
+        throw new Error("paging control did not remain mounted after scrolling");
       const t0 = performance.now();
       el.click();
       await task();
@@ -408,7 +416,7 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
           "window.__chatHelpers.anchor()"
         );
         const ms = await app.evaluate<number>(
-          `window.__chatHelpers.timedClick((${find})())`
+          `window.__chatHelpers.timedClick(${find})`
         );
         await app.evaluate("window.__chatHelpers.settle()");
         commits.push(ms);

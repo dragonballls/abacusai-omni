@@ -829,7 +829,13 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             height={placeholderHeight(0, start)}
             label={t("chat.transcript.showEarlier")}
             onActivate={() =>
-              preserve(() => setWindow(showEarlier(items, window)))
+              preserve(() => {
+                const protect =
+                  anchor.current?.el.closest<HTMLElement>(
+                    '[data-slot="message-scroller-item"][data-message-id]'
+                  )?.dataset.messageId ?? null;
+                setWindow((current) => showEarlier(items, current, protect));
+              })
             }
           />
         ) : null}
@@ -851,7 +857,13 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             height={placeholderHeight(end, visible.length)}
             label={t("chat.transcript.showLater")}
             onActivate={() =>
-              preserve(() => setWindow(showLater(items, window)))
+              preserve(() => {
+                const protect =
+                  anchor.current?.el.closest<HTMLElement>(
+                    '[data-slot="message-scroller-item"][data-message-id]'
+                  )?.dataset.messageId ?? null;
+                setWindow((current) => showLater(items, current, protect));
+              })
             }
           />
         ) : null}

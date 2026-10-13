@@ -73,8 +73,9 @@ const withRange = (
 ): WindowState["ranges"] => ({ ...ranges, [id]: range });
 
 /**
- * Evicts from one side until the budget holds: whole messages first (never
- * `protect`), then the protected (or last remaining) message's own tool rows.
+ * Evicts whole messages from the requested side first. If that edge reaches
+ * `protect`, trim the opposite edge rather than evict the visible anchor;
+ * only then trim pageable rows from the protected/last remaining message.
  */
 const fit = (
   items: readonly RowItem[],
@@ -87,7 +88,16 @@ const fit = (
   const max = MAX_ROWS;
   while (total > max && end - start > 1) {
     const index = side === "top" ? start : end - 1;
-    if (items[index]!.id === protect) break;
+    if (items[index]!.id === protect) {
+      // Keep the visible anchor mounted. If expansion reaches it on the far
+      // edge, trim the opposite edge instead of evicting the anchor.
+      const opposite = side === "top" ? end - 1 : start;
+      if (items[opposite]!.id === protect) break;
+      total -= rowsOf(items[opposite]!, ranges);
+      if (side === "top") end -= 1;
+      else start += 1;
+      continue;
+    }
     total -= rowsOf(items[index]!, ranges);
     if (side === "top") start += 1;
     else end -= 1;
@@ -132,7 +142,8 @@ export const newestWindow = (
 /** "Show earlier": a history page above, evicting from below. */
 export const showEarlier = (
   items: readonly RowItem[],
-  state: WindowState
+  state: WindowState,
+  protect: string | null = null
 ): WindowState => {
   let { start } = state;
   let added = 0;
@@ -140,13 +151,14 @@ export const showEarlier = (
     start -= 1;
     added += rowsOf(items[start]!, state.ranges);
   }
-  return fit(items, { ...state, start }, "bottom");
+  return fit(items, { ...state, start }, "bottom", protect);
 };
 
 /** "Show later": a history page below, evicting from above. */
 export const showLater = (
   items: readonly RowItem[],
-  state: WindowState
+  state: WindowState,
+  protect: string | null = null
 ): WindowState => {
   let { end } = state;
   let added = 0;
@@ -154,7 +166,7 @@ export const showLater = (
     added += rowsOf(items[end]!, state.ranges);
     end += 1;
   }
-  return fit(items, { ...state, end }, "top");
+  return fit(items, { ...state, end }, "top", protect);
 };
 
 /** "{n} more steps" in one message: `STEP` more below, evicting from above. */

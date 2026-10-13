@@ -95,6 +95,23 @@ describe("R2-T16 window (pure)", () => {
     });
   });
 
+  it("keeps the visible anchor mounted at either window edge", () => {
+    const items = Array.from({ length: 300 }, (_, i) => ({
+      id: String(i),
+      fixed: 1,
+      units: 0,
+    }));
+    const state = { start: 100, end: 200, ranges: {} };
+
+    const earlier = showEarlier(items, state, "190");
+    expect(earlier).toEqual({ start: 91, end: 191, ranges: {} });
+    expect(mountedRows(items, earlier)).toBe(MAX_ROWS);
+
+    const later = showLater(items, state, "109");
+    expect(later).toEqual({ start: 109, end: 209, ranges: {} });
+    expect(mountedRows(items, later)).toBe(MAX_ROWS);
+  });
+
   it("times from createdAt or metadata.tanstack.createdAt; none starts no day", () => {
     expect(messageTime({ createdAt: new Date(5) })?.getTime()).toBe(5);
     expect(
