@@ -133,11 +133,10 @@ export function killWindowsProcessTree(
   };
 
   try {
-    const killer = launch(
-      taskkill,
-      ["/PID", String(child.pid), "/T", "/F"],
-      { windowsHide: true, stdio: "ignore" }
-    );
+    const killer = launch(taskkill, ["/PID", String(child.pid), "/T", "/F"], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
     killer.once("error", fallback);
     killer.once("close", (code) => {
       if (settled) return;
