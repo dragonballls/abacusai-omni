@@ -193,7 +193,7 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
         "first sibling thread loaded"
       );
       await app.evaluate(
-        "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+        "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
       );
       await app.evaluate(`(() => {
         window.__chatTransitionStarts = 0;
@@ -217,7 +217,7 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
         "the second thread's last message"
       );
       await app.evaluate(
-        "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+        "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
       );
       const result = await app.evaluate<{
         starts: number;
@@ -251,7 +251,7 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
         `window.__abacusDev.navigate("/sessions/${THREAD}")`
       );
       await app.until(
-        `document.querySelector('[data-slot="composer"]') != null && ${session}.ready`,
+        `document.querySelector('[data-slot="composer"]') && ${session}.ready`,
         15000,
         "return to the real-session composer"
       );
