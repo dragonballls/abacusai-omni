@@ -381,14 +381,13 @@ const unregisteredSessionKeys = (source: string, ast: unknown): string[] => {
     )
       return;
     const key = keyOf((node.arguments as Node[])[0]);
-    if (
-      key == null ||
-      (!NON_DRAFT_SESSION_KEYS.has(key) &&
-        !CONTINUITY_STORES.some((s) =>
+    const registered =
+      key != null &&
+      (NON_DRAFT_SESSION_KEYS.has(key) ||
+        CONTINUITY_STORES.some((s) =>
           s.prefix ? key.startsWith(s.storage) : key === s.storage
-        ))
-    )
-      keys.push(key ?? "unresolved");
+        ));
+    if (!registered) keys.push(key ?? "unresolved");
   });
   void source;
   return keys;
