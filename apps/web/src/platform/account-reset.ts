@@ -4,12 +4,15 @@
  * Platform is the renderer's composition boundary: settings owns the action,
  * while onboarding and the tour own their ephemeral stores.
  */
-import type { RouterContext } from "#renderer/router";
 import { accountStateQuery } from "#renderer/features/onboarding/actions";
 import { onboardingStore } from "#renderer/features/onboarding/store";
 import { tourSignedOut } from "#renderer/features/tour/store";
+import type { RouterContext } from "#renderer/router";
 
-type AccountResetContext = Pick<RouterContext, "transport" | "queryClient" | "db">;
+type AccountResetContext = Pick<
+  RouterContext,
+  "transport" | "queryClient" | "db"
+>;
 
 export async function forgetAccountAndResetOnboarding(
   context: AccountResetContext
