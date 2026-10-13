@@ -167,9 +167,7 @@ describe("bots interactions", () => {
     );
     expect(count()).toBe(1);
     // The chip is the picker's trigger, a combobox named "Model: …".
-    expect(
-      screen.getAllByRole("combobox", { name: /Model:/ })
-    ).toHaveLength(1);
+    expect(screen.getAllByRole("combobox", { name: /Model:/ })).toHaveLength(1);
     await act(async () => {
       setPanelOpen(panelScopeKey("bots", "chief-of-staff")!, false);
     });
