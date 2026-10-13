@@ -35,10 +35,7 @@ it("the platform transform preserves the current entry without a static splash",
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
   );
-  const transform = async (
-    platform: "electron" | "browser",
-    input = html
-  ) => {
+  const transform = async (platform: "electron" | "browser", input = html) => {
     const plugins = await platformPlugin(platform);
     const hook = plugins.find(
       (plugin) => plugin.name === "abacus:platform"
