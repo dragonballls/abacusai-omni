@@ -1,6 +1,6 @@
 import { contract } from "@abacus-ai/contract/contract";
 import { implement } from "@orpc/server";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import { renderApp, SYSTEM_INFO } from "#renderer/test-support/app-harness";
@@ -30,7 +30,9 @@ it("updates the shared rail from the account RPC rather than the host home direc
     },
   });
   try {
-    const account = await screen.findByRole("button", { name: "Ada Example" });
+    const account = await screen.findByRole("button", {
+      name: "Ada Example",
+    });
     await waitFor(() => expect(account.textContent).toContain("AE"));
     expect(account.textContent).not.toContain("UB");
     fireEvent.click(account);
@@ -51,7 +53,9 @@ it("updates the shared rail from the account RPC rather than the host home direc
               }
       );
     });
-    const changed = await screen.findByRole("button", { name: "Grace Example" });
+    const changed = await screen.findByRole("button", {
+      name: "Grace Example",
+    });
     await waitFor(() =>
       expect(changed.querySelector("img")?.getAttribute("src")).toBe(
         "data:image/png;base64,AQID"
