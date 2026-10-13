@@ -162,6 +162,6 @@ export const renderSoundLevels = async (
     browserProcess.kill();
     await exited;
     await bundle.close();
-    await rm(scratch, { recursive: true, force: true });
+    await rm(scratch, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
   }
 };
