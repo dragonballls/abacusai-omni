@@ -405,8 +405,9 @@ it("every persisted sessionStorage draft has a continuity schema", () => {
     );
   expect(hits).toEqual([]);
 });
-it("permits only the known non-draft sign-up redirect loop guard", () => {
-  const source = 'sessionStorage.setItem("abacusai-bot:sign-up-hop", String(Date.now()));';
+it("allows the transient sign-up guard key", () => {
+  const source =
+    'sessionStorage.setItem("abacusai-bot:sign-up-hop", String(Date.now()));';
   expect(
     unregisteredSessionKeys(
       source,
