@@ -842,7 +842,7 @@ export const FIELD_FACTS_JS = `
   const __typeOf = (el) => el.tagName === 'SELECT' ? 'select' :
     String(el.getAttribute('type') || 'text').toLowerCase() || 'text';
   const __inputs = (root) => Array.from(root.querySelectorAll('input')).filter((el) => __TEXT_ENTRY.includes(__typeOf(el)));
-  const __documentFacts = (root) => {
+  const __documentFacts = (root, cardOnly = false) => {
     const controls = Array.from(root.querySelectorAll('input, select'));
     const entries = controls.filter((el) => el.tagName === 'INPUT' && __TEXT_ENTRY.includes(__typeOf(el)));
     const entryIndex = new Map(entries.map((el, index) => [el, index]));
@@ -877,6 +877,8 @@ export const FIELD_FACTS_JS = `
     }));
     const cardClasses = new Map(cardControls.map((el, index) => [el, classes[index]]));
     const noCard = { number: false, detailWords: null, detail: null };
+    if (cardOnly)
+      return new Map(cardControls.map((el, index) => [el, { card: classes[index] }]));
     const facts = new Map();
     controls.forEach((el, at) => {
       const lower = (name) => String(el.getAttribute(name) || '').toLowerCase();
