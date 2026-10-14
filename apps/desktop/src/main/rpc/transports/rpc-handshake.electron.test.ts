@@ -21,12 +21,11 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { delimiter, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -50,7 +49,7 @@ const bundle = async (options: {
     platform: options.platform,
     external:
       options.platform === "node"
-        ? ["electron", "@silvia-odwyer/photon-node"]
+        ? ["electron"]
         : ["electron"],
     transform: {
       define: { __ABACUS_PLATFORM__: '"electron"', "import.meta.env": "{}" },
@@ -98,11 +97,6 @@ const runElectron = (mode: "normal" | "delayed"): Record<string, unknown> => {
           ...process.env,
           ELECTRON_DISABLE_SECURITY_WARNINGS: "1",
           ELECTRON_ENABLE_LOGGING: "",
-          // Externalize Photon so its JS resolves the adjacent WASM beside
-          // the installed package rather than beside this temporary bundle.
-          NODE_PATH: [join(DESKTOP, "node_modules"), process.env.NODE_PATH]
-            .filter((value): value is string => Boolean(value))
-            .join(delimiter),
           RPC_E2E_MODE: mode,
           RPC_E2E_RESULT: resultFile,
           RPC_E2E_PAGE: join(dir, "page.html"),
@@ -136,15 +130,6 @@ describe.skipIf(!availability.usable)(
   () => {
     beforeAll(async () => {
       dir = mkdtempSync(join(tmpdir(), "abacusai-bot-rpc-e2e-"));
-      // Electron runs a bundle from this temporary directory; a real
-      // node_modules entry is resolved consistently on Windows, macOS and
-      // Linux (NODE_PATH alone is not honored by every Electron launch mode).
-      symlinkSync(
-        join(DESKTOP, "node_modules"),
-        join(dir, "node_modules"),
-        "junction"
-      );
-
       writeFileSync(
         join(dir, "preload-entry.ts"),
         [
