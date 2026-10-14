@@ -73,6 +73,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TEMP diagnose Oxfmt formatting (remove after repair)
+        run: |
+          cp apps/web/src/test-support/offline-sound.ts "$RUNNER_TEMP/offline-sound.ts.before"
+          pnpm exec oxfmt apps/web/src/test-support/offline-sound.ts
+          git --no-pager diff -- apps/web/src/test-support/offline-sound.ts
+          cp "$RUNNER_TEMP/offline-sound.ts.before" apps/web/src/test-support/offline-sound.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
