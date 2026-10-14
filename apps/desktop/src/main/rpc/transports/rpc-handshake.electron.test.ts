@@ -47,10 +47,7 @@ const bundle = async (options: {
   await build({
     input: options.input,
     platform: options.platform,
-    external:
-      options.platform === "node"
-        ? ["electron"]
-        : ["electron"],
+    external: ["electron"],
     transform: {
       define: { __ABACUS_PLATFORM__: '"electron"', "import.meta.env": "{}" },
     },
