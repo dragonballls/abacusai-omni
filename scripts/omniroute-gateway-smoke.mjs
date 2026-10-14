@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
  */
 import { createHmac, randomBytes } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,7 +20,7 @@ import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const VERSION = "3.8.50";
 const INSTALL_TIMEOUT_MS = 5 * 60_000;
@@ -528,9 +529,28 @@ async function main() {
       mode: 0o600,
     });
 
-    const install = await runCommand(
+    // On Windows, spawn("npm") may resolve to npm.cmd, which cannot be run
+    // directly without a shell. Invoke npm's JavaScript CLI through this exact
+    // Node executable instead, matching the desktop app's production launcher.
+    const npmCli = join(
+      dirname(process.execPath),
+      "node_modules",
       "npm",
+      "bin",
+      "npm-cli.js"
+    );
+    const npmCommand =
+      process.platform === "win32" ? process.execPath : "npm";
+    const npmArgs =
+      process.platform === "win32" ? [npmCli] : [];
+    assert(
+      process.platform !== "win32" || existsSync(npmCli),
+      `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
+    );
+    const install = await runCommand(
+      npmCommand,
       [
+        ...npmArgs,
         "install",
         "--prefix",
         dataDir,
