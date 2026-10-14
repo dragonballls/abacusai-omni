@@ -129,7 +129,7 @@ jobs:
           fi
 
           changed_paths="$(git diff --name-only "$base" HEAD)"
-          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|\.nvmrc$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
+          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
             pnpm --filter @abacus-ai/desktop run check:ui-registry
           else
             echo "Shadcn registry inputs unchanged; snapshot replay is not applicable to this change." >> "$GITHUB_STEP_SUMMARY"
@@ -203,26 +203,11 @@ jobs:
           sudo chown root:root "$sandbox"
           sudo chmod 4755 "$sandbox"
 
-      # OmniRoute 3.8.50 requires Node >=22.22.2. Keep the repository's
-      # pinned Node version for all normal suites, but use Node 24 for this
-      # runtime-specific integration test.
-      - name: Select supported Node.js for OmniRoute smoke test
-        if: runner.os == 'Windows'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-
       # Exercise real pinned-runtime auth, client-key creation and Auto routing
       # on Windows rather than relying only on the Linux smoke test.
       - name: Smoke test OmniRoute authentication and Auto routing on Windows
         if: runner.os == 'Windows'
         run: node scripts/omniroute-gateway-smoke.mjs
-
-      - name: Restore repository Node.js version after OmniRoute smoke test
-        if: runner.os == 'Windows'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
 
       - name: Run tests
         shell: bash
