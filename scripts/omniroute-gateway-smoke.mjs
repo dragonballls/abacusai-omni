@@ -134,11 +134,9 @@ function runCommand(command, args, options, timeoutMs) {
       clearTimeout(forceTimer);
       await timeoutCleanup;
       if (timedOut) {
-        reject(
-          new Error(
-            `${command} timed out after ${Math.round(timeoutMs / 1000)} seconds. Last output:\n${output}`
-          )
-        );
+        const timeoutSeconds = Math.round(timeoutMs / 1000);
+        const timeoutMessage = `${command} timed out after ${timeoutSeconds} seconds.`;
+        reject(new Error(`${timeoutMessage} Last output:\n${output}`));
       } else {
         resolve({ code, output });
       }
@@ -708,7 +706,12 @@ async function main() {
   } finally {
     await stopGateway(gateway);
     if (mockUpstream) await mockUpstream.close();
-    rmSync(temp, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+    rmSync(temp, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 500,
+    });
   }
 }
 
