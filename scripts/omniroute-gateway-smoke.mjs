@@ -135,7 +135,8 @@ function runCommand(command, args, options, timeoutMs) {
       await timeoutCleanup;
       if (timedOut) {
         const timeoutSeconds = Math.round(timeoutMs / 1000);
-        const timeoutMessage = `${command} timed out after ${timeoutSeconds} seconds.`;
+        const timeoutMessage =
+          `${command} timed out after ${timeoutSeconds} seconds.`;
         reject(new Error(`${timeoutMessage} Last output:\n${output}`));
       } else {
         resolve({ code, output });
