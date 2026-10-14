@@ -615,7 +615,12 @@ async function main() {
       ],
       {
         cwd: dataDir,
-        env: { ...process.env, OMNIROUTE_SKIP_POSTINSTALL: "1" },
+        env: {
+          ...process.env,
+          OMNIROUTE_SKIP_POSTINSTALL: "1",
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+          PUPPETEER_SKIP_DOWNLOAD: "1",
+        },
       },
       INSTALL_TIMEOUT_MS
     );

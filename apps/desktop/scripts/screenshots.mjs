@@ -501,13 +501,22 @@ const settle = (cdp, href) =>
 /** Every finite animation done (dialogs fade in; axe must see the end state). */
 const animationsDone = (cdp) =>
   cdp.evaluate(`(async () => {
+    const deadline = Date.now() + 5000;
     for (let round = 0; round < 10; round += 1) {
       const running = document.getAnimations().filter((a) =>
-        a.playState === "running" && a.effect?.getComputedTiming().endTime !== Infinity);
+        a.playState === "running" &&
+        a.effect?.getComputedTiming().endTime !== Infinity
+      );
       if (running.length === 0) return true;
-      await Promise.all(running.map((a) => a.finished.catch(() => undefined)));
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return false;
+      await Promise.race([
+        Promise.all(running.map((a) => a.finished.catch(() => undefined))),
+        new Promise((resolve) => setTimeout(resolve, remaining)),
+      ]);
+      if (Date.now() >= deadline) return false;
     }
-    return true;
+    return false;
   })()`);
 
 const waitFor = async (cdp, expression, timeoutMs = 5_000) => {
