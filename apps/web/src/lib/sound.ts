@@ -225,8 +225,8 @@ interface Tone {
 /** 03 §17 (and 05 §23.1 for `routine-fired`); `done` is provisional (06 §14.1). */
 export const CUE_TONES: Readonly<Record<Cue, readonly Tone[]>> = {
   sent: [
-    { at: 0, duration: 0.045, from: 660, to: 740, gain: 0.105 },
-    { at: 0.035, duration: 0.045, from: 880, to: 988, gain: 0.095 },
+    { at: 0, duration: 0.075, from: 660, to: 740, gain: 0.105 },
+    { at: 0.065, duration: 0.105, from: 880, to: 988, gain: 0.095 },
   ],
   received: [
     { at: 0, duration: 0.09, from: 880, gain: 0.13 },
