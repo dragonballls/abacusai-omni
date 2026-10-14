@@ -25,7 +25,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -47,7 +47,7 @@ const bundle = async (options: {
   await build({
     input: options.input,
     platform: options.platform,
-    external: ["electron"],
+    external: ["electron", "@silvia-odwyer/photon-node"],
     transform: {
       define: { __ABACUS_PLATFORM__: '"electron"', "import.meta.env": "{}" },
     },
@@ -92,6 +92,7 @@ const runElectron = (mode: "normal" | "delayed"): Record<string, unknown> => {
         encoding: "utf8",
         env: {
           ...process.env,
+          NODE_PATH: [join(DESKTOP, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter),
           ELECTRON_DISABLE_SECURITY_WARNINGS: "1",
           ELECTRON_ENABLE_LOGGING: "",
           RPC_E2E_MODE: mode,

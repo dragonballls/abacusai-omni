@@ -230,7 +230,7 @@ export const CUE_TONES: Readonly<Record<Cue, readonly Tone[]>> = {
   ],
   received: [
     { at: 0, duration: 0.09, from: 880, gain: 0.13 },
-    { at: 0.12, duration: 0.11, from: 1175, gain: 0.13 },
+    { at: 0.12, duration: 0.1, from: 1175, gain: 0.13 },
   ],
   "needs-you": [0, 0.08, 0.16].map((at) => ({
     at,
@@ -286,7 +286,7 @@ export const synthTones = (
     const envelope = audio.createGain();
     envelope.gain.setValueAtTime(0.0001, t0);
     envelope.gain.exponentialRampToValueAtTime(tone.gain, t0 + 0.005);
-    envelope.gain.exponentialRampToValueAtTime(0.0001, t1);
+    envelope.gain.exponentialRampToValueAtTime(0.000001, t1);
     oscillator.connect(envelope);
     envelope.connect(masterOutput(audio));
     oscillator.start(t0);
