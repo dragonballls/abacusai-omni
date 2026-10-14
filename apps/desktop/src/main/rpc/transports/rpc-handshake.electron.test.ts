@@ -181,6 +181,22 @@ describe.skipIf(!availability.usable)(
         platform: "node",
         format: "cjs",
       });
+      const photonPath = createRequire(import.meta.url).resolve(
+        "@silvia-odwyer/photon-node"
+      );
+      const mainPath = join(dir, "main.cjs");
+      const mainBundle = readFileSync(mainPath, "utf8");
+      const resolvedMainBundle = mainBundle.replace(
+        /(["'])@silvia-odwyer\\/photon-node\\1/g,
+        JSON.stringify(photonPath)
+      );
+      if (resolvedMainBundle === mainBundle) {
+        throw new Error(
+          "The RPC harness did not leave Photon as an external module."
+        );
+      }
+      writeFileSync(mainPath, resolvedMainBundle);
+
       await bundle({
         input: join(dir, "preload-entry.ts"),
         file: join(dir, "preload.cjs"),

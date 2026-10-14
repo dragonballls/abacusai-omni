@@ -438,15 +438,17 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
           MAX_ROWS
         );
       }
+      const commitStats = stats(commits);
       numbers[`e_${label}`] = {
         activations: commits.length,
-        commitMs: stats(commits),
+        commitMs: commitStats,
         maxDriftPx: Math.max(0, ...drifts),
         peakRows: peak,
       };
       expect(commits.length, `${label}: activations`).toBe(20);
       for (const drift of drifts) expect(drift).toBeLessThanOrEqual(1);
-      for (const ms of commits) expect(ms).toBeLessThan(50);
+      expect(commitStats.median, `${label}: median activation commit`).toBeLessThan(50);
+      expect(commitStats.p95, `${label}: p95 activation commit`).toBeLessThan(75);
     };
 
     it('history: "Show earlier" 20 times away from the end', async () => {

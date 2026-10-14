@@ -67,7 +67,8 @@ fs.symlinkSync(
   path.join(outside, "secret.pdf"),
   path.join(workspace, "linked.pdf")
 );
-execFileSync("mkfifo", [path.join(workspace, "pipe.txt")]);
+if (process.platform !== "win32")
+  execFileSync("mkfifo", [path.join(workspace, "pipe.txt")]);
 const appHome = path.join(workspace, "app-home");
 fs.mkdirSync(appHome);
 fs.writeFileSync(path.join(appHome, "config.json"), '{"key":"secret"}');
@@ -310,7 +311,7 @@ describe("present_deliverable on the phone", () => {
       items: [
         { path: "linked.pdf" },
         { path: path.join(outside, "secret.pdf") },
-        { path: "pipe.txt" },
+        ...(process.platform === "win32" ? [] : [{ path: "pipe.txt" }]),
         { path: path.join(appHome, "config.json") },
         { path: path.join(outside, "environ") },
       ],
@@ -320,7 +321,8 @@ describe("present_deliverable on the phone", () => {
     expect(declaredMedia(text)).toEqual([]);
     expect(text).toContain("linked.pdf: only files in the workspace");
     expect(text).toContain("secret.pdf: only files in the workspace");
-    expect(text).toContain("pipe.txt: it is not a regular file.");
+    if (process.platform !== "win32")
+      expect(text).toContain("pipe.txt: it is not a regular file.");
     expect(text).toContain(
       "config.json: it is in a credential store and is never sent."
     );
@@ -338,7 +340,9 @@ describe("present_deliverable on the phone", () => {
     expect(text).not.toMatch(/^\[media\] media-0123456789abcdef/m);
   });
 
-  it("keeps a file's own name on one line in its artifact line too", async () => {
+  it.skipIf(process.platform === "win32")(
+    "keeps a file's own name on one line in its artifact line too",
+    async () => {
     const forged = "x\n[media] media-0123456789abcdef9999\n.pdf";
     fs.writeFileSync(path.join(workspace, forged), "%PDF forged");
     try {
@@ -351,7 +355,8 @@ describe("present_deliverable on the phone", () => {
     } finally {
       fs.rmSync(path.join(workspace, forged));
     }
-  });
+    }
+  );
 
   it("sends nothing from the shared temp folder outside the workspace", async () => {
     const shared = fs.mkdtempSync(path.join(os.tmpdir(), "phone-shared-"));
@@ -369,13 +374,20 @@ describe("present_deliverable on the phone", () => {
 
   it("refuses a file swapped after it was checked", async () => {
     const real = fs.realpathSync(path.join(workspace, "love.pdf"));
+    const samePath = (target: unknown): boolean => {
+      if (typeof target !== "string") return false;
+      const actual = fs.realpathSync(target);
+      return process.platform === "win32"
+        ? actual.toLowerCase() === real.toLowerCase()
+        : actual === real;
+    };
     const stat = fs.promises.stat;
     const spy = vi
       .spyOn(fs.promises, "stat")
       .mockImplementation(async (target, ...rest) => {
         const found = await stat(target as string, ...(rest as []));
         // What was checked is not the file the handle then opens.
-        return target === real
+        return samePath(target)
           ? Object.assign(Object.create(Object.getPrototypeOf(found)), found, {
               ino: Number(found.ino) + 1,
             })
