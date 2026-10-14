@@ -173,6 +173,21 @@ function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
   };
 }
 
+/**
+ * The local OpenAI-compatible gateway does not need Playwright/Puppeteer
+ * browser downloads for ordinary API providers. Avoid adding hundreds of MB
+ * and a potentially slow CDN transfer to first-run startup. Browser-driven
+ * provider workflows need their browser binaries installed separately.
+ */
+function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
+  return {
+    ...runtimeEnvironment(),
+    OMNIROUTE_SKIP_POSTINSTALL: "1",
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+    PUPPETEER_SKIP_DOWNLOAD: "1",
+  };
+}
+
 function runCommand(
   command: string,
   args: string[],
@@ -305,12 +320,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
       5 * 60_000,
-      {
-        ...runtimeEnvironment(),
-        // The native SQLite warm-up is optional; OmniRoute falls back to its
-        // supported pure-JS engine when the native warm-up is skipped.
-        OMNIROUTE_SKIP_POSTINSTALL: "1",
-      }
+      runtimeInstallEnvironment()
     );
     if (result.code !== 0) {
       // Do not expose potentially noisy installer output to the renderer.

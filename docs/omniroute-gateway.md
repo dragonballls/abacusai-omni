@@ -36,7 +36,9 @@ Gateway**.
   one usable upstream provider configured before inference can succeed.
 - Node.js and npm must be installed. The app installs only the pinned OmniRoute
   package into the per-user runtime directory; it does not install packages
-  globally.
+  globally. The default API-gateway install skips Playwright/Puppeteer browser
+  downloads because direct API providers do not need browser binaries. Browser-
+  driven provider workflows need their separate browser runtime installed.
 
 OmniRoute is an independently maintained package. Review its provider and
 network-security settings before entering production credentials. Only use

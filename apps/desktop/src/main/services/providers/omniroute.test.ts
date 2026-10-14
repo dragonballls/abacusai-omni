@@ -81,6 +81,17 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("major >= 24 && major < 27");
   });
 
+  it("skips optional browser downloads during API-gateway installation", () => {
+    const installStart = source.indexOf("function runtimeInstallEnvironment()");
+    const installEnd = source.indexOf("\n}\n", installStart);
+    expect(installStart).toBeGreaterThanOrEqual(0);
+    expect(installEnd).toBeGreaterThan(installStart);
+    const environment = source.slice(installStart, installEnd);
+    expect(environment).toContain('OMNIROUTE_SKIP_POSTINSTALL: "1"');
+    expect(environment).toContain('PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"');
+    expect(environment).toContain('PUPPETEER_SKIP_DOWNLOAD: "1"');
+  });
+
   it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
     expect(source).toContain('id: "auto"');
