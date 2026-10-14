@@ -21,6 +21,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
@@ -135,6 +136,14 @@ describe.skipIf(!availability.usable)(
   () => {
     beforeAll(async () => {
       dir = mkdtempSync(join(tmpdir(), "abacusai-bot-rpc-e2e-"));
+      // Electron runs a bundle from this temporary directory; a real
+      // node_modules entry is resolved consistently on Windows, macOS and
+      // Linux (NODE_PATH alone is not honored by every Electron launch mode).
+      symlinkSync(
+        join(DESKTOP, "node_modules"),
+        join(dir, "node_modules"),
+        "junction"
+      );
 
       writeFileSync(
         join(dir, "preload-entry.ts"),

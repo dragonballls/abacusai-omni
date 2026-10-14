@@ -426,6 +426,7 @@ function preserveScroll(
   change: () => void
 ) {
   const viewport = viewportRef.current;
+  anchor.current = null;
   if (viewport != null) {
     const box = viewport.getBoundingClientRect();
     const elements = Array.from(
@@ -454,6 +455,16 @@ function preserveScroll(
       break;
     }
   }
+  // Virtualized or content-visibility rows can temporarily leave no fully
+  // visible candidate during a layout transition. Reuse the last live anchor
+  // instead of allowing a paging update to evict it without protection.
+  if (
+    anchor.current == null &&
+    viewport != null &&
+    observed.current?.el.isConnected &&
+    observed.current.viewport === viewport
+  )
+    anchor.current = observed.current;
   change();
 }
 
@@ -604,6 +615,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
   const onPrepend = useEffectEvent(() => preserve(() => {}));
   useEffect(() => session.onPrepend(onPrepend), [session]);
   const lastMessages = useRef(messages);
+  const lastMeasured = useRef(measured);
   const messageIds = messages.map((item) => item.id).join("\0");
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return;
@@ -631,12 +643,18 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
     return () => observer.disconnect();
   }, [messageIds, window.start, window.end]);
   useLayoutEffect(() => {
+    const measuredChanged = lastMeasured.current !== measured;
+    lastMeasured.current = measured;
+    const messagesChanged = lastMessages.current !== messages;
     const saved =
       anchor.current ??
-      (lastMessages.current !== messages ? observed.current : null);
+      (messagesChanged || (measuredChanged && !away)
+        ? observed.current
+        : null);
     lastMessages.current = messages;
     anchor.current = null;
     if (saved == null) return;
+    if (saved.el.isConnected) observed.current = saved;
     const restore = () => {
       if (saved.el.isConnected)
         saved.viewport.scrollTop +=
@@ -830,8 +848,9 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             label={t("chat.transcript.showEarlier")}
             onActivate={() =>
               preserve(() => {
+                const protectedAnchor = anchor.current ?? observed.current;
                 const protect =
-                  anchor.current?.el.closest<HTMLElement>(
+                  protectedAnchor?.el.closest<HTMLElement>(
                     '[data-slot="message-scroller-item"][data-message-id]'
                   )?.dataset.messageId ?? null;
                 setWindow((current) => showEarlier(items, current, protect));
@@ -858,8 +877,9 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             label={t("chat.transcript.showLater")}
             onActivate={() =>
               preserve(() => {
+                const protectedAnchor = anchor.current ?? observed.current;
                 const protect =
-                  anchor.current?.el.closest<HTMLElement>(
+                  protectedAnchor?.el.closest<HTMLElement>(
                     '[data-slot="message-scroller-item"][data-message-id]'
                   )?.dataset.messageId ?? null;
                 setWindow((current) => showLater(items, current, protect));
