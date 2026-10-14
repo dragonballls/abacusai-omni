@@ -58,14 +58,10 @@ export const renderSoundLevels = async (
   try {
     const url = await new Promise<string>((resolve, reject) => {
       let stderr = "";
+      const startupError = (message: string) =>
+        new Error([message, stderr.slice(-2000)].join("\n"));
       const timer = setTimeout(
-        () =>
-          reject(
-            new Error(
-              "Chrome did not start within 30 seconds. stderr: " +
-                stderr.slice(-2000)
-            )
-          ),
+        () => reject(startupError("Chrome did not start within 30 seconds.")),
         30_000
       );
       browserProcess.stderr!.on("data", (chunk) => {
@@ -82,19 +78,7 @@ export const renderSoundLevels = async (
         clearTimeout(timer);
         reject(error);
       });
-      browserProcess.once("exit", (code, signal) => {
-        clearTimeout(timer);
-        reject(
-          new Error(
-            "Chrome exited before DevTools was ready (code " +
-              code +
-              ", signal " +
-              signal +
-              "). stderr: " +
-              stderr.slice(-2000)
-          )
-        );
-      });
+
     });
     socket = new WebSocket(url);
     await once(socket, "open");
@@ -180,7 +164,10 @@ export const renderSoundLevels = async (
     return result;
   } finally {
     socket?.close();
-    if (browserProcess.exitCode === null && browserProcess.signalCode === null) {
+    if (
+      browserProcess.exitCode === null &&
+      browserProcess.signalCode === null
+    ) {
       const exited = once(browserProcess, "exit");
       browserProcess.kill();
       await exited;
