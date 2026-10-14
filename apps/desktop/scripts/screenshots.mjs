@@ -336,11 +336,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** A minimal CDP client over Node's WebSocket. */
 const connect = async (port) => {
   let page = null;
-  for (let attempt = 0; attempt < 120 && page == null; attempt += 1) {
+  for (let attempt = 0; attempt < 60 && page == null; attempt += 1) {
     try {
-      const targets = await (
-        await fetch(`http://127.0.0.1:${port}/json`)
-      ).json();
+      const response = await fetch(`http://127.0.0.1:${port}/json`, {
+        signal: AbortSignal.timeout(1_500),
+      });
+      if (!response.ok) throw new Error(`DevTools target list returned HTTP ${response.status}`);
+      const targets = await response.json();
       page = targets.find(
         (target) => target.type === "page" && target.url.includes("index.html")
       );
@@ -352,24 +354,73 @@ const connect = async (port) => {
   if (page == null) throw new Error("no renderer page appeared");
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    ws.onopen = resolve;
-    ws.onerror = reject;
+    let settled = false;
+    let timer;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    timer = setTimeout(() => {
+      finish(new Error("Chrome DevTools WebSocket connection timed out after 10 seconds"));
+      ws.close();
+    }, 10_000);
+    ws.addEventListener("open", () => finish());
+    ws.addEventListener("error", () =>
+      finish(new Error("Chrome DevTools WebSocket connection failed"))
+    );
+    ws.addEventListener("close", () =>
+      finish(new Error("Chrome DevTools WebSocket closed before opening"))
+    );
   });
   let id = 0;
   const pending = new Map();
-  ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+  const failPending = (error) => {
+    for (const waiter of pending.values()) {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+    }
+    pending.clear();
+  };
+  ws.addEventListener("error", () =>
+    failPending(new Error("Chrome DevTools WebSocket reported an error"))
+  );
+  ws.addEventListener("close", () =>
+    failPending(new Error("Chrome DevTools WebSocket closed during a command"))
+  );
+  ws.addEventListener("message", (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch {
+      failPending(new Error("Chrome DevTools returned invalid JSON"));
+      return;
+    }
     const waiter = pending.get(message.id);
     if (waiter == null) return;
     pending.delete(message.id);
+    clearTimeout(waiter.timer);
     if (message.error) waiter.reject(new Error(JSON.stringify(message.error)));
     else waiter.resolve(message.result);
-  };
+  });
   const send = (method, params = {}) =>
     new Promise((resolve, reject) => {
       id += 1;
-      pending.set(id, { resolve, reject });
-      ws.send(JSON.stringify({ id, method, params }));
+      const requestId = id;
+      const timer = setTimeout(() => {
+        pending.delete(requestId);
+        reject(new Error(`Chrome DevTools command ${method} timed out after 30 seconds`));
+      }, 30_000);
+      pending.set(requestId, { resolve, reject, timer });
+      try {
+        ws.send(JSON.stringify({ id: requestId, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        pending.delete(requestId);
+        reject(error);
+      }
     });
   const evaluate = async (expression) => {
     const result = await send("Runtime.evaluate", {
