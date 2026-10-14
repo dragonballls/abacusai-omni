@@ -78,7 +78,6 @@ export const renderSoundLevels = async (
         clearTimeout(timer);
         reject(error);
       });
-
     });
     socket = new WebSocket(url);
     await once(socket, "open");
