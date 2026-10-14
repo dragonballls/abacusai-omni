@@ -219,7 +219,10 @@ export const followWindow = (
   prepended: number,
   follow = state.end >= previousTotal
 ): WindowState => {
-  if (follow) return newestWindow(items, state.ranges);
+  // If filtering/reconciling messages shrinks the list past the old window,
+  // preserving that now-invalid index range would render an empty transcript.
+  if (follow || state.start >= items.length || state.end <= state.start)
+    return newestWindow(items, state.ranges);
   const start = Math.min(items.length, state.start + prepended);
   const end =
     state.end >= previousTotal

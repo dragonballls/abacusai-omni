@@ -93,6 +93,10 @@ describe("R2-T16 window (pure)", () => {
       end: Math.min(250, 60 + MAX_ROWS),
       ranges: {},
     });
+    const shortened = items.slice(0, 30);
+    expect(
+      followWindow({ start: 40, end: 60, ranges: {} }, 60, shortened, 0, false)
+    ).toEqual(newestWindow(shortened));
   });
 
   it("keeps the visible anchor mounted at either window edge", () => {
