@@ -89,6 +89,46 @@ function runCommand(command, args, options, timeoutMs) {
 
 async function stopGateway(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
+
+  // The OmniRoute CLI owns a server child. On Windows, stop the complete
+  // disposable test process tree so the smoke test cannot leave a listener
+  // behind after its temporary data directory is removed.
+  if (process.platform === "win32" && child.pid) {
+    const taskkill = join(
+      process.env.SystemRoot || process.env.WINDIR || "C:\\Windows",
+      "System32",
+      "taskkill.exe"
+    );
+    await new Promise((resolve) => {
+      let settled = false;
+      let timer;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const killer = spawn(taskkill, ["/PID", String(child.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+      timer = setTimeout(() => {
+        killer.kill();
+        finish();
+      }, 5000);
+      killer.once("error", finish);
+      killer.once("close", finish);
+    });
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+      await Promise.race([
+        new Promise((resolve) => child.once("exit", resolve)),
+        delay(1000),
+      ]);
+    }
+    return;
+  }
+
   child.kill("SIGTERM");
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),

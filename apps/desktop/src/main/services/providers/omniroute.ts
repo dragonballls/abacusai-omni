@@ -676,7 +676,7 @@ async function portIsOccupied(): Promise<boolean> {
 function startOmniRoute(node: string, requireApiKey: boolean): ChildProcess {
   const child = spawn(
     node,
-    [omniRouteEntry, "--no-open", "--port", String(OMNIROUTE_PORT)],
+    [omniRouteEntry, "--no-open", "--no-recovery", "--port", String(OMNIROUTE_PORT)],
     {
       cwd: omniRouteDataDir,
       env: runtimeEnvironment(requireApiKey),

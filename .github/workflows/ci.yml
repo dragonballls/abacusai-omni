@@ -203,6 +203,13 @@ jobs:
           sudo chown root:root "$sandbox"
           sudo chmod 4755 "$sandbox"
 
+      # The Windows desktop is the target for the OmniRoute integration.
+      # Exercise real pinned-runtime auth, client-key creation and Auto routing
+      # on Windows rather than relying only on the Linux smoke test.
+      - name: Smoke test OmniRoute authentication and Auto routing on Windows
+        if: runner.os == 'Windows'
+        run: node scripts/omniroute-gateway-smoke.mjs
+
       - name: Run tests
         shell: bash
         run: |
