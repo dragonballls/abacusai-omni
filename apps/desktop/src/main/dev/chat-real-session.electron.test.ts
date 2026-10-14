@@ -247,9 +247,7 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
       expect(result.bottom).toBeGreaterThan(result.viewportTop);
       expect(result.bottom).toBeLessThanOrEqual(result.viewportBottom);
     } finally {
-      await app.evaluate(
-        `window.__abacusDev.navigate("/sessions/${THREAD}")`
-      );
+      await app.evaluate(`window.__abacusDev.navigate("/sessions/${THREAD}")`);
       await app.until(
         `document.querySelector('[data-slot="composer"]') && ${session}.ready`,
         15000,
