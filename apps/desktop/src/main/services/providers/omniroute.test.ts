@@ -75,6 +75,12 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
 
+  it("rejects Node.js versions outside OmniRoute's supported engine range", () => {
+    expect(source).toContain('spawnSync(node, ["--version"]');
+    expect(source).toContain("22.22.2");
+    expect(source).toContain("major >= 24 && major < 27");
+  });
+
   it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
     expect(source).toContain('id: "auto"');

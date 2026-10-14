@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 /**
  * Local OmniRoute gateway integration for AbacusAI Bot.
  *
@@ -91,6 +91,33 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
     throw new Error(
       "OmniRoute needs Node.js installed on this computer. " +
         "Install Node.js 24, reopen AbacusAI Bot, and try again."
+    );
+  }
+
+  const versionResult = spawnSync(node, ["--version"], {
+    encoding: "utf8",
+    timeout: 5000,
+    windowsHide: true,
+  });
+  const version = versionResult.stdout.trim();
+  const versionMatch = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
+  const major = Number(versionMatch?.[1]);
+  const minor = Number(versionMatch?.[2]);
+  const patch = Number(versionMatch?.[3]);
+  const supported =
+    (major === 22 &&
+      (minor > 22 || (minor === 22 && patch >= 2))) ||
+    (major >= 24 && major < 27);
+  if (
+    versionResult.error ||
+    versionResult.status !== 0 ||
+    !versionMatch ||
+    !supported
+  ) {
+    throw new Error(
+      "OmniRoute 3.8.50 requires Node.js >=22.22.2 <23 or >=24 <27. " +
+        `Found ${version || "an unreadable version"}. Install Node.js 24, ` +
+        "reopen AbacusAI Bot, and try again."
     );
   }
 
