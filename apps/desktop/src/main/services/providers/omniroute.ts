@@ -718,7 +718,7 @@ async function ensureOmniRoute(): Promise<string> {
 
     if (await portIsOccupied()) {
       throw new Error(
-        `Port ${OMNIROUTE_PORT} is already in use by a service that did not ` +
+        `Port ${OMNIROUTE_PORT} is already in use by a service that did not pass ` +
           "the OmniRoute health checks. Close or verify that service " +
           "before starting the gateway."
       );

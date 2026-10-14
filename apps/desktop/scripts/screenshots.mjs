@@ -395,9 +395,7 @@ const connect = async (port) => {
     failPending(new Error("Chrome DevTools WebSocket reported an error"))
   );
   ws.addEventListener("close", () =>
-    failPending(
-      new Error("Chrome DevTools WebSocket closed during a command")
-    )
+    failPending(new Error("Chrome DevTools WebSocket closed during a command"))
   );
   ws.addEventListener("message", (event) => {
     let message;
