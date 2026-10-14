@@ -24,7 +24,9 @@ describe("local OmniRoute gateway security contract", () => {
     const launcherEnd = source.indexOf("\n}\n", launcherStart);
     expect(launcherStart).toBeGreaterThanOrEqual(0);
     expect(launcherEnd).toBeGreaterThan(launcherStart);
-    expect(source.slice(launcherStart, launcherEnd)).toContain('"--no-recovery"');
+    expect(source.slice(launcherStart, launcherEnd)).toContain(
+      '"--no-recovery"'
+    );
   });
 
   it("accepts OmniRoute's normal same-origin dashboard redirect during startup", () => {

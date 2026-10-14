@@ -539,10 +539,8 @@ async function main() {
       "bin",
       "npm-cli.js"
     );
-    const npmCommand =
-      process.platform === "win32" ? process.execPath : "npm";
-    const npmArgs =
-      process.platform === "win32" ? [npmCli] : [];
+    const npmCommand = process.platform === "win32" ? process.execPath : "npm";
+    const npmArgs = process.platform === "win32" ? [npmCli] : [];
     assert(
       process.platform !== "win32" || existsSync(npmCli),
       `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
