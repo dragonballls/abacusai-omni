@@ -180,9 +180,11 @@ export const renderSoundLevels = async (
     return result;
   } finally {
     socket?.close();
-    const exited = once(browserProcess, "exit");
-    browserProcess.kill();
-    await exited;
+    if (browserProcess.exitCode === null && browserProcess.signalCode === null) {
+      const exited = once(browserProcess, "exit");
+      browserProcess.kill();
+      await exited;
+    }
     await bundle.close();
     await rm(scratch, {
       recursive: true,

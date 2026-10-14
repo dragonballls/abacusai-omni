@@ -99,7 +99,7 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
     timeout: 5000,
     windowsHide: true,
   });
-  const version = versionResult.stdout.trim();
+  const version = String(versionResult.stdout ?? "").trim();
   const versionMatch = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
   const major = Number(versionMatch?.[1]);
   const minor = Number(versionMatch?.[2]);
