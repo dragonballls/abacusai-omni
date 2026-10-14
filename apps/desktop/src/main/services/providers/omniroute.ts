@@ -277,7 +277,13 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "--omit=dev",
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
-      5 * 60_000
+      5 * 60_000,
+      {
+        ...runtimeEnvironment(),
+        // The native SQLite warm-up is optional; OmniRoute falls back to its
+        // supported pure-JS engine when the native warm-up is skipped.
+        OMNIROUTE_SKIP_POSTINSTALL: "1",
+      }
     );
     if (result.code !== 0) {
       // Do not expose potentially noisy installer output to the renderer.

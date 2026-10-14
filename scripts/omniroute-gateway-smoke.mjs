@@ -613,7 +613,10 @@ async function main() {
         "--omit=dev",
         `omniroute@${VERSION}`,
       ],
-      { cwd: dataDir, env: process.env },
+      {
+        cwd: dataDir,
+        env: { ...process.env, OMNIROUTE_SKIP_POSTINSTALL: "1" },
+      },
       INSTALL_TIMEOUT_MS
     );
     assert(

@@ -418,12 +418,16 @@ const connect = async (port) => {
       const requestId = id;
       const timer = setTimeout(() => {
         pending.delete(requestId);
+        const expression =
+          typeof params.expression === "string"
+            ? ` (${params.expression.slice(0, 80)})`
+            : "";
         reject(
           new Error(
-            `Chrome DevTools command ${method} timed out after 30 seconds`
+            `Chrome DevTools command ${method} timed out after 60 seconds${expression}`
           )
         );
-      }, 30_000);
+      }, 60_000);
       pending.set(requestId, { resolve, reject, timer });
       try {
         ws.send(JSON.stringify({ id: requestId, method, params }));

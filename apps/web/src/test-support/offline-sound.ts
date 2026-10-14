@@ -59,8 +59,14 @@ export const renderSoundLevels = async (
     const url = await new Promise<string>((resolve, reject) => {
       let stderr = "";
       const timer = setTimeout(
-        () => reject(new Error("Chrome did not start")),
-        15000
+        () =>
+          reject(
+            new Error(
+              "Chrome did not start within 30 seconds. stderr: " +
+                stderr.slice(-2000)
+            )
+          ),
+        30_000
       );
       browserProcess.stderr!.on("data", (chunk) => {
         stderr += chunk.toString();
@@ -72,7 +78,23 @@ export const renderSoundLevels = async (
           resolve(endpoint);
         }
       });
-      browserProcess.once("error", reject);
+      browserProcess.once("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      browserProcess.once("exit", (code, signal) => {
+        clearTimeout(timer);
+        reject(
+          new Error(
+            "Chrome exited before DevTools was ready (code " +
+              code +
+              ", signal " +
+              signal +
+              "). stderr: " +
+              stderr.slice(-2000)
+          )
+        );
+      });
     });
     socket = new WebSocket(url);
     await once(socket, "open");

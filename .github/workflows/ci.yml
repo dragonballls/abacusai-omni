@@ -203,12 +203,26 @@ jobs:
           sudo chown root:root "$sandbox"
           sudo chmod 4755 "$sandbox"
 
-      # The Windows desktop is the target for the OmniRoute integration.
+      # OmniRoute 3.8.50 requires Node >=22.22.2. Keep the repository's
+      # pinned Node version for all normal suites, but use Node 24 for this
+      # runtime-specific integration test.
+      - name: Select supported Node.js for OmniRoute smoke test
+        if: runner.os == 'Windows'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
       # Exercise real pinned-runtime auth, client-key creation and Auto routing
       # on Windows rather than relying only on the Linux smoke test.
       - name: Smoke test OmniRoute authentication and Auto routing on Windows
         if: runner.os == 'Windows'
         run: node scripts/omniroute-gateway-smoke.mjs
+
+      - name: Restore repository Node.js version after OmniRoute smoke test
+        if: runner.os == 'Windows'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
 
       - name: Run tests
         shell: bash
