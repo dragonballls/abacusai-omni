@@ -381,9 +381,11 @@ describe("present_deliverable on the phone", () => {
         // Make the path-based identity disagree with the identity reported by
         // the open handle. Do not rely on a string path comparison: Windows
         // and macOS may canonicalize the same temporary path differently.
-        return Object.assign(Object.create(Object.getPrototypeOf(found)), found, {
-          dev: Number(found.dev) + 1,
-        });
+        return Object.assign(
+          Object.create(Object.getPrototypeOf(found)),
+          found,
+          { dev: Number(found.dev) + 1 }
+        );
       });
     try {
       const { text, isError } = await call("present_deliverable", {
