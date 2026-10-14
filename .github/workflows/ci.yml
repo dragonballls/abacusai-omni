@@ -73,6 +73,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TEMP formatter diagnostic (remove after repair)
+        run: |
+          pnpm exec oxfmt scripts/omniroute-gateway-smoke.mjs
+          git --no-pager diff -- scripts/omniroute-gateway-smoke.mjs
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
