@@ -341,7 +341,10 @@ const connect = async (port) => {
       const response = await fetch(`http://127.0.0.1:${port}/json`, {
         signal: AbortSignal.timeout(1_500),
       });
-      if (!response.ok) throw new Error(`DevTools target list returned HTTP ${response.status}`);
+      if (!response.ok)
+        throw new Error(
+          `DevTools target list returned HTTP ${response.status}`
+        );
       const targets = await response.json();
       page = targets.find(
         (target) => target.type === "page" && target.url.includes("index.html")
@@ -364,7 +367,11 @@ const connect = async (port) => {
       else resolve();
     };
     timer = setTimeout(() => {
-      finish(new Error("Chrome DevTools WebSocket connection timed out after 10 seconds"));
+      finish(
+        new Error(
+          "Chrome DevTools WebSocket connection timed out after 10 seconds"
+        )
+      );
       ws.close();
     }, 10_000);
     ws.addEventListener("open", () => finish());
@@ -388,7 +395,9 @@ const connect = async (port) => {
     failPending(new Error("Chrome DevTools WebSocket reported an error"))
   );
   ws.addEventListener("close", () =>
-    failPending(new Error("Chrome DevTools WebSocket closed during a command"))
+    failPending(
+      new Error("Chrome DevTools WebSocket closed during a command")
+    )
   );
   ws.addEventListener("message", (event) => {
     let message;
@@ -411,7 +420,11 @@ const connect = async (port) => {
       const requestId = id;
       const timer = setTimeout(() => {
         pending.delete(requestId);
-        reject(new Error(`Chrome DevTools command ${method} timed out after 30 seconds`));
+        reject(
+          new Error(
+            `Chrome DevTools command ${method} timed out after 30 seconds`
+          )
+        );
       }, 30_000);
       pending.set(requestId, { resolve, reject, timer });
       try {
