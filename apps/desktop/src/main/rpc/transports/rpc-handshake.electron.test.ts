@@ -187,7 +187,7 @@ describe.skipIf(!availability.usable)(
       const mainPath = join(dir, "main.cjs");
       const mainBundle = readFileSync(mainPath, "utf8");
       const resolvedMainBundle = mainBundle.replace(
-        /(["'])@silvia-odwyer\\/photon-node\\1/g,
+        /(["'])@silvia-odwyer\/photon-node\1/g,
         JSON.stringify(photonPath)
       );
       if (resolvedMainBundle === mainBundle) {
