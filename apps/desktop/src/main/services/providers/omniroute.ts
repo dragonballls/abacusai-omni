@@ -104,10 +104,10 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   const major = Number(versionMatch?.[1]);
   const minor = Number(versionMatch?.[2]);
   const patch = Number(versionMatch?.[3]);
-  const supported =
-    (major === 22 &&
-      (minor > 22 || (minor === 22 && patch >= 2))) ||
-    (major >= 24 && major < 27);
+  const supported22 =
+    major === 22 && (minor > 22 || (minor === 22 && patch >= 2));
+  const supported24Plus = major >= 24 && major < 27;
+  const supported = supported22 || supported24Plus;
   if (
     versionResult.error ||
     versionResult.status !== 0 ||
