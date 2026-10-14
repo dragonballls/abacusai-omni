@@ -23,7 +23,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const VERSION = "3.8.50";
-const INSTALL_TIMEOUT_MS = 5 * 60_000;
+const INSTALL_TIMEOUT_MS = 8 * 60_000;
 const STARTUP_TIMEOUT_MS = 90_000;
 const origin = (port) => `http://127.0.0.1:${port}`;
 
@@ -53,6 +53,41 @@ async function freeLoopbackPort() {
   return port;
 }
 
+function terminateProcessTree(child) {
+  if (process.platform !== "win32" || !child.pid) {
+    child.kill("SIGTERM");
+    return Promise.resolve();
+  }
+
+  const taskkill = join(
+    process.env.SystemRoot || process.env.WINDIR || "C:\\Windows",
+    "System32",
+    "taskkill.exe"
+  );
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+      resolve();
+    };
+    const killer = spawn(taskkill, ["/PID", String(child.pid), "/T", "/F"], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    const timer = setTimeout(() => {
+      killer.kill();
+      finish();
+    }, 5000);
+    killer.once("error", finish);
+    killer.once("close", finish);
+  });
+}
+
 function runCommand(command, args, options, timeoutMs) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -62,28 +97,51 @@ function runCommand(command, args, options, timeoutMs) {
     });
     let output = "";
     let settled = false;
+    let timedOut = false;
+    let timeoutCleanup = Promise.resolve();
+    let forceTimer;
     const append = (chunk) => {
       output = (output + String(chunk)).slice(-12_000);
     };
     child.stdout?.on("data", append);
     child.stderr?.on("data", append);
+    const finishError = async (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(forceTimer);
+      await timeoutCleanup;
+      reject(error);
+    };
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
-      child.kill("SIGTERM");
-      reject(new Error(`${command} timed out. Last output:\n${output}`));
+      timedOut = true;
+      timeoutCleanup = terminateProcessTree(child);
+      // A final fallback prevents a stuck child from outliving the test.
+      forceTimer = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill("SIGKILL");
+        }
+      }, 6000);
     }, timeoutMs);
     child.once("error", (error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(error);
+      void finishError(error);
     });
-    child.once("close", (code) => {
+    child.once("close", async (code) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve({ code, output });
+      clearTimeout(forceTimer);
+      await timeoutCleanup;
+      if (timedOut) {
+        reject(
+          new Error(
+            `${command} timed out after ${Math.round(timeoutMs / 1000)} seconds. Last output:\n${output}`
+          )
+        );
+      } else {
+        resolve({ code, output });
+      }
     });
   });
 }
@@ -650,7 +708,7 @@ async function main() {
   } finally {
     await stopGateway(gateway);
     if (mockUpstream) await mockUpstream.close();
-    rmSync(temp, { recursive: true, force: true });
+    rmSync(temp, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   }
 }
 
