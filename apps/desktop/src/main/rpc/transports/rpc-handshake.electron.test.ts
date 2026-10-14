@@ -92,7 +92,9 @@ const runElectron = (mode: "normal" | "delayed"): Record<string, unknown> => {
         encoding: "utf8",
         env: {
           ...process.env,
-          NODE_PATH: [join(DESKTOP, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter),
+          NODE_PATH: [join(DESKTOP, "node_modules"), process.env.NODE_PATH]
+            .filter(Boolean)
+            .join(delimiter),
           ELECTRON_DISABLE_SECURITY_WARNINGS: "1",
           ELECTRON_ENABLE_LOGGING: "",
           RPC_E2E_MODE: mode,
