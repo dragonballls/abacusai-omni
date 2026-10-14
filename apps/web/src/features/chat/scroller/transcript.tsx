@@ -792,7 +792,10 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
     );
     for (const outcome of byAnchor.get(message.id) ?? [])
       rows.push(
-        <MessageScrollerItem key={`outcome-${outcome.runId}`}>
+        <MessageScrollerItem
+          key={`outcome-${outcome.runId}`}
+          messageId={message.id}
+        >
           <Outcome outcome={outcome} latest={outcome.runId === latest} />
         </MessageScrollerItem>
       );
