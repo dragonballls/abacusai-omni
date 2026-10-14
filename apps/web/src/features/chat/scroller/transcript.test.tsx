@@ -120,6 +120,7 @@ describe("R2-T16 window (pure)", () => {
       })?.toISOString()
     ).toBe("2026-09-01T10:00:00.000Z");
     expect(messageTime({})).toBeNull();
+    expect(messageTime(undefined)).toBeNull();
     expect(dayKey(null)).toBeNull();
   });
 });

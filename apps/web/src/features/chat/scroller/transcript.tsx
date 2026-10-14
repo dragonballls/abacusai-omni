@@ -746,8 +746,24 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
       document.removeEventListener("selectionchange", changed);
     };
   }, []);
-  const start = Math.min(window.start, selectionWindow?.start ?? window.start);
-  const end = Math.max(window.end, selectionWindow?.end ?? window.end);
+  // Message visibility can change while a stored window still refers to the
+  // previous list (for example when an optimistic user echo is reconciled).
+  // Clamp the render slice before the day-separator scan below; otherwise the
+  // scan can read past the end of `visible` and crash the renderer.
+  const start = Math.max(
+    0,
+    Math.min(
+      visible.length,
+      Math.min(window.start, selectionWindow?.start ?? window.start)
+    )
+  );
+  const end = Math.max(
+    start,
+    Math.min(
+      visible.length,
+      Math.max(window.end, selectionWindow?.end ?? window.end)
+    )
+  );
   const shown = visible.slice(start, end);
   let lastDay: string | null = null;
   for (let index = 0; index < start; index += 1) {

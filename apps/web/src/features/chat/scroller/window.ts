@@ -234,10 +234,10 @@ export const dayKey = (date: Date | null): string | null =>
     ? null
     : `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
-export const messageTime = (message: {
-  createdAt?: Date | string;
-  metadata?: unknown;
-}): Date | null => {
+export const messageTime = (
+  message: { createdAt?: Date | string; metadata?: unknown } | null | undefined
+): Date | null => {
+  if (message == null) return null;
   if (message.createdAt != null) {
     const date = new Date(message.createdAt);
     if (!Number.isNaN(date.getTime())) return date;
