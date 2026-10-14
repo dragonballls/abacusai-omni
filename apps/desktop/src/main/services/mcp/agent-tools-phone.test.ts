@@ -373,25 +373,17 @@ describe("present_deliverable on the phone", () => {
   });
 
   it("refuses a file swapped after it was checked", async () => {
-    const real = fs.realpathSync(path.join(workspace, "love.pdf"));
-    const samePath = (target: unknown): boolean => {
-      if (typeof target !== "string") return false;
-      const actual = fs.realpathSync(target);
-      return process.platform === "win32"
-        ? actual.toLowerCase() === real.toLowerCase()
-        : actual === real;
-    };
     const stat = fs.promises.stat;
     const spy = vi
       .spyOn(fs.promises, "stat")
       .mockImplementation(async (target, ...rest) => {
         const found = await stat(target as string, ...(rest as []));
-        // What was checked is not the file the handle then opens.
-        return samePath(target)
-          ? Object.assign(Object.create(Object.getPrototypeOf(found)), found, {
-              ino: Number(found.ino) + 1,
-            })
-          : found;
+        // Make the path-based identity disagree with the identity reported by
+        // the open handle. Do not rely on a string path comparison: Windows
+        // and macOS may canonicalize the same temporary path differently.
+        return Object.assign(Object.create(Object.getPrototypeOf(found)), found, {
+          dev: Number(found.dev) + 1,
+        });
       });
     try {
       const { text, isError } = await call("present_deliverable", {

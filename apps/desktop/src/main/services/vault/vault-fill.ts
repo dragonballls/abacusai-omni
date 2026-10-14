@@ -862,14 +862,21 @@ export const FIELD_FACTS_JS = `
     const texts = (el) => [el.getAttribute('name'), el.getAttribute('id'), el.getAttribute('aria-label'),
       el.getAttribute('placeholder'), ...Array.from(el.labels || []).map((label) => label.textContent)]
       .map((text) => String(text || ''));
-    const classes = __classifyCardControls(controls.map((el) => ({
-      phrases: __cardPhrases(texts(el)),
-      autocomplete: String(el.getAttribute('autocomplete') || '').toLowerCase().split(/\\s+/).filter(Boolean),
-      fillable: el.tagName === 'SELECT' || __TEXT_ENTRY.includes(__typeOf(el)),
-      form: keyOf(el.form),
-      group: keyOf(groupOf(el)),
-      groupPhrases: __cardPhrases(groupLabel(groupOf(el))),
-    })));
+    const cardControls = controls.filter((el) =>
+      el.tagName === 'SELECT' || __TEXT_ENTRY.includes(__typeOf(el)));
+    const classes = __classifyCardControls(cardControls.map((el) => {
+      const group = groupOf(el);
+      return {
+        phrases: __cardPhrases(texts(el)),
+        autocomplete: String(el.getAttribute('autocomplete') || '').toLowerCase().split(/\\s+/).filter(Boolean),
+        fillable: true,
+        form: keyOf(el.form),
+        group: keyOf(group),
+        groupPhrases: __cardPhrases(groupLabel(group)),
+      };
+    }));
+    const cardClasses = new Map(cardControls.map((el, index) => [el, classes[index]]));
+    const noCard = { number: false, detailWords: null, detail: null };
     const facts = new Map();
     controls.forEach((el, at) => {
       const lower = (name) => String(el.getAttribute(name) || '').toLowerCase();
@@ -889,7 +896,7 @@ export const FIELD_FACTS_JS = `
         adjacentPassword: index >= 0 && (isPassword(entries[index - 1]) || isPassword(entries[index + 1])),
         hints: [...texts(el).map((text) => text.toLowerCase()).join(' ').split(/[^a-z0-9]+/).filter(Boolean),
           ...[lower('name'), lower('id')].map((text) => text.replace(/[^a-z0-9]+/g, '')).filter(Boolean)],
-        card: classes[at],
+        card: cardClasses.get(el) || noCard,
       });
     });
     return facts;

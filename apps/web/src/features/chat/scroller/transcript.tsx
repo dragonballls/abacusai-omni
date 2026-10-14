@@ -437,10 +437,31 @@ function preserveScroll(
     // Start near the last visible row. Scanning from the first mounted row
     // on each scroll forces layout of content-visibility's offscreen rows.
     const hint = observed.current?.el;
-    let start = hint == null ? 0 : Math.max(0, elements.indexOf(hint));
+    const hintIndex = hint == null ? -1 : elements.indexOf(hint);
+    let start = Math.max(0, hintIndex);
+    if (hintIndex >= 0) {
+      const rect = elements[start]!.getBoundingClientRect();
+      if (rect.bottom < box.top) {
+        // The previous anchor is above the current viewport. Move forward;
+        // walking backwards from it would never find the current visible rows.
+        while (
+          start < elements.length &&
+          elements[start]!.getBoundingClientRect().bottom < box.top
+        )
+          start += 1;
+      } else if (rect.top >= box.bottom) {
+        // The previous anchor is below the current viewport. Move backward
+        // before looking for the first visible row.
+        while (
+          start > 0 &&
+          elements[start]!.getBoundingClientRect().top >= box.bottom
+        )
+          start -= 1;
+      }
+    }
     while (start > 0) {
       const rect = elements[start - 1]!.getBoundingClientRect();
-      if (rect.height > 0 && rect.top < box.top) break;
+      if (rect.bottom <= box.top) break;
       start -= 1;
     }
     for (let index = start; index < elements.length; index += 1) {
