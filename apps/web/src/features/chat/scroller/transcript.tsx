@@ -458,13 +458,15 @@ function preserveScroll(
   // Virtualized or content-visibility rows can temporarily leave no fully
   // visible candidate during a layout transition. Reuse the last live anchor
   // instead of allowing a paging update to evict it without protection.
+  const previousAnchor = observed.current;
   if (
     anchor.current == null &&
     viewport != null &&
-    observed.current?.el.isConnected &&
-    observed.current.viewport === viewport
-  )
-    anchor.current = observed.current;
+    previousAnchor?.el.isConnected &&
+    previousAnchor.viewport === viewport
+  ) {
+    anchor.current = previousAnchor;
+  }
   change();
 }
 
@@ -646,11 +648,10 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
     const measuredChanged = lastMeasured.current !== measured;
     lastMeasured.current = measured;
     const messagesChanged = lastMessages.current !== messages;
-    const saved =
-      anchor.current ??
-      (messagesChanged || (measuredChanged && !away)
-        ? observed.current
-        : null);
+    let saved = anchor.current;
+    if (saved == null && (messagesChanged || (measuredChanged && !away))) {
+      saved = observed.current;
+    }
     lastMessages.current = messages;
     anchor.current = null;
     if (saved == null) return;
