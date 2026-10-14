@@ -73,6 +73,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Diagnostic screenshot formatter diff
+        run: |
+          pnpm exec oxfmt apps/desktop/scripts/screenshots.mjs
+          git --no-pager diff -- apps/desktop/scripts/screenshots.mjs
+          git checkout -- apps/desktop/scripts/screenshots.mjs
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
