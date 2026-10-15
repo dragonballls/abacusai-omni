@@ -123,7 +123,7 @@ export const ROUTES = option(
         "/bots/new",
         "/bots/chief-of-staff",
         "/sessions/new",
-        "/sessions/review-prs?tab=files",
+        "/sessions/fix-sidebar-width?tab=files",
         "/__ui?fixture=sessions-terminal",
         "/routines",
         "/routines/new",
@@ -691,7 +691,11 @@ const main = async () => {
             cdp,
             `(() => {
             const pane = document.querySelector('[data-slot="pane"]')?.getBoundingClientRect();
-            const identity = document.querySelector('[data-slot="topbar-identity"]')?.getBoundingClientRect();
+            const identityNode = document.querySelector('[data-slot="topbar-identity"]');
+            const identity =
+              identityNode && getComputedStyle(identityNode).display !== "none"
+                ? identityNode.getBoundingClientRect()
+                : null;
             const leading = document.querySelector('[data-slot="topbar-leading"]')?.getBoundingClientRect();
             const popup = document.querySelector('[data-slot="drawer-popup"][data-side-panel]')?.getBoundingClientRect();
             const scrim = document.querySelector('[data-slot="side-panel-scrim"]')?.getBoundingClientRect();
@@ -989,7 +993,15 @@ const main = async () => {
           const compact = await cdp.evaluate(`({
             toolbar: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h')),
             topbar: document.querySelector('[data-slot="topbar"]').getBoundingClientRect().height,
-            rows: [...document.querySelectorAll('[data-slot="nav-list"] a[data-slot="item"]')].slice(0, 4).map((a) => a.getBoundingClientRect().height),
+            rows: [...document.querySelectorAll('[data-slot="nav-list"] a[data-slot="item"]')]
+              .slice(0, 4)
+              .map((a) => {
+                const rowHeight = a.getBoundingClientRect().height;
+                const rowGap = Number.parseFloat(
+                  getComputedStyle(a.parentElement).rowGap
+                ) || 0;
+                return rowHeight + rowGap;
+              }),
           })`);
           const name = `compact-${slug(route)}@${width}-${theme}.png`;
           failures.push(...compactProblems(name, compact));
