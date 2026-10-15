@@ -81,6 +81,14 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("major >= 24 && major < 27");
   });
 
+  it("installs only the API-key gateway dependencies without postinstall builds", () => {
+    expect(source).toContain('"--legacy-peer-deps"');
+    expect(source).toContain('"--ignore-scripts"');
+    expect(source).toContain('"--omit=optional"');
+    expect(source).toContain("function ensureRuntimeFallbackPackages()");
+    expect(source).toContain('"@swc/helpers", "sql.js", "node-machine-id"');
+  });
+
   it("skips optional browser downloads during API-gateway installation", () => {
     const installStart = source.indexOf("function runtimeInstallEnvironment()");
     const installEnd = source.indexOf("\n}\n", installStart);

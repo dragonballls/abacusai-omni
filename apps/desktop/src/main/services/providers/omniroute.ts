@@ -9,6 +9,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
 import {
   chmodSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -188,6 +189,29 @@ function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
   };
 }
 
+/**
+ * Install only the API-gateway dependency set without executing upstream
+ * postinstall download/build scripts. OmniRoute's bundled dist uses native
+ * SQLite when compatible, then node:sqlite (available in supported Node 22+
+ * versions), then sql.js. Restore the three regular JS runtime packages that
+ * upstream normally copies into its standalone dist tree during postinstall.
+ */
+function ensureRuntimeFallbackPackages(): void {
+  const modulesRoot = join(omniRouteDataDir, "node_modules");
+  const standaloneRoot = join(modulesRoot, "omniroute", "dist", "node_modules");
+  for (const packageName of ["@swc/helpers", "sql.js", "node-machine-id"]) {
+    const source = join(modulesRoot, packageName);
+    if (!existsSync(source)) {
+      throw new Error(
+        `The OmniRoute install is missing required runtime package ${packageName}.`
+      );
+    }
+    const destination = join(standaloneRoot, packageName);
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(source, destination, { recursive: true, force: true });
+  }
+}
+
 function runCommand(
   command: string,
   args: string[],
@@ -316,7 +340,10 @@ async function ensureRuntimeInstalled(): Promise<string> {
         omniRouteDataDir,
         "--no-fund",
         "--no-audit",
+        "--legacy-peer-deps",
+        "--ignore-scripts",
         "--omit=dev",
+        "--omit=optional",
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
       5 * 60_000,
@@ -339,6 +366,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "No provider keys were changed."
     );
   }
+  ensureRuntimeFallbackPackages();
   return node;
 }
 

@@ -36,9 +36,11 @@ Gateway**.
   one usable upstream provider configured before inference can succeed.
 - Node.js and npm must be installed. The app installs only the pinned OmniRoute
   package into the per-user runtime directory; it does not install packages
-  globally. The default API-gateway install skips Playwright/Puppeteer browser
-  downloads because direct API providers do not need browser binaries. Browser-
-  driven provider workflows need their separate browser runtime installed.
+  globally. The embedded API-key gateway installs without lifecycle scripts or
+  optional native add-ons to avoid first-run native-build/download hangs. It
+  restores the three standalone JavaScript support packages and uses Node's
+  built-in SQLite driver with sql.js fallback. Optional native-only OAuth/web
+  transport backends are not provisioned by this lightweight API-key setup.
 
 OmniRoute is an independently maintained package. Review its provider and
 network-security settings before entering production credentials. Only use

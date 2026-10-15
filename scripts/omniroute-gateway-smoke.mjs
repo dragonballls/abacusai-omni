@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
  */
 import { createHmac, randomBytes } from "node:crypto";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -610,7 +611,10 @@ async function main() {
         dataDir,
         "--no-fund",
         "--no-audit",
+        "--legacy-peer-deps",
+        "--ignore-scripts",
         "--omit=dev",
+        "--omit=optional",
         `omniroute@${VERSION}`,
       ],
       {
@@ -646,6 +650,27 @@ async function main() {
       metadata.version === VERSION,
       `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
     );
+
+    // Upstream normally does this in postinstall.mjs. That script can build or
+    // download optional native runtimes; the API-key smoke needs the packaged
+    // app, Node's built-in SQLite fallback, and these three JS support modules.
+    const modulesRoot = join(dataDir, "node_modules");
+    const standaloneRoot = join(
+      modulesRoot,
+      "omniroute",
+      "dist",
+      "node_modules"
+    );
+    for (const packageName of ["@swc/helpers", "sql.js", "node-machine-id"]) {
+      const source = join(modulesRoot, packageName);
+      assert(
+        existsSync(source),
+        `The install is missing required runtime package ${packageName}.`
+      );
+      const destination = join(standaloneRoot, packageName);
+      mkdirSync(dirname(destination), { recursive: true });
+      cpSync(source, destination, { recursive: true, force: true });
+    }
 
     // Mirror the app-owned wrapper: use one shared dashboard/API port and
     // clear inherited split-port variables before starting the pinned runtime.
