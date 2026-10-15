@@ -90,7 +90,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain(
       "const platformPackage = `@esbuild/${process.platform}-${process.arch}`;"
     );
-    expect(source).toContain('`${platformPackage}@${platformVersion}`');
+    expect(source).toContain("`${platformPackage}@${platformVersion}`");
     expect(source).toContain("rmSync(tempDir");
   });
 
