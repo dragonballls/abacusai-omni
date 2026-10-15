@@ -73,6 +73,14 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TEMP capture exact Oxfmt corrections
+        run: |
+          files='apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts scripts/omniroute-gateway-smoke.mjs'
+          mkdir -p "$RUNNER_TEMP/omniroute-format-before"
+          for file in $files; do mkdir -p "$RUNNER_TEMP/omniroute-format-before/$(dirname "$file")"; cp "$file" "$RUNNER_TEMP/omniroute-format-before/$file"; done
+          pnpm exec oxfmt $files
+          git --no-pager diff -- $files
+          for file in $files; do cp "$RUNNER_TEMP/omniroute-format-before/$file" "$file"; done
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
