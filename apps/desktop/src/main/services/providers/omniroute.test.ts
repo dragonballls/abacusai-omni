@@ -81,12 +81,15 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("major >= 24 && major < 27");
   });
 
-  it("installs only the API-key gateway dependencies without postinstall builds", () => {
+  it("omits the optional dependency closure and restores the required esbuild platform binary", () => {
     expect(source).toContain('"--legacy-peer-deps"');
     expect(source).toContain('"--ignore-scripts"');
-    expect(source).not.toContain('"--omit=optional"');
+    expect(source).toContain('"--omit=optional"');
     expect(source).toContain("function ensureRuntimeFallbackPackages()");
     expect(source).toContain('"@swc/helpers", "sql.js", "node-machine-id"');
+    expect(source).toContain('const platformPackage = `@esbuild/${process.platform}-${process.arch}`;');
+    expect(source).toContain('"${platformPackage}@${platformVersion}"');
+    expect(source).toContain("rmSync(tempDir");
   });
 
   it("skips optional browser downloads during API-gateway installation", () => {

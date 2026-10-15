@@ -614,6 +614,7 @@ async function main() {
         "--legacy-peer-deps",
         "--ignore-scripts",
         "--omit=dev",
+        "--omit=optional",
         `omniroute@${VERSION}`,
       ],
       {
@@ -650,9 +651,9 @@ async function main() {
       `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
     );
 
-    // Upstream normally does this in postinstall.mjs. That script can build or
-    // download optional native runtimes; the API-key smoke needs the packaged
-    // app, Node's built-in SQLite fallback, and these three JS support modules.
+    // Upstream normally does this in postinstall.mjs. Skip its expensive native
+    // builds/downloads for this API-key smoke, then restore the small set of
+    // JavaScript support packages and the exact platform binary esbuild needs.
     const modulesRoot = join(dataDir, "node_modules");
     const standaloneRoot = join(
       modulesRoot,
@@ -669,6 +670,63 @@ async function main() {
       const destination = join(standaloneRoot, packageName);
       mkdirSync(dirname(destination), { recursive: true });
       cpSync(source, destination, { recursive: true, force: true });
+    }
+
+    const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
+    assert(existsSync(esbuildManifest), "The install is missing esbuild's runtime package.");
+    const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8"));
+    const platformPackage = `@esbuild/${process.platform}-${process.arch}`;
+    const platformVersion = esbuild.optionalDependencies?.[platformPackage];
+    assert(
+      typeof platformVersion === "string",
+      `esbuild ${esbuild.version} does not declare ${platformPackage}.`
+    );
+    const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
+    try {
+      const binaryInstall = await runCommand(
+        npmCommand,
+        [
+          ...npmArgs,
+          "install",
+          "--prefix",
+          tempDir,
+          "--no-fund",
+          "--no-audit",
+          "--legacy-peer-deps",
+          "--ignore-scripts",
+          "--no-save",
+          `${platformPackage}@${platformVersion}`,
+        ],
+        {
+          cwd: tempDir,
+          env: {
+            ...process.env,
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+            PUPPETEER_SKIP_DOWNLOAD: "1",
+          },
+        },
+        120_000
+      );
+      assert(
+        binaryInstall.code === 0,
+        `Could not install ${platformPackage}@${platformVersion}. Last output:\n${binaryInstall.output}`
+      );
+      const [scope, packageName] = platformPackage.split("/");
+      const binarySource = join(tempDir, "node_modules", scope, packageName);
+      assert(
+        existsSync(join(binarySource, "package.json")),
+        `npm did not install the required package ${platformPackage}.`
+      );
+      const binaryDestination = join(modulesRoot, scope, packageName);
+      mkdirSync(dirname(binaryDestination), { recursive: true });
+      cpSync(binarySource, binaryDestination, { recursive: true, force: true });
+    } finally {
+      rmSync(tempDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 100,
+      });
     }
 
     // Mirror the app-owned wrapper: use one shared dashboard/API port and

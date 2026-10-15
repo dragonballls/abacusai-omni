@@ -12,12 +12,15 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
+import { tmpdir } from "node:os";
 
 import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";
@@ -196,7 +199,10 @@ function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
  * versions), then sql.js. Restore the three regular JS runtime packages that
  * upstream normally copies into its standalone dist tree during postinstall.
  */
-function ensureRuntimeFallbackPackages(): void {
+async function ensureRuntimeFallbackPackages(
+  node: string,
+  npmArgs: string[]
+): Promise<void> {
   const modulesRoot = join(omniRouteDataDir, "node_modules");
   const standaloneRoot = join(modulesRoot, "omniroute", "dist", "node_modules");
   for (const packageName of ["@swc/helpers", "sql.js", "node-machine-id"]) {
@@ -210,17 +216,80 @@ function ensureRuntimeFallbackPackages(): void {
     mkdirSync(dirname(destination), { recursive: true });
     cpSync(source, destination, { recursive: true, force: true });
   }
+
+  // esbuild treats its OS/CPU binary as optional. Omitting the full optional
+  // dependency set speeds the first install substantially, so install just
+  // this one small package separately and put it where normal Node resolution
+  // expects it. No install scripts are run for this native binary package.
+  const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
+  if (!existsSync(esbuildManifest)) {
+    throw new Error("The OmniRoute install is missing esbuild's runtime package.");
+  }
+  const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8")) as {
+    version?: string;
+    optionalDependencies?: Record<string, string>;
+  };
+  const platformPackage = `@esbuild/${process.platform}-${process.arch}`;
+  const platformVersion = esbuild.optionalDependencies?.[platformPackage];
+  if (!esbuild.version || !platformVersion) {
+    throw new Error(
+      `esbuild ${esbuild.version ?? "(unknown)"} does not declare ${platformPackage}.`
+    );
+  }
+
+  const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
+  try {
+    const result = await runCommand(
+      node,
+      [
+        ...npmArgs,
+        "install",
+        "--prefix",
+        tempDir,
+        "--no-fund",
+        "--no-audit",
+        "--legacy-peer-deps",
+        "--ignore-scripts",
+        "--no-save",
+        `${platformPackage}@${platformVersion}`,
+      ],
+      120_000,
+      {
+        ...process.env,
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+        PUPPETEER_SKIP_DOWNLOAD: "1",
+      },
+      tempDir
+    );
+    if (result.code !== 0) {
+      throw new Error(
+        `Could not install ${platformPackage}@${platformVersion}: ${result.output}`
+      );
+    }
+    const [scope, packageName] = platformPackage.split("/");
+    const binarySource = join(tempDir, "node_modules", scope!, packageName!);
+    const binaryManifest = join(binarySource, "package.json");
+    if (!existsSync(binaryManifest)) {
+      throw new Error(`npm did not install the required package ${platformPackage}.`);
+    }
+    const binaryDestination = join(modulesRoot, scope!, packageName!);
+    mkdirSync(dirname(binaryDestination), { recursive: true });
+    cpSync(binarySource, binaryDestination, { recursive: true, force: true });
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+  }
 }
 
 function runCommand(
   command: string,
   args: string[],
   timeoutMs: number,
-  env: NodeJS.ProcessEnv = runtimeEnvironment()
+  env: NodeJS.ProcessEnv = runtimeEnvironment(),
+  cwd = omniRouteDataDir
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      cwd: omniRouteDataDir,
+      cwd,
       env,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
@@ -343,6 +412,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "--legacy-peer-deps",
         "--ignore-scripts",
         "--omit=dev",
+        "--omit=optional",
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
       5 * 60_000,
@@ -365,7 +435,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "No provider keys were changed."
     );
   }
-  ensureRuntimeFallbackPackages();
+  await ensureRuntimeFallbackPackages(node, npmArgs);
   return node;
 }
 
