@@ -223,7 +223,9 @@ async function ensureRuntimeFallbackPackages(
   // expects it. No install scripts are run for this native binary package.
   const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
   if (!existsSync(esbuildManifest)) {
-    throw new Error("The OmniRoute install is missing esbuild's runtime package.");
+    throw new Error(
+      "The OmniRoute install is missing esbuild's runtime package."
+    );
   }
   const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8")) as {
     version?: string;
@@ -270,13 +272,20 @@ async function ensureRuntimeFallbackPackages(
     const binarySource = join(tempDir, "node_modules", scope!, packageName!);
     const binaryManifest = join(binarySource, "package.json");
     if (!existsSync(binaryManifest)) {
-      throw new Error(`npm did not install the required package ${platformPackage}.`);
+      throw new Error(
+        `npm did not install the required package ${platformPackage}.`
+      );
     }
     const binaryDestination = join(modulesRoot, scope!, packageName!);
     mkdirSync(dirname(binaryDestination), { recursive: true });
     cpSync(binarySource, binaryDestination, { recursive: true, force: true });
   } finally {
-    rmSync(tempDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+    rmSync(tempDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 8,
+      retryDelay: 100,
+    });
   }
 }
 

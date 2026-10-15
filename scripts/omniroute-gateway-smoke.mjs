@@ -673,7 +673,10 @@ async function main() {
     }
 
     const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
-    assert(existsSync(esbuildManifest), "The install is missing esbuild's runtime package.");
+    assert(
+      existsSync(esbuildManifest),
+      "The install is missing esbuild's runtime package."
+    );
     const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8"));
     const platformPackage = `@esbuild/${process.platform}-${process.arch}`;
     const platformVersion = esbuild.optionalDependencies?.[platformPackage];
