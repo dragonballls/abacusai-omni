@@ -19,8 +19,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { delimiter, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { delimiter, dirname, join } from "node:path";
 
 import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";

@@ -88,7 +88,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("function ensureRuntimeFallbackPackages()");
     expect(source).toContain('"@swc/helpers", "sql.js", "node-machine-id"');
     expect(source).toContain('const platformPackage = `@esbuild/${process.platform}-${process.arch}`;');
-    expect(source).toContain('"${platformPackage}@${platformVersion}"');
+    expect(source).toContain('`${platformPackage}@${platformVersion}`');
     expect(source).toContain("rmSync(tempDir");
   });
 
