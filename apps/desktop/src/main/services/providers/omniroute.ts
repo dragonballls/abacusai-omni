@@ -343,7 +343,6 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "--legacy-peer-deps",
         "--ignore-scripts",
         "--omit=dev",
-        "--omit=optional",
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
       5 * 60_000,

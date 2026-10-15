@@ -614,7 +614,6 @@ async function main() {
         "--legacy-peer-deps",
         "--ignore-scripts",
         "--omit=dev",
-        "--omit=optional",
         `omniroute@${VERSION}`,
       ],
       {
