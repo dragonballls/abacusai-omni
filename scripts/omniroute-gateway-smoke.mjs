@@ -24,7 +24,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const VERSION = "3.8.50";
-const INSTALL_TIMEOUT_MS = 8 * 60_000;
+const INSTALL_TIMEOUT_MS = 15 * 60_000;
 const STARTUP_TIMEOUT_MS = 90_000;
 const origin = (port) => `http://127.0.0.1:${port}`;
 

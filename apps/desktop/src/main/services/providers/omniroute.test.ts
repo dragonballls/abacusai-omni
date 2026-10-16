@@ -85,7 +85,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain('"--legacy-peer-deps"');
     expect(source).toContain('"--ignore-scripts"');
     expect(source).toContain('"--omit=optional"');
-    expect(source).toContain("function ensureRuntimeFallbackPackages()");
+    expect(source).toContain("async function ensureRuntimeFallbackPackages(");
     expect(source).toContain('"@swc/helpers", "sql.js", "node-machine-id"');
     expect(source).toContain(
       "const platformPackage = `@esbuild/${process.platform}-${process.arch}`;"

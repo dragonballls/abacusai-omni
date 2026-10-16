@@ -424,7 +424,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
         "--omit=optional",
         `omniroute@${OMNIROUTE_VERSION}`,
       ],
-      5 * 60_000,
+      15 * 60_000,
       runtimeInstallEnvironment()
     );
     if (result.code !== 0) {
