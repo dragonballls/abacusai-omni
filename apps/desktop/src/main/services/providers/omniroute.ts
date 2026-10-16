@@ -250,6 +250,8 @@ async function ensureRuntimeFallbackPackages(
         tempDir,
         "--no-fund",
         "--no-audit",
+        "--fetch-retries=1",
+        "--fetch-timeout=120000",
         "--legacy-peer-deps",
         "--ignore-scripts",
         "--no-save",
