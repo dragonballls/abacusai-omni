@@ -123,7 +123,7 @@ export const ROUTES = option(
         "/bots/new",
         "/bots/chief-of-staff",
         "/sessions/new",
-        "/sessions/spreadsheet?tab=files&view=split",
+        "/sessions/review-prs?tab=files",
         "/__ui?fixture=sessions-terminal",
         "/routines",
         "/routines/new",
@@ -761,8 +761,8 @@ const main = async () => {
           // The 1100 minimum with the panel in layout (Codex impl r1 #13).
           if (width === 1100 && route.includes("tab=")) {
             const split = await cdp.evaluate(`({
-              pane: ${rect('[data-slot="session-dock"][data-view="split"] [data-session-pane="chat"]')},
-              panel: ${rect('[data-slot="session-dock"][data-view="split"] [data-session-pane="tools"]')},
+              pane: ${rect('[data-slot="session-dock"][data-view="split"] [data-workspace-pane="chat"]')},
+              panel: ${rect('[data-slot="session-dock"][data-view="split"] [data-workspace-pane="tools"]')},
               innerWidth,
             })`);
             failures.push(...panelSplitProblems(name, split));
