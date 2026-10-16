@@ -95,8 +95,38 @@ const HELPERS = `(() => {
       }
       if (!(el instanceof Element) || !el.isConnected)
         throw new Error("paging control did not remain mounted after scrolling");
+
+      // A MessageChannel task can run before React commits the event's state
+      // update. Wait for this control's visible/accessible label to change so
+      // the benchmark times a real DOM commit rather than just event dispatch.
+      const before = el.textContent || "";
       const t0 = performance.now();
+      let observer;
+      const committed = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          observer?.disconnect();
+          reject(new Error("paging control did not commit after activation"));
+        }, 1500);
+        observer = new MutationObserver(() => {
+          const next = find();
+          if (
+            !(next instanceof Element) ||
+            !next.isConnected ||
+            (next.textContent || "") !== before
+          ) {
+            observer?.disconnect();
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        observer.observe(document.body, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      });
       el.click();
+      await committed;
       await task();
       return performance.now() - t0;
     },
