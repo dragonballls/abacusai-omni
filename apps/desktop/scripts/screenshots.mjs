@@ -998,7 +998,7 @@ const main = async () => {
               .map((a) => {
                 const rowHeight = a.getBoundingClientRect().height;
                 const rowGap = Number.parseFloat(
-                  getComputedStyle(a.parentElement).rowGap
+                  getComputedStyle(a.closest(".ui-list") ?? a.parentElement).rowGap
                 ) || 0;
                 return rowHeight + rowGap;
               }),
