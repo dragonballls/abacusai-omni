@@ -123,7 +123,7 @@ export const ROUTES = option(
         "/bots/new",
         "/bots/chief-of-staff",
         "/sessions/new",
-        "/sessions/review-prs?tab=files",
+        "/sessions/spreadsheet?tab=files&view=split",
         "/__ui?fixture=sessions-terminal",
         "/routines",
         "/routines/new",
