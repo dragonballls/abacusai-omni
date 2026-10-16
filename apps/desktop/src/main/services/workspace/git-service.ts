@@ -660,14 +660,21 @@ export class GitService {
     }
 
     try {
-      const statusOutput = await execFileAsync("git", [
-        "-C",
-        workspacePath,
-        "status",
-        "--porcelain",
-        "-uall",
-        "-z",
-      ]);
+      // This is a read-only status probe. Prevent Git's optional index
+      // refresh from taking index.lock while the user (or another process)
+      // stages changes in the same checkout.
+      const statusOutput = await execFileAsync(
+        "git",
+        [
+          "-C",
+          workspacePath,
+          "status",
+          "--porcelain",
+          "-uall",
+          "-z",
+        ],
+        { env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } }
+      );
       let changes: GitChangeItem[] = parseStatusZ(statusOutput.stdout);
       if (options.checkoutRelative === true) {
         const location = await this.repositoryLocation(workspacePath);
