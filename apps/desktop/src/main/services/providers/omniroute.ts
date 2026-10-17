@@ -19,6 +19,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import extract from "extract-zip";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 
@@ -26,6 +27,7 @@ import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";
 
 import { isSafeExternalUrl } from "../../external-links.js";
+import { resourcePath } from "../../resources.js";
 import { setDefaultModel, upsertCustomProvider } from "../config/settings.js";
 
 const OMNIROUTE_VERSION = "3.8.50";
@@ -59,6 +61,177 @@ const omniRouteClientKeyPath = join(
   omniRouteDataDir,
   "abacusai-bot-client-api-key"
 );
+const bundledRuntimeDir = join(omniRouteDataDir, ".abacus-bundled-runtime");
+const bundledArchivePath = resourcePath("omniroute-seed.zip");
+
+
+function bundledNodeFilename(): string {
+  return process.platform === "win32" ? "node.exe" : "node";
+}
+
+function runtimeSeedMetadata(root: string): {
+  platform?: string;
+  arch?: string;
+  omnirouteVersion?: string;
+} | null {
+  try {
+    return JSON.parse(
+      readFileSync(join(root, "seed-manifest.json"), "utf8")
+    ) as {
+      platform?: string;
+      arch?: string;
+      omnirouteVersion?: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Whether a complete, extracted seed matches the current desktop platform. */
+function isCompleteRuntimeSeed(root: string): boolean {
+  const metadata = runtimeSeedMetadata(root);
+  if (
+    metadata?.platform !== process.platform ||
+    metadata.arch !== process.arch ||
+    metadata.omnirouteVersion !== OMNIROUTE_VERSION ||
+    !existsSync(join(root, bundledNodeFilename())) ||
+    !existsSync(join(root, "node_modules", "npm", "bin", "npm-cli.js"))
+  ) {
+    return false;
+  }
+
+  try {
+    const packageJson = JSON.parse(
+      readFileSync(
+        join(root, "node_modules", "omniroute", "package.json"),
+        "utf8"
+      )
+    ) as { version?: string };
+    return (
+      packageJson.version === OMNIROUTE_VERSION &&
+      existsSync(
+        join(
+          root,
+          "node_modules",
+          "@esbuild",
+          process.platform + "-" + process.arch,
+          "package.json"
+        )
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extracts the package's offline seed only into an Abacus-owned cache and the
+ * shared node_modules directory. Existing .env, provider settings, database,
+ * and generated client keys are never replaced.
+ */
+async function ensureBundledRuntimeAvailable(
+  hydrateRuntime: boolean
+): Promise<boolean> {
+  if (!app.isPackaged && !existsSync(bundledArchivePath)) return false;
+  if (isCompleteRuntimeSeed(bundledRuntimeDir) && !hydrateRuntime) return true;
+  if (!existsSync(bundledArchivePath)) {
+    return isCompleteRuntimeSeed(bundledRuntimeDir);
+  }
+
+  mkdirSync(omniRouteDataDir, { recursive: true });
+  const temporary = mkdtempSync(
+    join(omniRouteDataDir, ".abacus-omniroute-seed-")
+  );
+  try {
+    await extract(bundledArchivePath, { dir: temporary });
+    if (!isCompleteRuntimeSeed(temporary)) {
+      console.warn(
+        "[omniroute] bundled runtime seed is invalid or targets a different platform; using normal installation fallback"
+      );
+      return false;
+    }
+
+    if (!isCompleteRuntimeSeed(bundledRuntimeDir)) {
+      // This directory is exclusively managed by Abacus, not the shared
+      // OmniRoute configuration directory.
+      rmSync(bundledRuntimeDir, { recursive: true, force: true });
+      mkdirSync(bundledRuntimeDir, { recursive: true });
+      cpSync(join(temporary, bundledNodeFilename()), join(bundledRuntimeDir, bundledNodeFilename()));
+      cpSync(
+        join(temporary, "node_modules", "npm"),
+        join(bundledRuntimeDir, "node_modules", "npm"),
+        { recursive: true, force: true }
+      );
+      writeFileSync(
+        join(bundledRuntimeDir, "seed-manifest.json"),
+        readFileSync(join(temporary, "seed-manifest.json")),
+        { encoding: "utf8", flag: "w" }
+      );
+    }
+
+    if (hydrateRuntime) {
+      const targetModules = join(omniRouteDataDir, "node_modules");
+      mkdirSync(targetModules, { recursive: true });
+      for (const name of readdirSync(join(temporary, "node_modules"))) {
+        // npm belongs beside the bundled Node executable, not in the shared
+        // OmniRoute dependency graph.
+        if (name === "npm") continue;
+        cpSync(
+          join(temporary, "node_modules", name),
+          join(targetModules, name),
+          { recursive: true, force: true }
+        );
+      }
+    }
+
+    return isCompleteRuntimeSeed(bundledRuntimeDir);
+  } catch (error) {
+    console.warn(
+      "[omniroute] could not unpack the bundled runtime; using normal installation fallback",
+      error
+    );
+    return false;
+  } finally {
+    rmSync(temporary, {
+      recursive: true,
+      force: true,
+      maxRetries: 8,
+      retryDelay: 100,
+    });
+  }
+}
+
+function runtimeSupportPackagesAvailable(): boolean {
+  const modulesRoot = join(omniRouteDataDir, "node_modules");
+  return (
+    ["@swc/helpers", "sql.js", "node-machine-id"].every((packageName) =>
+      existsSync(join(modulesRoot, packageName))
+    ) &&
+    existsSync(join(modulesRoot, "esbuild", "package.json")) &&
+    existsSync(
+      join(
+        modulesRoot,
+        "@esbuild",
+        process.platform + "-" + process.arch,
+        "package.json"
+      )
+    )
+  );
+}
+
+function installedRuntimePackageVersion(): string | null {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(
+        join(omniRouteDataDir, "node_modules", "omniroute", "package.json"),
+        "utf8"
+      )
+    ) as { version?: string };
+    return manifest.version ?? null;
+  } catch {
+    return null;
+  }
+}
 
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
@@ -83,6 +256,9 @@ function findExecutable(names: string[]): string | null {
   }
   if (process.env.PROGRAMFILES) {
     candidates.push(join(process.env.PROGRAMFILES, "nodejs", "node.exe"));
+  }
+  if (app.isPackaged && isCompleteRuntimeSeed(bundledRuntimeDir)) {
+    candidates.unshift(join(bundledRuntimeDir, bundledNodeFilename()));
   }
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
@@ -408,8 +584,28 @@ async function findExistingPinnedRuntimeNode(): Promise<string | null> {
 async function ensureRuntimeInstalled(): Promise<string> {
   mkdirSync(omniRouteDataDir, { recursive: true });
   prepareFreshOmniRouteEnvironment();
+
+  // The Windows portable archive carries a tested Node/npm + OmniRoute seed.
+  // Populate an absent/incomplete pinned install from that offline copy first;
+  // only use npm for older/incompatible installations or when no seed ships.
+  const existingVersion = installedRuntimePackageVersion();
+  const shouldHydrate =
+    existingVersion === null ||
+    (existingVersion === OMNIROUTE_VERSION &&
+      !runtimeSupportPackagesAvailable());
+  await ensureBundledRuntimeAvailable(shouldHydrate);
+
   const { node, npmArgs } = nodeAndNpm();
-  const version = await installedVersion(node);
+  let version = await installedVersion(node);
+  if (
+    (version === null || version === OMNIROUTE_VERSION) &&
+    !runtimeSupportPackagesAvailable() &&
+    isCompleteRuntimeSeed(bundledRuntimeDir)
+  ) {
+    await ensureBundledRuntimeAvailable(true);
+    version = await installedVersion(node);
+  }
+
   if (version !== OMNIROUTE_VERSION) {
     const result = await runCommand(
       node,
@@ -430,11 +626,10 @@ async function ensureRuntimeInstalled(): Promise<string> {
       runtimeInstallEnvironment()
     );
     if (result.code !== 0) {
-      // Do not expose potentially noisy installer output to the renderer.
       throw new Error(
         "Could not install the pinned OmniRoute runtime. " +
-          "Check your internet connection and Node.js/npm installation, " +
-          "then retry."
+          "The bundled copy was unavailable or this existing installation " +
+          "needs an online update. Check the network and retry."
       );
     }
   }
