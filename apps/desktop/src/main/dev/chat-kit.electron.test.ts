@@ -114,42 +114,53 @@ const HELPERS = `(() => {
       // so observe the committed window boundaries rendered by React.
       const v = el.closest('[data-slot="message-scroller-viewport"]') ?? window.__chatHelpers.viewport();
       if (!(v instanceof Element)) throw new Error("transcript viewport is missing");
+      const isWindowControl = el.matches('[data-slot="window-placeholder"]');
       const beforeWindow = {
         start: v.getAttribute("data-transcript-window-start"),
         end: v.getAttribute("data-transcript-window-end"),
       };
-      if (beforeWindow.start == null || beforeWindow.end == null)
+      const beforeText = el.textContent;
+      if (isWindowControl && (beforeWindow.start == null || beforeWindow.end == null))
         throw new Error("transcript window markers are missing");
       const t0 = performance.now();
       let observer;
       const committed = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           observer?.disconnect();
+          const afterStart = v.getAttribute("data-transcript-window-start");
+          const afterEnd = v.getAttribute("data-transcript-window-end");
           reject(
             new Error(
-              "paging control did not commit after activation (transcript window " +
-              beforeWindow.start +
-              ".." +
-              beforeWindow.end +
-              " -> " +
-              v.getAttribute("data-transcript-window-start") +
-              ".." +
-              v.getAttribute("data-transcript-window-end") +
-              ")"
+              isWindowControl
+                ? "paging control did not commit after activation (transcript window " +
+                  beforeWindow.start +
+                  ".." +
+                  beforeWindow.end +
+                  " -> " +
+                  afterStart +
+                  ".." +
+                  afterEnd +
+                  ")"
+                : "paging control did not commit after activation (control text " +
+                  JSON.stringify(beforeText) +
+                  " -> " +
+                  JSON.stringify(el.textContent) +
+                  ")"
             )
           );
         }, 1500);
         observer = new MutationObserver((records) => {
-          const windowChanged = records.some(
-            (record) =>
-              record.type === "attributes" &&
-              record.target === v &&
-              (record.attributeName === "data-transcript-window-start" ||
-                record.attributeName === "data-transcript-window-end") &&
-              (v.getAttribute("data-transcript-window-start") !== beforeWindow.start ||
-                v.getAttribute("data-transcript-window-end") !== beforeWindow.end)
-          );
-          if (windowChanged) {
+          const windowChanged =
+            isWindowControl &&
+            (v.getAttribute("data-transcript-window-start") !== beforeWindow.start ||
+              v.getAttribute("data-transcript-window-end") !== beforeWindow.end);
+          const controlChanged =
+            !isWindowControl &&
+            (!el.isConnected || el.textContent !== beforeText) &&
+            records.some(
+              (record) => record.type === "childList" || record.type === "characterData"
+            );
+          if (windowChanged || controlChanged) {
             observer?.disconnect();
             clearTimeout(timeout);
             resolve();
@@ -161,6 +172,9 @@ const HELPERS = `(() => {
             "data-transcript-window-start",
             "data-transcript-window-end",
           ],
+          childList: true,
+          characterData: true,
+          subtree: true,
         });
       });
       el.click();
