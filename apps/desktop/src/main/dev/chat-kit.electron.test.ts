@@ -97,9 +97,10 @@ const HELPERS = `(() => {
         throw new Error("paging control did not remain mounted after scrolling");
 
       // A MessageChannel task can run before React commits the event's state
-      // update. Wait for this control's visible/accessible label to change so
-      // the benchmark times a real DOM commit rather than just event dispatch.
-      const before = el.textContent || "";
+      // update. Paging may replace mounted rows while leaving this placeholder's
+      // label unchanged, so wait for a mutation in the transcript viewport.
+      const v = window.__chatHelpers.viewport();
+      if (!(v instanceof Element)) throw new Error("transcript viewport is missing");
       const t0 = performance.now();
       let observer;
       const committed = new Promise((resolve, reject) => {
@@ -107,19 +108,16 @@ const HELPERS = `(() => {
           observer?.disconnect();
           reject(new Error("paging control did not commit after activation"));
         }, 1500);
-        observer = new MutationObserver(() => {
-          const next = find();
-          if (
-            !(next instanceof Element) ||
-            !next.isConnected ||
-            (next.textContent || "") !== before
-          ) {
+        observer = new MutationObserver((records) => {
+          if (records.some((record) =>
+            record.type === "childList" || record.type === "characterData"
+          )) {
             observer?.disconnect();
             clearTimeout(timeout);
             resolve();
           }
         });
-        observer.observe(document.body, {
+        observer.observe(v, {
           childList: true,
           characterData: true,
           subtree: true,
