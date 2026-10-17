@@ -487,9 +487,9 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
           const el = (${find})();
           if (el == null) return false;
           const v = window.__chatHelpers.viewport();
-          // Keep the paging control inside the mounted viewport. Using its
-          // bottom edge plus a positive offset scrolls it above the viewport,
-          // where the virtual window unmounts it before timedClick can activate it.
+          // Keep the paging control just inside the viewport's top edge.
+          // The spacer keeps this control at the row boundary so a real row
+          // remains visible and can be used as the scroll-preservation anchor.
           const controlTop =
             el.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop;
           v.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, bubbles: true }));
