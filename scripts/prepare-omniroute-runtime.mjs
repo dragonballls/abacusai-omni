@@ -263,10 +263,6 @@ async function main() {
     ) + "\n",
     "utf8"
   );
-  const bytes = readdirSync(runtimeRoot).reduce((sum, name) => {
-    const path = join(runtimeRoot, name);
-    return sum + (existsSync(path) && !name.startsWith("node_modules") ? statSync(path).size : 0);
-  }, 0);
   console.info(
     `[omniroute-bundle] verified omniroute@${VERSION}; inventoried ${packages.length} packages. Bundle source: ${runtimeRoot}`
   );
