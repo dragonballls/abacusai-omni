@@ -59,6 +59,10 @@ const omniRouteClientKeyPath = join(
   omniRouteDataDir,
   "abacusai-bot-client-api-key"
 );
+const omniRouteBundleRoot = join(process.resourcesPath, "omniroute-runtime");
+const omniRouteBundleNode = join(omniRouteBundleRoot, "node.exe");
+const omniRouteBundleModules = join(omniRouteBundleRoot, "node_modules");
+
 
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
@@ -87,10 +91,26 @@ function findExecutable(names: string[]): string | null {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
+function bundledNodeExecutable(): string | null {
+  if (process.platform !== "win32") return null;
+  return (
+    existsSync(omniRouteBundleNode) &&
+    existsSync(
+      join(omniRouteBundleModules, "omniroute", "bin", "omniroute.mjs")
+    )
+  )
+    ? omniRouteBundleNode
+    : null;
+}
+
 function nodeAndNpm(): { node: string; npmArgs: string[] } {
-  const node = findExecutable(
-    process.platform === "win32" ? ["node.exe", "node"] : ["node"]
-  );
+  // The Windows portable build carries its own supported Node runtime. Prefer
+  // that pinned executable so first-run startup never depends on a system-wide
+  // Node/npm installation or an npm registry connection.
+  const bundledNode = bundledNodeExecutable();
+  const node =
+    bundledNode ??
+    findExecutable(process.platform === "win32" ? ["node.exe", "node"] : ["node"]);
   if (!node) {
     throw new Error(
       "OmniRoute needs Node.js installed on this computer. " +
@@ -126,8 +146,6 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   }
 
   if (process.platform === "win32") {
-    // Prefer npm's JavaScript entrypoint over npm.cmd, which requires a shell
-    // and can incorrectly quote paths that contain spaces.
     const npmCli = join(
       dirname(node),
       "node_modules",
@@ -136,6 +154,7 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
       "npm-cli.js"
     );
     if (!existsSync(npmCli)) {
+      if (bundledNode && node === bundledNode) return { node, npmArgs: [] };
       throw new Error(
         "The Node.js installation was found, but npm's CLI is missing. " +
           "Repair/reinstall Node.js with npm, then retry OmniRoute."
@@ -153,44 +172,6 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   return { node, npmArgs: [npm] };
 }
 
-function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
-  const initialPassword = readInitialManagementPassword();
-  const environment = { ...process.env };
-  // OmniRoute treats these as an opt-in split-port configuration. Never inherit
-  // them from the parent app shell when this gateway expects one shared port.
-  delete environment.API_PORT;
-  delete environment.DASHBOARD_PORT;
-  return {
-    ...environment,
-    ...(initialPassword ? { INITIAL_PASSWORD: initialPassword } : {}),
-    DATA_DIR: omniRouteDataDir,
-    PORT: String(OMNIROUTE_PORT),
-    OMNIROUTE_PORT: String(OMNIROUTE_PORT),
-    OMNIROUTE_SERVER_HOST: "127.0.0.1",
-    OMNIROUTE_TELEMETRY: "false",
-    NODE_ENV: "production",
-    // Requests from Abacus use a generated, persisted OmniRoute client key.
-    // App-owned gateways always start with API-key enforcement enabled; key
-    // provisioning uses OmniRoute's loopback-only CLI management token. No
-    // unauthenticated bootstrap listener is opened.
-    REQUIRE_API_KEY: requireApiKey ? "true" : "false",
-  };
-}
-
-/**
- * The local OpenAI-compatible gateway does not need Playwright/Puppeteer
- * browser downloads for ordinary API providers. Avoid adding hundreds of MB
- * and a potentially slow CDN transfer to first-run startup. Browser-driven
- * provider workflows need their browser binaries installed separately.
- */
-function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
-  return {
-    ...runtimeEnvironment(),
-    OMNIROUTE_SKIP_POSTINSTALL: "1",
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-    PUPPETEER_SKIP_DOWNLOAD: "1",
-  };
-}
 
 /**
  * Install only the API-gateway dependency set without executing upstream
@@ -199,7 +180,7 @@ function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
  * versions), then sql.js. Restore the three regular JS runtime packages that
  * upstream normally copies into its standalone dist tree during postinstall.
  */
-async function ensureRuntimeFallbackPackages(
+async async function ensureRuntimeFallbackPackages(
   node: string,
   npmArgs: string[]
 ): Promise<void> {
@@ -217,10 +198,6 @@ async function ensureRuntimeFallbackPackages(
     cpSync(source, destination, { recursive: true, force: true });
   }
 
-  // esbuild treats its OS/CPU binary as optional. Omitting the full optional
-  // dependency set speeds the first install substantially, so install just
-  // this one small package separately and put it where normal Node resolution
-  // expects it. No install scripts are run for this native binary package.
   const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
   if (!existsSync(esbuildManifest)) {
     throw new Error(
@@ -236,6 +213,22 @@ async function ensureRuntimeFallbackPackages(
   if (!esbuild.version || !platformVersion) {
     throw new Error(
       `esbuild ${esbuild.version ?? "(unknown)"} does not declare ${platformPackage}.`
+    );
+  }
+
+  const [scope, packageName] = platformPackage.split("/");
+  const binaryDestination = join(modulesRoot, scope!, packageName!);
+  if (existsSync(join(binaryDestination, "package.json"))) return;
+
+  const bundledBinary = join(omniRouteBundleModules, scope!, packageName!);
+  if (existsSync(join(bundledBinary, "package.json"))) {
+    mkdirSync(dirname(binaryDestination), { recursive: true });
+    cpSync(bundledBinary, binaryDestination, { recursive: true, force: true });
+    return;
+  }
+  if (npmArgs.length === 0) {
+    throw new Error(
+      `The OmniRoute install is missing ${platformPackage}, and npm is unavailable to repair it.`
     );
   }
 
@@ -270,15 +263,12 @@ async function ensureRuntimeFallbackPackages(
         `Could not install ${platformPackage}@${platformVersion}: ${result.output}`
       );
     }
-    const [scope, packageName] = platformPackage.split("/");
     const binarySource = join(tempDir, "node_modules", scope!, packageName!);
-    const binaryManifest = join(binarySource, "package.json");
-    if (!existsSync(binaryManifest)) {
+    if (!existsSync(join(binarySource, "package.json"))) {
       throw new Error(
         `npm did not install the required package ${platformPackage}.`
       );
     }
-    const binaryDestination = join(modulesRoot, scope!, packageName!);
     mkdirSync(dirname(binaryDestination), { recursive: true });
     cpSync(binarySource, binaryDestination, { recursive: true, force: true });
   } finally {
@@ -290,6 +280,7 @@ async function ensureRuntimeFallbackPackages(
     });
   }
 }
+
 
 function runCommand(
   command: string,
@@ -397,11 +388,14 @@ function prepareFreshOmniRouteEnvironment(): void {
   }
 }
 
-async function findExistingPinnedRuntimeNode(): Promise<string | null> {
-  const node = findExecutable(
-    process.platform === "win32" ? ["node.exe", "node"] : ["node"]
-  );
-  if (!node || !existsSync(omniRouteEntry)) return null;
+async async function findExistingPinnedRuntimeNode(): Promise<string | null> {
+  let node: string;
+  try {
+    node = nodeAndNpm().node;
+  } catch {
+    return null;
+  }
+  if (!existsSync(omniRouteEntry)) return null;
   return (await installedVersion(node)) === OMNIROUTE_VERSION ? node : null;
 }
 
@@ -409,8 +403,39 @@ async function ensureRuntimeInstalled(): Promise<string> {
   mkdirSync(omniRouteDataDir, { recursive: true });
   prepareFreshOmniRouteEnvironment();
   const { node, npmArgs } = nodeAndNpm();
-  const version = await installedVersion(node);
+  let version = await installedVersion(node);
+  const bundledManifest = join(
+    omniRouteBundleModules,
+    "omniroute",
+    "package.json"
+  );
+
+  if (version !== OMNIROUTE_VERSION && existsSync(bundledManifest)) {
+    const bundledPackage = JSON.parse(
+      readFileSync(bundledManifest, "utf8")
+    ) as { version?: string };
+    if (bundledPackage.version !== OMNIROUTE_VERSION) {
+      throw new Error(
+        `Bundled OmniRoute version mismatch; expected ${OMNIROUTE_VERSION}, got ${bundledPackage.version ?? "(unknown)"}.`
+      );
+    }
+    // Copy only executable package dependencies into the shared data directory.
+    // Secrets, database files, and existing provider configuration stay in place.
+    cpSync(
+      omniRouteBundleModules,
+      join(omniRouteDataDir, "node_modules"),
+      { recursive: true, force: true }
+    );
+    version = await installedVersion(node);
+  }
+
   if (version !== OMNIROUTE_VERSION) {
+    if (npmArgs.length === 0) {
+      throw new Error(
+        "The bundled OmniRoute runtime is missing and npm is unavailable. " +
+          "Repair the app installation or install Node.js with npm, then retry."
+      );
+    }
     const result = await runCommand(
       node,
       [
@@ -430,7 +455,6 @@ async function ensureRuntimeInstalled(): Promise<string> {
       runtimeInstallEnvironment()
     );
     if (result.code !== 0) {
-      // Do not expose potentially noisy installer output to the renderer.
       throw new Error(
         "Could not install the pinned OmniRoute runtime. " +
           "Check your internet connection and Node.js/npm installation, " +
