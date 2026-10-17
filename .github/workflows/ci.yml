@@ -379,7 +379,8 @@ jobs:
       # resources/omniroute-runtime/node_modules. Create that source root on
       # every OS; Windows replaces it with the real bundled runtime below.
       - name: Prepare OmniRoute resource root for platform packaging
-        run: node -e 'require("node:fs").mkdirSync("apps/desktop/resources/omniroute-runtime/node_modules", { recursive: true })'
+        run: >-
+          node -e 'require("node:fs").mkdirSync("apps/desktop/resources/omniroute-runtime/node_modules", { recursive: true })'
       - name: Bundle pinned OmniRoute and Node.js in the Windows portable app
         if: runner.os == 'Windows'
         env:
