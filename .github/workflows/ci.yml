@@ -375,6 +375,12 @@ jobs:
       # electron-builder walks dist/ and extraResources. Calling package:dir on
       # its own does neither and produces an asar with no main entry.
       - run: pnpm run build
+      # The portable Windows package must be usable without system Node.js/npm
+      # or an online first-run OmniRoute install. The seed is generated from the
+      # pinned package and included verbatim by electron-builder's resources/ rule.
+      - name: Prepare offline OmniRoute runtime for Windows portable build
+        if: runner.os == 'Windows'
+        run: node scripts/prepare-omniroute-bundle.mjs
       - name: Reject React Compiler bailouts
         run: pnpm --filter @abacus-ai/desktop run check:react-compiler
 
