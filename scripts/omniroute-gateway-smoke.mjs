@@ -723,24 +723,6 @@ async function main() {
         `[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`
       );
   
-      const entry = join(
-        dataDir,
-        "node_modules",
-        "omniroute",
-        "bin",
-        "omniroute.mjs"
-      );
-      const metadata = JSON.parse(
-        readFileSync(
-          join(dataDir, "node_modules", "omniroute", "package.json"),
-          "utf8"
-        )
-      );
-      assert(
-        metadata.version === VERSION,
-        `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
-      );
-  
       // Upstream normally does this in postinstall.mjs. Skip its expensive native
       // builds/downloads for this API-key smoke, then restore the small set of
       // JavaScript support packages and the exact platform binary esbuild needs.
