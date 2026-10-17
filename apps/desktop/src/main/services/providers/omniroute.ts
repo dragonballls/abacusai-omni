@@ -426,55 +426,57 @@ async function ensureRuntimeFallbackPackages(
     );
   }
 
-  const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
-  try {
-    const result = await runCommand(
-      node,
-      [
-        ...npmArgs,
-        "install",
-        "--prefix",
-        tempDir,
-        "--no-fund",
-        "--no-audit",
-        "--fetch-retries=1",
-        "--fetch-timeout=120000",
-        "--legacy-peer-deps",
-        "--ignore-scripts",
-        "--no-save",
-        `${platformPackage}@${platformVersion}`,
-      ],
-      120_000,
-      {
-        ...process.env,
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-        PUPPETEER_SKIP_DOWNLOAD: "1",
-      },
-      tempDir
-    );
-    if (result.code !== 0) {
-      throw new Error(
-        `Could not install ${platformPackage}@${platformVersion}: ${result.output}`
+  const [scope, packageName] = platformPackage.split("/");
+  const binaryDestination = join(modulesRoot, scope!, packageName!);
+  const binaryManifest = join(binaryDestination, "package.json");
+  if (!existsSync(binaryManifest)) {
+    const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
+    try {
+      const result = await runCommand(
+        node,
+        [
+          ...npmArgs,
+          "install",
+          "--prefix",
+          tempDir,
+          "--no-fund",
+          "--no-audit",
+          "--fetch-retries=1",
+          "--fetch-timeout=120000",
+          "--legacy-peer-deps",
+          "--ignore-scripts",
+          "--no-save",
+          `${platformPackage}@${platformVersion}`,
+        ],
+        120_000,
+        {
+          ...process.env,
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+          PUPPETEER_SKIP_DOWNLOAD: "1",
+        },
+        tempDir
       );
+      if (result.code !== 0) {
+        throw new Error(
+          `Could not install ${platformPackage}@${platformVersion}: ${result.output}`
+        );
+      }
+      const binarySource = join(tempDir, "node_modules", scope!, packageName!);
+      if (!existsSync(join(binarySource, "package.json"))) {
+        throw new Error(
+          `npm did not install the required package ${platformPackage}.`
+        );
+      }
+      mkdirSync(dirname(binaryDestination), { recursive: true });
+      cpSync(binarySource, binaryDestination, { recursive: true, force: true });
+    } finally {
+      rmSync(tempDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 100,
+      });
     }
-    const [scope, packageName] = platformPackage.split("/");
-    const binarySource = join(tempDir, "node_modules", scope!, packageName!);
-    const binaryManifest = join(binarySource, "package.json");
-    if (!existsSync(binaryManifest)) {
-      throw new Error(
-        `npm did not install the required package ${platformPackage}.`
-      );
-    }
-    const binaryDestination = join(modulesRoot, scope!, packageName!);
-    mkdirSync(dirname(binaryDestination), { recursive: true });
-    cpSync(binarySource, binaryDestination, { recursive: true, force: true });
-  } finally {
-    rmSync(tempDir, {
-      recursive: true,
-      force: true,
-      maxRetries: 8,
-      retryDelay: 100,
-    });
   }
 }
 
