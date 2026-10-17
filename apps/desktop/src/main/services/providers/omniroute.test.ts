@@ -19,7 +19,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(install.indexOf("ensureBundledRuntimeAvailable")).toBeLessThan(
       install.indexOf('"install"')
     );
-    expect(install).toContain("omniroute@" + "OMNIROUTE_VERSION");
+    expect(install).toContain("`omniroute@${OMNIROUTE_VERSION}`");
   });
 
   it("binds only to loopback and requires API keys for an app-owned gateway", () => {
