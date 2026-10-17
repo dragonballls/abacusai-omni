@@ -845,6 +845,8 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
         ref={viewportRef}
         className="scroll-fade-y"
         data-transcript-fade
+        data-transcript-window-start={start}
+        data-transcript-window-end={end}
         data-continuity-scroll="chat-transcript"
         // The header's scroll-linked morph into the title bar reads this
         // viewport's named timeline (bots.css).
