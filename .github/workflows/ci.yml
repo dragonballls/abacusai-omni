@@ -204,13 +204,33 @@ jobs:
           sudo chown root:root "$sandbox"
           sudo chmod 4755 "$sandbox"
 
+      # The pinned gateway has a sizeable production dependency tree. Persist
+      # npm tarballs across runs so retrying a flaky Windows download does not
+      # repeat the entire cold install.
+      - name: Restore OmniRoute npm download cache
+        if: runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/omniroute-npm-cache
+          key: omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-${{ github.run_id }}
+          restore-keys: |
+            omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-
+
       # Exercise real pinned-runtime auth, client-key creation and Auto routing
       # on Windows rather than relying only on the Linux smoke test.
       - name: Smoke test OmniRoute authentication and Auto routing on Windows
-        # The feature branch is tested by its pull_request run. Avoid running the
-        # same 15-minute gateway bootstrap concurrently in the push duplicate.
+        # Avoid running the same gateway bootstrap in the push duplicate.
         if: runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        env:
+          npm_config_cache: ${{ runner.temp }}/omniroute-npm-cache
         run: node scripts/omniroute-gateway-smoke.mjs
+
+      - name: Save OmniRoute npm download cache
+        if: always() && runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/omniroute-npm-cache
+          key: omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-${{ github.run_id }}
 
       - name: Run tests
         shell: bash
