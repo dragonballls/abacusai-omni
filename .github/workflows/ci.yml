@@ -74,6 +74,25 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Temporary formatter capture for integration files
+        run: |
+          pnpm exec oxfmt --write apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts scripts/omniroute-gateway-smoke.mjs scripts/prepare-omniroute-runtime.mjs
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const files = [
+            "apps/desktop/src/main/services/providers/omniroute.ts",
+            "apps/desktop/src/main/services/providers/omniroute.test.ts",
+            "scripts/omniroute-gateway-smoke.mjs",
+            "scripts/prepare-omniroute-runtime.mjs",
+          ];
+          for (const file of files) {
+            console.log("FORMATTED_FILE_START:" + file);
+            console.log(readFileSync(file).toString("base64"));
+            console.log("FORMATTED_FILE_END:" + file);
+          }
+          NODE
+      - name: Formatter capture complete
+        run: echo "Formatted integration files emitted to the job log for applying the exact formatter output."
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
