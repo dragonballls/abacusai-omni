@@ -487,11 +487,16 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
           const el = (${find})();
           if (el == null) return false;
           const v = window.__chatHelpers.viewport();
-          // Just below the control: it is not the anchor, and the view is
-          // away from the end.
-          const top = el.getBoundingClientRect().bottom - v.getBoundingClientRect().top + v.scrollTop;
+          // Keep the paging control inside the mounted viewport. Using its
+          // bottom edge plus a positive offset scrolls it above the viewport,
+          // where the virtual window unmounts it before timedClick can activate it.
+          const controlTop =
+            el.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop;
           v.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, bubbles: true }));
-          v.scrollTop = Math.max(0, Math.min(v.scrollHeight - v.clientHeight - 100, top + 8));
+          v.scrollTop = Math.max(
+            0,
+            Math.min(v.scrollHeight - v.clientHeight - 100, controlTop - 8)
+          );
           // scrollTop assignment is not guaranteed to deliver the native scroll
           // event before the next animation-frame/task pair on every CI OS.
           // Commit the current geometry immediately so scroll anchoring does
