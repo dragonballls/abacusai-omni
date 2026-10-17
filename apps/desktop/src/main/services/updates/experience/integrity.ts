@@ -71,7 +71,8 @@ const parseManifest = (
   // wants a main process this shell does not have.
   if (value.foundation !== expectedFoundation) {
     throw new Error(
-      `Experience manifest was built for foundation ${String(value.foundation)}, not ${expectedFoundation}`
+      `Experience manifest was built for foundation ${String(value.foundation)}, ` +
+        `not ${expectedFoundation}`
     );
   }
 
