@@ -188,39 +188,6 @@ function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
     OMNIROUTE_SERVER_HOST: "127.0.0.1",
     OMNIROUTE_TELEMETRY: "false",
     NODE_ENV: "production",
-    // App-owned gateways require API keys before listening.
-    REQUIRE_API_KEY: requireApiKey ? "true" : "false",
-  };
-}
-
-function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
-  return {
-    ...runtimeEnvironment(),
-    OMNIROUTE_SKIP_POSTINSTALL: "1",
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-    PUPPETEER_SKIP_DOWNLOAD: "1",
-  };
-}
-
-
-
-
-function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
-  const initialPassword = readInitialManagementPassword();
-  const environment = { ...process.env };
-  // OmniRoute treats these as an opt-in split-port configuration. Never inherit
-  // them from the parent app shell when this gateway expects one shared port.
-  delete environment.API_PORT;
-  delete environment.DASHBOARD_PORT;
-  return {
-    ...environment,
-    ...(initialPassword ? { INITIAL_PASSWORD: initialPassword } : {}),
-    DATA_DIR: omniRouteDataDir,
-    PORT: String(OMNIROUTE_PORT),
-    OMNIROUTE_PORT: String(OMNIROUTE_PORT),
-    OMNIROUTE_SERVER_HOST: "127.0.0.1",
-    OMNIROUTE_TELEMETRY: "false",
-    NODE_ENV: "production",
     // App-owned gateways always start with API-key enforcement enabled.
     REQUIRE_API_KEY: requireApiKey ? "true" : "false",
   };
