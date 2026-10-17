@@ -5,6 +5,23 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./omniroute.ts", import.meta.url), "utf8");
 
 describe("local OmniRoute gateway security contract", () => {
+  it("ships an offline runtime seed and uses it before an npm network install", () => {
+    expect(source).toContain('resourcePath("omniroute-seed.zip")');
+    expect(source).toContain("async function ensureBundledRuntimeAvailable(");
+    expect(source).toContain("isCompleteRuntimeSeed(temporary)");
+    expect(source).toContain("isCompatibleBundledNode(bundledRuntimeDir)");
+    expect(source).toContain("await ensureBundledRuntimeAvailable(shouldHydrate)");
+    expect(source).toContain('if (name === "npm") continue');
+    expect(source).toContain("function runtimeSupportPackagesAvailable()");
+    const installStart = source.indexOf("async function ensureRuntimeInstalled()");
+    const installEnd = source.indexOf("async function waitForOmniRouteDashboard", installStart);
+    const install = source.slice(installStart, installEnd);
+    expect(install.indexOf("ensureBundledRuntimeAvailable")).toBeLessThan(
+      install.indexOf('"install"')
+    );
+    expect(install).toContain("omniroute@" + "OMNIROUTE_VERSION");
+  });
+
   it("binds only to loopback and requires API keys for an app-owned gateway", () => {
     expect(source).toContain('OMNIROUTE_SERVER_HOST: "127.0.0.1"');
     expect(source).toContain("OMNIROUTE_PORT: String(OMNIROUTE_PORT)");
