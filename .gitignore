@@ -45,3 +45,6 @@ apps/web/build-metadata/
 
 # Regenerated before web/desktop builds and development.
 apps/web/public/licenses/
+
+# Generated during Windows CI packaging; contains the offline pinned OmniRoute runtime.
+apps/desktop/resources/omniroute-seed.zip
