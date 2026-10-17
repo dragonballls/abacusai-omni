@@ -206,7 +206,9 @@ jobs:
       # Exercise real pinned-runtime auth, client-key creation and Auto routing
       # on Windows rather than relying only on the Linux smoke test.
       - name: Smoke test OmniRoute authentication and Auto routing on Windows
-        if: runner.os == 'Windows'
+        # The feature branch is tested by its pull_request run. Avoid running the
+        # same 15-minute gateway bootstrap concurrently in the push duplicate.
+        if: runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
         run: node scripts/omniroute-gateway-smoke.mjs
 
       - name: Run tests
