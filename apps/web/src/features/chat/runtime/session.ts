@@ -141,6 +141,8 @@ export interface ThreadSessionOptions {
   reconcileDelaysMs?: readonly number[];
   pumpRetryDelaysMs?: readonly number[];
   readyCapMs?: number;
+  /** Benchmark-only retention override; normal product sessions default to 300. */
+  retentionMaxMessages?: number;
   newId?: (prefix: "u" | "run") => string;
   /**
    * The transport's connection (spec 09 D3): the readiness cap starts once
@@ -733,7 +735,7 @@ export class ThreadSession {
     );
   }
 
-  retain(max = MAX_MESSAGES): void {
+  retain(max = this.#options.retentionMaxMessages ?? MAX_MESSAGES): void {
     const live = this.#live;
     const client = live?.client;
     if (live == null || client == null || live.store == null) return;
