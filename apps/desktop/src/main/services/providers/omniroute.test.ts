@@ -85,11 +85,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("function bundledNodeExecutable()");
     expect(source).toContain("const bundledNode = bundledNodeExecutable()");
     expect(source).toContain(
-      [
-        "cpSync(",
-        "      omniRouteBundleModules,",
-        '      join(omniRouteDataDir, "node_modules")',
-      ].join("\n")
+      'cpSync(omniRouteBundleModules, join(omniRouteDataDir, "node_modules"), {'
     );
     expect(source).toContain("if (npmArgs.length === 0)");
     expect(source).toContain("The bundled OmniRoute runtime is missing");
