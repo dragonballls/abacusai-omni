@@ -36,6 +36,11 @@ const LITERAL_PATHSPECS = {
   maxBuffer: 64 * 1024 * 1024,
 };
 
+/** Status probes must not take an optional index-refresh lock. */
+const READ_ONLY_STATUS_OPTIONS = {
+  env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+};
+
 /** Paths per git call, well under any platform's argument limit. */
 const PATHSPEC_CHUNK = 200;
 
@@ -673,7 +678,7 @@ export class GitService {
           "-uall",
           "-z",
         ],
-        { env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } }
+        READ_ONLY_STATUS_OPTIONS
       );
       let changes: GitChangeItem[] = parseStatusZ(statusOutput.stdout);
       if (options.checkoutRelative === true) {
