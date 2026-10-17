@@ -180,7 +180,7 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
  * versions), then sql.js. Restore the three regular JS runtime packages that
  * upstream normally copies into its standalone dist tree during postinstall.
  */
-async async function ensureRuntimeFallbackPackages(
+async function ensureRuntimeFallbackPackages(
   node: string,
   npmArgs: string[]
 ): Promise<void> {
@@ -388,7 +388,7 @@ function prepareFreshOmniRouteEnvironment(): void {
   }
 }
 
-async async function findExistingPinnedRuntimeNode(): Promise<string | null> {
+async function findExistingPinnedRuntimeNode(): Promise<string | null> {
   let node: string;
   try {
     node = nodeAndNpm().node;
