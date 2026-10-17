@@ -124,6 +124,17 @@ function isCompleteRuntimeSeed(root: string): boolean {
   }
 }
 
+function isCompatibleBundledNode(root: string): boolean {
+  const metadata = runtimeSeedMetadata(root);
+  return (
+    metadata?.platform === process.platform &&
+    metadata.arch === process.arch &&
+    metadata.omnirouteVersion === OMNIROUTE_VERSION &&
+    existsSync(join(root, bundledNodeFilename())) &&
+    existsSync(join(root, "node_modules", "npm", "bin", "npm-cli.js"))
+  );
+}
+
 /**
  * Extracts the package's offline seed only into an Abacus-owned cache and the
  * shared node_modules directory. Existing .env, provider settings, database,
@@ -132,10 +143,10 @@ function isCompleteRuntimeSeed(root: string): boolean {
 async function ensureBundledRuntimeAvailable(
   hydrateRuntime: boolean
 ): Promise<boolean> {
-  if (!app.isPackaged && !existsSync(bundledArchivePath)) return false;
-  if (isCompleteRuntimeSeed(bundledRuntimeDir) && !hydrateRuntime) return true;
+  if (!app.isPackaged) return false;
+  if (isCompatibleBundledNode(bundledRuntimeDir) && !hydrateRuntime) return true;
   if (!existsSync(bundledArchivePath)) {
-    return isCompleteRuntimeSeed(bundledRuntimeDir);
+    return isCompatibleBundledNode(bundledRuntimeDir);
   }
 
   mkdirSync(omniRouteDataDir, { recursive: true });
@@ -151,7 +162,7 @@ async function ensureBundledRuntimeAvailable(
       return false;
     }
 
-    if (!isCompleteRuntimeSeed(bundledRuntimeDir)) {
+    if (!isCompatibleBundledNode(bundledRuntimeDir)) {
       // This directory is exclusively managed by Abacus, not the shared
       // OmniRoute configuration directory.
       rmSync(bundledRuntimeDir, { recursive: true, force: true });
@@ -184,7 +195,7 @@ async function ensureBundledRuntimeAvailable(
       }
     }
 
-    return isCompleteRuntimeSeed(bundledRuntimeDir);
+    return isCompatibleBundledNode(bundledRuntimeDir);
   } catch (error) {
     console.warn(
       "[omniroute] could not unpack the bundled runtime; using normal installation fallback",
@@ -257,7 +268,7 @@ function findExecutable(names: string[]): string | null {
   if (process.env.PROGRAMFILES) {
     candidates.push(join(process.env.PROGRAMFILES, "nodejs", "node.exe"));
   }
-  if (app.isPackaged && isCompleteRuntimeSeed(bundledRuntimeDir)) {
+  if (app.isPackaged && isCompatibleBundledNode(bundledRuntimeDir)) {
     candidates.unshift(join(bundledRuntimeDir, bundledNodeFilename()));
   }
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
@@ -600,7 +611,7 @@ async function ensureRuntimeInstalled(): Promise<string> {
   if (
     (version === null || version === OMNIROUTE_VERSION) &&
     !runtimeSupportPackagesAvailable() &&
-    isCompleteRuntimeSeed(bundledRuntimeDir)
+    isCompatibleBundledNode(bundledRuntimeDir)
   ) {
     await ensureBundledRuntimeAvailable(true);
     version = await installedVersion(node);
