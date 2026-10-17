@@ -65,6 +65,9 @@ const REQUIRED = [
         "omniroute-runtime/runtime-manifest.json",
         "omniroute-runtime/node_modules/omniroute/package.json",
         "omniroute-runtime/node_modules/omniroute/bin/omniroute.mjs",
+        "omniroute-runtime/node_modules/omniroute/dist/node_modules/@swc/helpers/package.json",
+        "omniroute-runtime/node_modules/omniroute/dist/node_modules/sql.js/package.json",
+        "omniroute-runtime/node_modules/omniroute/dist/node_modules/node-machine-id/package.json",
       ]
     : []),
   "skills",
