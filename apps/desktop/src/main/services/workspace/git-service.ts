@@ -38,7 +38,12 @@ const LITERAL_PATHSPECS = {
 
 /** Status probes must not take an optional index-refresh lock. */
 const READ_ONLY_STATUS_OPTIONS = {
-  env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+  ...LITERAL_PATHSPECS,
+  env: {
+    ...process.env,
+    GIT_LITERAL_PATHSPECS: "1",
+    GIT_OPTIONAL_LOCKS: "0",
+  },
 };
 
 /** Paths per git call, well under any platform's argument limit. */
@@ -1122,7 +1127,7 @@ export class GitService {
           "--",
           relativePath,
         ],
-        LITERAL_PATHSPECS
+        READ_ONLY_STATUS_OPTIONS
       );
       // Status paths are top-level relative, whatever `-C` is.
       const gitPath = `${location?.prefix ?? ""}${relativePath}`;
@@ -1218,7 +1223,7 @@ export class GitService {
           "-z",
           ...(prefix === "" ? [] : ["--", prefix]),
         ],
-        LITERAL_PATHSPECS
+        READ_ONLY_STATUS_OPTIONS
       );
       changes = new Map(
         parseStatusZ(stdout).map((change) => [
