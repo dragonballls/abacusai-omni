@@ -128,7 +128,14 @@ const build = (id: string): BenchState => {
       yield* join(...args);
     };
   }
-  const runtime = createChatRuntime(relay.ai, { host: inertHostActions });
+  const runtime = createChatRuntime(relay.ai, {
+    host: inertHostActions,
+    // The history-window acceptance test must page through all 1,000 synthetic
+    // messages. Production sessions keep the normal 300-message retention cap.
+    ...(id === "bench-rich"
+      ? { sessionOptions: { retentionMaxMessages: 1200 } }
+      : {}),
+  });
   const session = runtime.session(id);
   const state: BenchState = {
     id,
