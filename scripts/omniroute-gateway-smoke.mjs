@@ -639,7 +639,9 @@ async function main() {
       install.code === 0,
       `Could not install pinned OmniRoute ${VERSION}. Last output:\n${install.output}`
     );
-    console.info(`[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`);
+    console.info(
+      `[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`
+    );
 
     const entry = join(
       dataDir,
