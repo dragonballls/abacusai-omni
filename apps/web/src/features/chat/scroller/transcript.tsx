@@ -480,12 +480,21 @@ function preserveScroll(
   // visible candidate during a layout transition. Reuse the last live anchor
   // instead of allowing a paging update to evict it without protection.
   const previousAnchor = observed.current;
+  const previousViewport = viewport?.getBoundingClientRect();
+  const previousRect = previousAnchor?.el.getBoundingClientRect();
   if (
     anchor.current == null &&
     viewport != null &&
     previousAnchor?.el.isConnected &&
-    previousAnchor.viewport === viewport
+    previousAnchor.viewport === viewport &&
+    previousViewport != null &&
+    previousRect != null &&
+    previousRect.bottom > previousViewport.top &&
+    previousRect.top < previousViewport.bottom
   ) {
+    // Only reuse a fallback anchor if it still intersects the viewport.
+    // A connected but off-screen row can otherwise make paging evict the
+    // newly exposed rows immediately and turn "Show earlier" into a no-op.
     anchor.current = previousAnchor;
   }
   change();
