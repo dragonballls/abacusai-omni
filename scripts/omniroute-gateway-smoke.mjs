@@ -654,7 +654,7 @@ async function main() {
         !nodeVersion.error && nodeVersion.status === 0,
         "The Node.js executable shipped with the app did not start."
       );
-      const versionMatch = /^v?(\\d+)\\.(\\d+)\\.(\\d+)/.exec(
+      const versionMatch = /^v?(\d+)\.(\d+)\.(\d+)/.exec(
         nodeVersion.stdout.trim()
       );
       const major = Number(versionMatch?.[1]);
