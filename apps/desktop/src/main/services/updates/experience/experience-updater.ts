@@ -249,7 +249,8 @@ export class ExperienceUpdater {
       );
       if (incompatibleFoundation !== null) {
         console.warn(
-          `[experience] ignoring target for foundation ${incompatibleFoundation}; current foundation is ${app.getVersion()}`
+          `[experience] ignoring target for foundation ${incompatibleFoundation}; ` +
+            `current foundation is ${app.getVersion()}`
         );
         return targetHash;
       }
