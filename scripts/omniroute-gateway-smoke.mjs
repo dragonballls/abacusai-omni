@@ -231,7 +231,8 @@ async function waitForSecureGateway(child, gatewayOrigin) {
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(
-        `OmniRoute exited before secure readiness (code ${child.exitCode}, signal ${child.signalCode}).`
+        `OmniRoute exited before secure readiness ` +
+          `(code ${child.exitCode}, signal ${child.signalCode}).`
       );
     }
     const ready = await getDashboardAndModels(gatewayOrigin);
@@ -489,7 +490,8 @@ async function assertRoutedChatCompletion(
   const connectionId = connectionPayload?.connection?.id;
   assert(
     connectionResponse.status === 201 && typeof connectionId === "string",
-    `Could not create the disposable OpenAI-compatible provider connection (HTTP ${connectionResponse.status}): ${JSON.stringify(connectionPayload)}`
+    `Could not create the disposable OpenAI-compatible provider connection ` +
+      `(HTTP ${connectionResponse.status}): ${JSON.stringify(connectionPayload)}`
   );
 
   const syncResponse = await fetch(
@@ -541,7 +543,8 @@ async function assertRoutedChatCompletion(
   );
   assert(
     completion?.choices?.[0]?.message?.content === "omniroute-smoke-ok",
-    `Auto returned an unexpected response instead of the mocked upstream completion: ${JSON.stringify(completion)}`
+    `Auto returned an unexpected response instead of the mocked upstream ` +
+      `completion: ${JSON.stringify(completion)}`
   );
   assert(
     mock.chats.length > 0 &&
@@ -628,12 +631,16 @@ async function main() {
         "package.json"
       );
       assert(existsSync(bundledNode), `Bundled node.exe is missing: ${bundledNode}`);
-      assert(existsSync(bundledEntry), `Bundled OmniRoute entry is missing: ${bundledEntry}`);
+      assert(
+        existsSync(bundledEntry),
+        `Bundled OmniRoute entry is missing: ${bundledEntry}`
+      );
       assert(existsSync(bundledManifest), "Bundled OmniRoute package.json is missing.");
       const metadata = JSON.parse(readFileSync(bundledManifest, "utf8"));
       assert(
         metadata.name === "omniroute" && metadata.version === VERSION,
-        `Expected bundled omniroute@${VERSION}, got ${metadata.name}@${metadata.version}.`
+        `Expected bundled omniroute@${VERSION}, ` +
+          `got ${metadata.name}@${metadata.version}.`
       );
       const nodeVersion = spawnSync(bundledNode, ["--version"], {
         cwd: bundleRoot,
@@ -662,7 +669,8 @@ async function main() {
       });
       runtimeNode = bundledNode;
       console.info(
-        `[omniroute-smoke] using staged omniroute@${VERSION} and self-contained Node.js ${nodeVersion.stdout.trim()}`
+        `[omniroute-smoke] using staged omniroute@${VERSION} and ` +
+          `self-contained Node.js ${nodeVersion.stdout.trim()}`
       );
     } else {
       // On Windows, spawn("npm") may resolve to npm.cmd, which cannot be run
@@ -682,7 +690,8 @@ async function main() {
         `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
       );
       console.info(
-        `[omniroute-smoke] installing pinned OmniRoute ${VERSION} with npm on ${process.platform}/${process.arch}`
+        `[omniroute-smoke] installing pinned OmniRoute ${VERSION} with npm ` +
+          `on ${process.platform}/${process.arch}`
       );
       const install = await runCommand(
         npmCommand,
@@ -722,7 +731,7 @@ async function main() {
       console.info(
         `[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`
       );
-  
+
       // Upstream normally does this in postinstall.mjs. Skip its expensive native
       // builds/downloads for this API-key smoke, then restore the small set of
       // JavaScript support packages and the exact platform binary esbuild needs.
@@ -743,7 +752,7 @@ async function main() {
         mkdirSync(dirname(destination), { recursive: true });
         cpSync(source, destination, { recursive: true, force: true });
       }
-  
+
       const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
       assert(
         existsSync(esbuildManifest),
@@ -784,7 +793,8 @@ async function main() {
         );
         assert(
           binaryInstall.code === 0,
-          `Could not install ${platformPackage}@${platformVersion}. Last output:\n${binaryInstall.output}`
+          `Could not install ${platformPackage}@${platformVersion}. ` +
+            `Last output:\n${binaryInstall.output}`
         );
         const [scope, packageName] = platformPackage.split("/");
         const binarySource = join(tempDir, "node_modules", scope, packageName);
@@ -873,8 +883,9 @@ async function main() {
       mockUpstream
     );
     console.log(
-      `[omniroute-smoke] v${VERSION}: secure loopback startup, real dashboard/CLI API-key ` +
-        "provisioning, authenticated model listing, and end-to-end Auto chat completion " +
+      `[omniroute-smoke] v${VERSION}: secure loopback startup, real ` +
+        `dashboard/CLI API-key provisioning, authenticated model listing, ` +
+        "and end-to-end Auto chat completion " +
         "through a disposable mocked OpenAI-compatible provider passed."
     );
   } catch (error) {
