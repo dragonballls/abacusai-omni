@@ -92,12 +92,10 @@ function findExecutable(names: string[]): string | null {
 
 function bundledNodeExecutable(): string | null {
   if (process.platform !== "win32") return null;
-  return (
-    existsSync(omniRouteBundleNode) &&
+  return existsSync(omniRouteBundleNode) &&
     existsSync(
       join(omniRouteBundleModules, "omniroute", "bin", "omniroute.mjs")
     )
-  )
     ? omniRouteBundleNode
     : null;
 }
@@ -109,7 +107,9 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   const bundledNode = bundledNodeExecutable();
   const node =
     bundledNode ??
-    findExecutable(process.platform === "win32" ? ["node.exe", "node"] : ["node"]);
+    findExecutable(
+      process.platform === "win32" ? ["node.exe", "node"] : ["node"]
+    );
   if (!node) {
     throw new Error(
       "OmniRoute needs Node.js installed on this computer. " +
@@ -171,7 +171,6 @@ function nodeAndNpm(): { node: string; npmArgs: string[] } {
   return { node, npmArgs: [npm] };
 }
 
-
 function runtimeEnvironment(requireApiKey = true): NodeJS.ProcessEnv {
   const initialPassword = readInitialManagementPassword();
   const environment = { ...process.env };
@@ -205,7 +204,6 @@ function runtimeInstallEnvironment(): NodeJS.ProcessEnv {
     PUPPETEER_SKIP_DOWNLOAD: "1",
   };
 }
-
 
 /**
  * Install only the API-gateway dependency set without executing upstream
@@ -445,6 +443,14 @@ async function ensureRuntimeInstalled(): Promise<string> {
   );
 
   if (version !== OMNIROUTE_VERSION && existsSync(bundledManifest)) {
+    // A shared Brahma/OmniRoute process may have started since the initial
+    // readiness check. Never copy runtime files underneath a live listener.
+    if (await portIsOccupied()) {
+      throw new Error(
+        `Port ${OMNIROUTE_PORT} became occupied during OmniRoute setup; ` +
+          "the existing service was left untouched."
+      );
+    }
     const bundledPackage = JSON.parse(
       readFileSync(bundledManifest, "utf8")
     ) as { version?: string };
@@ -456,11 +462,10 @@ async function ensureRuntimeInstalled(): Promise<string> {
     }
     // Copy only executable package dependencies into the shared data directory.
     // Secrets, database files, and existing provider configuration stay in place.
-    cpSync(
-      omniRouteBundleModules,
-      join(omniRouteDataDir, "node_modules"),
-      { recursive: true, force: true }
-    );
+    cpSync(omniRouteBundleModules, join(omniRouteDataDir, "node_modules"), {
+      recursive: true,
+      force: true,
+    });
     version = await installedVersion(node);
   }
 

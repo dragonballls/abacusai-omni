@@ -625,17 +625,19 @@ async function main() {
         "bin",
         "omniroute.mjs"
       );
-      const bundledManifest = join(
-        bundledModules,
-        "omniroute",
-        "package.json"
+      const bundledManifest = join(bundledModules, "omniroute", "package.json");
+      assert(
+        existsSync(bundledNode),
+        `Bundled node.exe is missing: ${bundledNode}`
       );
-      assert(existsSync(bundledNode), `Bundled node.exe is missing: ${bundledNode}`);
       assert(
         existsSync(bundledEntry),
         `Bundled OmniRoute entry is missing: ${bundledEntry}`
       );
-      assert(existsSync(bundledManifest), "Bundled OmniRoute package.json is missing.");
+      assert(
+        existsSync(bundledManifest),
+        "Bundled OmniRoute package.json is missing."
+      );
       const metadata = JSON.parse(readFileSync(bundledManifest, "utf8"));
       assert(
         metadata.name === "omniroute" && metadata.version === VERSION,
@@ -683,7 +685,8 @@ async function main() {
         "bin",
         "npm-cli.js"
       );
-      const npmCommand = process.platform === "win32" ? process.execPath : "npm";
+      const npmCommand =
+        process.platform === "win32" ? process.execPath : "npm";
       const npmArgs = process.platform === "win32" ? [npmCli] : [];
       assert(
         process.platform !== "win32" || existsSync(npmCli),
@@ -804,7 +807,10 @@ async function main() {
         );
         const binaryDestination = join(modulesRoot, scope, packageName);
         mkdirSync(dirname(binaryDestination), { recursive: true });
-        cpSync(binarySource, binaryDestination, { recursive: true, force: true });
+        cpSync(binarySource, binaryDestination, {
+          recursive: true,
+          force: true,
+        });
       } finally {
         rmSync(tempDir, {
           recursive: true,

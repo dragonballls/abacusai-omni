@@ -36,6 +36,12 @@ extraResources:
   # development, so there is one layout to keep in step rather than two.
   - from: resources/
     to: ./
+
+  # electron-builder can skip a nested node_modules directory while walking a
+  # broader resources/ copy. Use node_modules as the source root explicitly so
+  # the packaged Windows runtime includes its full production dependency tree.
+  - from: resources/omniroute-runtime/node_modules/
+    to: omniroute-runtime/node_modules/
   # The agent, one process per session: spawned, so it cannot live in the asar.
   # Its build metadata is not: source maps are 24 MB of the 39 MB here and
   # nothing reads them, because the agent is never spawned with

@@ -76,7 +76,9 @@ describe("local OmniRoute gateway security contract", () => {
   });
 
   it("uses the bundled Windows runtime before system Node/npm", () => {
-    expect(source).toContain('join(process.resourcesPath, "omniroute-runtime")');
+    expect(source).toContain(
+      'join(process.resourcesPath, "omniroute-runtime")'
+    );
     expect(source).toContain(
       'const omniRouteBundleNode = join(omniRouteBundleRoot, "node.exe")'
     );

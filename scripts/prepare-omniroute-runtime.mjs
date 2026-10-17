@@ -47,7 +47,9 @@ function runNode(
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    const details = `${result.stdout ?? ""}${result.stderr ?? ""}`.slice(-16_000);
+    const details = `${result.stdout ?? ""}${result.stderr ?? ""}`.slice(
+      -16_000
+    );
     throw new Error(
       `Command failed with exit code ${result.status}: ${args.join(" ")}\n${details}`
     );
@@ -64,7 +66,8 @@ function copyNodeRuntime() {
   // Node distributions can include runtime DLL/data companions beside node.exe.
   // Copy only such runtime files, not npm, headers, or development tooling.
   for (const entry of readdirSync(sourceNodeDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !/\.(?:dll|dat|bin|cnf|pem)$/i.test(entry.name)) continue;
+    if (!entry.isFile() || !/\.(?:dll|dat|bin|cnf|pem)$/i.test(entry.name))
+      continue;
     const source = join(sourceNodeDir, entry.name);
     if (source.toLowerCase() === sourceNode.toLowerCase()) continue;
     copyFileSync(source, join(runtimeRoot, entry.name));
@@ -76,7 +79,10 @@ function copyNodeRuntime() {
     }
   }
   const bundledNode = join(runtimeRoot, "node.exe");
-  const version = runNode(["--version"], { cwd: runtimeRoot, timeout: 10_000 }).trim();
+  const version = runNode(["--version"], {
+    cwd: runtimeRoot,
+    timeout: 10_000,
+  }).trim();
   const copied = spawnSync(bundledNode, ["--version"], {
     cwd: runtimeRoot,
     encoding: "utf8",
@@ -156,7 +162,12 @@ function copyFallbackPackages(modulesRoot) {
       mkdirSync(dirname(destination), { recursive: true });
       cpSync(source, destination, { recursive: true, force: true });
     } finally {
-      rmSync(tempDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+      rmSync(tempDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 100,
+      });
     }
   }
 }
@@ -196,18 +207,27 @@ function collectPackageNotices(modulesRoot) {
         typeof pkg.license === "string"
           ? pkg.license
           : Array.isArray(pkg.licenses)
-            ? pkg.licenses.map((item) => item?.type).filter(Boolean).join(" OR ")
+            ? pkg.licenses
+                .map((item) => item?.type)
+                .filter(Boolean)
+                .join(" OR ")
             : "unspecified; inspect package license files";
-      const relative = packageDir.slice(modulesRoot.length + 1).replaceAll("\\", "/");
-      packages.push({ name: pkg.name, version: pkg.version, license, path: relative });
+      const relative = packageDir
+        .slice(modulesRoot.length + 1)
+        .replaceAll("\\", "/");
+      packages.push({
+        name: pkg.name,
+        version: pkg.version,
+        license,
+        path: relative,
+      });
     }
     const nested = join(packageDir, "node_modules");
     if (existsSync(nested)) visitModules(nested);
   }
   visitModules(modulesRoot);
   packages.sort(
-    (a, b) =>
-      a.name.localeCompare(b.name) || a.version.localeCompare(b.version)
+    (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version)
   );
   const lines = [
     "OmniRoute bundled runtime - third-party package inventory",
@@ -222,7 +242,11 @@ function collectPackageNotices(modulesRoot) {
     ),
     "",
   ];
-  writeFileSync(join(runtimeRoot, "THIRD_PARTY_NOTICES.txt"), lines.join("\n"), "utf8");
+  writeFileSync(
+    join(runtimeRoot, "THIRD_PARTY_NOTICES.txt"),
+    lines.join("\n"),
+    "utf8"
+  );
   return packages;
 }
 
@@ -236,7 +260,12 @@ async function main() {
     `npm's JavaScript CLI is missing beside the CI Node runtime: ${npmCli}`
   );
 
-  rmSync(runtimeRoot, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+  rmSync(runtimeRoot, {
+    recursive: true,
+    force: true,
+    maxRetries: 8,
+    retryDelay: 100,
+  });
   mkdirSync(runtimeRoot, { recursive: true });
   const nodeVersion = copyNodeRuntime();
   const modulesRoot = join(runtimeRoot, "node_modules");
@@ -271,7 +300,10 @@ async function main() {
   );
 
   const packageManifest = join(modulesRoot, "omniroute", "package.json");
-  assert(existsSync(packageManifest), "OmniRoute package manifest was not staged.");
+  assert(
+    existsSync(packageManifest),
+    "OmniRoute package manifest was not staged."
+  );
   const pkg = JSON.parse(readFileSync(packageManifest, "utf8"));
   assert(
     pkg.name === "omniroute" && pkg.version === VERSION,
@@ -308,7 +340,7 @@ async function main() {
 main().catch((error) => {
   console.error(
     "[omniroute-bundle] failed:",
-    error instanceof Error ? error.stack ?? error.message : String(error)
+    error instanceof Error ? (error.stack ?? error.message) : String(error)
   );
   process.exitCode = 1;
 });

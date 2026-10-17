@@ -59,6 +59,14 @@ const REQUIRED = [
   // The llama.cpp server local models run on; without it the local option
   // is offered and fails on the first request.
   `vendor/llama/llama-server${EXE}`,
+  ...(process.platform === "win32"
+    ? [
+        "omniroute-runtime/node.exe",
+        "omniroute-runtime/runtime-manifest.json",
+        "omniroute-runtime/node_modules/omniroute/package.json",
+        "omniroute-runtime/node_modules/omniroute/bin/omniroute.mjs",
+      ]
+    : []),
   "skills",
 ];
 
