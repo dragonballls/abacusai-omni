@@ -671,14 +671,7 @@ export class GitService {
       // stages changes in the same checkout.
       const statusOutput = await execFileAsync(
         "git",
-        [
-          "-C",
-          workspacePath,
-          "status",
-          "--porcelain",
-          "-uall",
-          "-z",
-        ],
+        ["-C", workspacePath, "status", "--porcelain", "-uall", "-z"],
         READ_ONLY_STATUS_OPTIONS
       );
       let changes: GitChangeItem[] = parseStatusZ(statusOutput.stdout);
