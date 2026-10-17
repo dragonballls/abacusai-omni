@@ -38,8 +38,12 @@ const LITERAL_PATHSPECS = {
 
 /** Status probes must not take an optional index-refresh lock. */
 const READ_ONLY_STATUS_OPTIONS = {
-  env: { ...process.env, GIT_LITERAL_PATHSPECS: "1", GIT_OPTIONAL_LOCKS: "0" },
-  maxBuffer: 64 * 1024 * 1024,
+  ...LITERAL_PATHSPECS,
+  env: {
+    ...process.env,
+    GIT_LITERAL_PATHSPECS: "1",
+    GIT_OPTIONAL_LOCKS: "0",
+  },
 };
 
 /** Paths per git call, well under any platform's argument limit. */
