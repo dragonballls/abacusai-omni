@@ -496,7 +496,7 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
       }
       await app.evaluate("window.__chatHelpers.settle()");
       await activate(
-        `() => [...document.querySelectorAll('[data-slot="window-placeholder"]')].find((el) => /earlier|later/i.test(el.textContent || ""))`,
+        `() => [...document.querySelectorAll('[data-slot="window-placeholder"]')].find((el) => /earlier/i.test(el.textContent || ""))`,
         "history"
       );
     });
