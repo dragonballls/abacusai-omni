@@ -68,6 +68,8 @@ export interface FakeRelayOptions {
   events?: readonly RelayEvent[];
   /** Messages before the first event (a migrated transcript). */
   history?: readonly UIMessage[];
+  /** Exercise cursor-paged history in the long-transcript benchmark. */
+  paginateHistory?: boolean;
   epoch?: string;
   onSend?: SendHandler;
   onCancel?: (input: { runId?: string }, relay: FakeRelay) => void;
@@ -633,12 +635,41 @@ export class FakeRelay {
         timestamp: Date.now(),
       } as unknown as StreamChunk);
     },
-    hydrate: async () => {
+    hydrate: async (input) => {
       this.stats.hydrate += 1;
       const snapshot = this.#hydrate();
       const fault = await this.faults.hydrate?.(this.stats.hydrate);
       if (fault instanceof Error) throw fault;
-      return snapshot;
+      if (!this.#options.paginateHistory) return snapshot;
+
+      const request = input as { limit?: number; before?: string | null };
+      const limit =
+        typeof request.limit === "number" &&
+        Number.isSafeInteger(request.limit) &&
+        request.limit > 0
+          ? request.limit
+          : snapshot.messages.length;
+      const before =
+        typeof request.before === "string" ? request.before : null;
+      let end = snapshot.messages.length;
+      if (before != null) {
+        const index = snapshot.messages.findIndex(
+          (message) => message.id === before
+        );
+        // A stale cursor is exhausted, not a request to repeat the newest page.
+        end = index < 0 ? 0 : index;
+      }
+      const start = Math.max(0, end - limit);
+      const messages = snapshot.messages.slice(start, end);
+      const truncated = start > 0;
+      return {
+        ...snapshot,
+        messages,
+        page: {
+          truncated,
+          cursor: truncated ? (messages[0]?.id ?? "") : "",
+        },
+      };
     },
     subscribe: (_threadId, afterSeq, signal, epoch) => {
       this.stats.subscribe += 1;
