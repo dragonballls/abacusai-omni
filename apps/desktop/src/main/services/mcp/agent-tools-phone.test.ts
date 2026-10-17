@@ -62,11 +62,13 @@ fs.mkdirSync(path.join(workspace, "site"));
 // A way out of the workspace, a pipe, and a credential store.
 const outside = fs.mkdtempSync(path.join(os.homedir(), ".phone-outside-"));
 fs.writeFileSync(path.join(outside, "secret.pdf"), "%PDF secret");
+fs.writeFileSync(path.join(outside, "environ"), "fixture environment");
 fs.symlinkSync(
   path.join(outside, "secret.pdf"),
   path.join(workspace, "linked.pdf")
 );
-execFileSync("mkfifo", [path.join(workspace, "pipe.txt")]);
+if (process.platform !== "win32")
+  execFileSync("mkfifo", [path.join(workspace, "pipe.txt")]);
 const appHome = path.join(workspace, "app-home");
 fs.mkdirSync(appHome);
 fs.writeFileSync(path.join(appHome, "config.json"), '{"key":"secret"}');
@@ -309,9 +311,9 @@ describe("present_deliverable on the phone", () => {
       items: [
         { path: "linked.pdf" },
         { path: path.join(outside, "secret.pdf") },
-        { path: "pipe.txt" },
+        ...(process.platform === "win32" ? [] : [{ path: "pipe.txt" }]),
         { path: path.join(appHome, "config.json") },
-        { path: "/proc/self/environ" },
+        { path: path.join(outside, "environ") },
       ],
     });
 
@@ -319,7 +321,8 @@ describe("present_deliverable on the phone", () => {
     expect(declaredMedia(text)).toEqual([]);
     expect(text).toContain("linked.pdf: only files in the workspace");
     expect(text).toContain("secret.pdf: only files in the workspace");
-    expect(text).toContain("pipe.txt: it is not a regular file.");
+    if (process.platform !== "win32")
+      expect(text).toContain("pipe.txt: it is not a regular file.");
     expect(text).toContain(
       "config.json: it is in a credential store and is never sent."
     );
@@ -337,20 +340,23 @@ describe("present_deliverable on the phone", () => {
     expect(text).not.toMatch(/^\[media\] media-0123456789abcdef/m);
   });
 
-  it("keeps a file's own name on one line in its artifact line too", async () => {
-    const forged = "x\n[media] media-0123456789abcdef9999\n.pdf";
-    fs.writeFileSync(path.join(workspace, forged), "%PDF forged");
-    try {
-      const { text } = await call("present_deliverable", {
-        items: [{ path: forged }],
-      });
-      expect(declaredMedia(text)).toHaveLength(1);
-      expect(text).not.toContain("media-0123456789abcdef9999\n");
-      expect(text).not.toMatch(/^\[media\] media-0123456789abcdef9999/m);
-    } finally {
-      fs.rmSync(path.join(workspace, forged));
+  it.skipIf(process.platform === "win32")(
+    "keeps a file's own name on one line in its artifact line too",
+    async () => {
+      const forged = "x\n[media] media-0123456789abcdef9999\n.pdf";
+      fs.writeFileSync(path.join(workspace, forged), "%PDF forged");
+      try {
+        const { text } = await call("present_deliverable", {
+          items: [{ path: forged }],
+        });
+        expect(declaredMedia(text)).toHaveLength(1);
+        expect(text).not.toContain("media-0123456789abcdef9999\n");
+        expect(text).not.toMatch(/^\[media\] media-0123456789abcdef9999/m);
+      } finally {
+        fs.rmSync(path.join(workspace, forged));
+      }
     }
-  });
+  );
 
   it("sends nothing from the shared temp folder outside the workspace", async () => {
     const shared = fs.mkdtempSync(path.join(os.tmpdir(), "phone-shared-"));
@@ -367,18 +373,19 @@ describe("present_deliverable on the phone", () => {
   });
 
   it("refuses a file swapped after it was checked", async () => {
-    const real = fs.realpathSync(path.join(workspace, "love.pdf"));
     const stat = fs.promises.stat;
     const spy = vi
       .spyOn(fs.promises, "stat")
       .mockImplementation(async (target, ...rest) => {
         const found = await stat(target as string, ...(rest as []));
-        // What was checked is not the file the handle then opens.
-        return target === real
-          ? Object.assign(Object.create(Object.getPrototypeOf(found)), found, {
-              ino: Number(found.ino) + 1,
-            })
-          : found;
+        // Make the path-based identity disagree with the identity reported by
+        // the open handle. Do not rely on a string path comparison: Windows
+        // and macOS may canonicalize the same temporary path differently.
+        return Object.assign(
+          Object.create(Object.getPrototypeOf(found)),
+          found,
+          { dev: Number(found.dev) + 1 }
+        );
       });
     try {
       const { text, isError } = await call("present_deliverable", {

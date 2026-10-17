@@ -1,3 +1,5 @@
+import { contract } from "@abacus-ai/contract/contract";
+import { implement } from "@orpc/server";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -6,6 +8,20 @@ import { requestBrowserOpen } from "#renderer/features/shell";
 import { defaultSeed, renderApp } from "#renderer/test-support/app-harness";
 
 import { botsUnreadStore } from "./data/unread-store";
+
+const configuredModelProcedures = {
+  models: {
+    list: implement(contract).models.list.handler(() => [
+      {
+        id: "openrouter/test-model",
+        label: "Test model",
+        provider: "openrouter",
+        tier: "fast",
+        configured: true,
+      },
+    ]),
+  },
+};
 
 let app: Awaited<ReturnType<typeof renderApp>> | undefined;
 afterEach(async () => {
@@ -18,6 +34,7 @@ afterEach(async () => {
 it("waits for configured default mode before mounting a sendable composer", async () => {
   let resolve!: (mode: never) => void;
   app = await renderApp("/bots/chief-of-staff", {
+    procedures: configuredModelProcedures,
     defaultMode: () =>
       new Promise((done) => {
         resolve = done;
@@ -54,7 +71,10 @@ it("recovers from a configured-mode rejection through Retry before allowing send
           resolve = done;
         })
     );
-  app = await renderApp("/bots/chief-of-staff", { defaultMode });
+  app = await renderApp("/bots/chief-of-staff", {
+    procedures: configuredModelProcedures,
+    defaultMode,
+  });
   await screen.findByTestId("bot-chat");
   const retry = await screen.findByRole("button", { name: "Retry" });
   expect(screen.getByRole("alert").textContent).toContain(

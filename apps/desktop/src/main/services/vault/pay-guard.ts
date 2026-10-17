@@ -162,7 +162,7 @@ export const controlFactsScript = (
   let documentFacts = null;
   const hasCard = (root) => {
     try {
-      const facts = documentFacts || (documentFacts = __documentFacts(document));
+      const facts = documentFacts || (documentFacts = __documentFacts(document, true));
       for (const [el, fact] of facts)
         if ((root === document || el.form === root || root.contains(el)) && __cardField(fact)) return true;
       return false;

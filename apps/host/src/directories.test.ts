@@ -15,6 +15,12 @@ import { listDirectory, makeDirectory } from "./directories";
 
 it("lists VM paths, clamps parents and symlinks, and creates one folder safely", async () => {
   const root = await mkdtemp(join(tmpdir(), "host-picker-"));
+  // Windows' temp directory is often inside the normal user home. Give the
+  // test an isolated home so the bot-root boundary is the same on every OS.
+  const isolatedHome = join(root, "isolated-user-home");
+  await mkdir(isolatedHome);
+  vi.stubEnv("HOME", isolatedHome);
+  vi.stubEnv("USERPROFILE", isolatedHome);
   vi.stubEnv("ABACUSAI_BOT_HOME", root);
   try {
     const home = join(root, "bot-home");

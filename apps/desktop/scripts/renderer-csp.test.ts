@@ -27,27 +27,33 @@ it("the web root HTML loads its source entry and carries no CSP", () => {
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
   );
-  expect(html).toContain('src="/src/main.tsx"');
+  expect(html).toContain('src="/src/entry.tsx"');
   expect(html).not.toContain("Content-Security-Policy");
 });
-it("strips the browser's static splash from the Electron HTML only", async () => {
-  // A regex over comment markers: editing them would ship the splash to the
-  // desktop app silently.
+it("keeps the entry and platform-specific splash behavior", async () => {
   const html = readFileSync(
     resolve(import.meta.dirname, "../../web/index.html"),
     "utf8"
   );
-  const transform = async (platform: "electron" | "browser") => {
+  const transform = async (platform: "electron" | "browser", input = html) => {
     const plugins = await platformPlugin(platform);
     const hook = plugins.find(
       (plugin) => plugin.name === "abacus:platform"
     )?.transformIndexHtml;
     if (typeof hook !== "function")
       throw new Error("Missing platform HTML hook");
-    return (hook as (html: string) => { html: string })(html).html;
+    return (hook as (html: string) => { html: string })(input).html;
   };
-  expect(html).toContain('id="splash"');
-  expect(await transform("electron")).not.toContain("splash");
-  expect(await transform("electron")).toContain('id="root"');
-  expect(await transform("browser")).toContain('id="splash"');
+  expect(html).toContain('src="/src/entry.tsx"');
+  expect(html).toContain('id="root"');
+  expect(html).not.toContain('id="splash"');
+
+  // The current source HTML has no splash. Inject one to keep testing the
+  // platform-specific behavior: Electron strips it, while the browser keeps it.
+  const withSplash = html.replace(
+    "</body>",
+    '<!-- splash:fixture --><div id="splash"></div><!-- /splash --></body>'
+  );
+  expect(await transform("electron", withSplash)).not.toContain('id="splash"');
+  expect(await transform("browser", withSplash)).toContain('id="splash"');
 });

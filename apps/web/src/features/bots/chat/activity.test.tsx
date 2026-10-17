@@ -1,3 +1,5 @@
+import { contract } from "@abacus-ai/contract/contract";
+import { implement } from "@orpc/server";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 
@@ -5,6 +7,20 @@ import { fixtureSessions } from "#renderer/data/fixture-db/rows";
 import * as b from "#renderer/features/chat/fixtures/builders";
 import { FakeRelay } from "#renderer/features/chat/fixtures/relay";
 import { renderApp, defaultSeed } from "#renderer/test-support/app-harness";
+
+const configuredModelProcedures = {
+  models: {
+    list: implement(contract).models.list.handler(() => [
+      {
+        id: "openrouter/test-model",
+        label: "Test model",
+        provider: "openrouter",
+        tier: "fast",
+        configured: true,
+      },
+    ]),
+  },
+};
 
 let app: Awaited<ReturnType<typeof renderApp>> | undefined;
 afterEach(async () => {
@@ -15,6 +31,7 @@ afterEach(async () => {
 it("the routed avatar follows actual reasoning/text streams and the send reaction", async () => {
   const relay = new FakeRelay({ threadId: "bot-test" });
   app = await renderApp("/bots/chief-of-staff", {
+    procedures: configuredModelProcedures,
     ai: relay.ai,
     seed: {
       ...defaultSeed(),

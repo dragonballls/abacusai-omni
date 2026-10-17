@@ -241,9 +241,18 @@ export const SidebarSlot = ({
             }}
             onFocus={intent.hold}
             onBlur={(event) => {
+              const next = event.relatedTarget;
+              // Menus and dialogs are portaled outside this DOM subtree. They
+              // still belong to the sidebar, so keep it open while they own focus.
+              if (
+                next instanceof Element &&
+                next.closest("[data-sidebar-overlay]") != null
+              ) {
+                intent.hold();
+                return;
+              }
               // Focus left the sidebar for somewhere else: close after the grace.
-              if (!event.currentTarget.contains(event.relatedTarget as Node))
-                intent.leave();
+              if (!event.currentTarget.contains(next as Node)) intent.leave();
             }}
             onKeyDown={onKeyDown}
           >

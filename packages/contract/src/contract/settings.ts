@@ -68,6 +68,12 @@ export const settings = {
       )
       .output(type<AbacusBotSettings>()),
   },
+  omniRoute: {
+    /** Start/attach to the loopback OmniRoute gateway and open its dashboard. */
+    open: mutation
+      .input(NoInput)
+      .output(type<{ ok: boolean; message: string }>()),
+  },
   setDefaultModel: mutation
     .input(v.object({ modelId: v.pipe(v.string(), v.nonEmpty()) }))
     .output(type<AbacusBotSettings>()),

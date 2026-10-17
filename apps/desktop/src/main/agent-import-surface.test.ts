@@ -45,6 +45,8 @@ const ALLOWED = new Set([
   "@abacus-ai/agent/send-media",
   // What a chat can do: no imports at all.
   "@abacus-ai/agent/channel",
+  // User-text visibility helpers: pure functions with only a type-only protocol import.
+  "@abacus-ai/agent/user-text",
   // Which tools a chat gets: no imports at all.
   "@abacus-ai/agent/tool-policy",
   // The credential stores: node's fs, os and path only.

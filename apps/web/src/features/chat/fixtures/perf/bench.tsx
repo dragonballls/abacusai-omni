@@ -30,10 +30,12 @@ interface BenchCase {
   hydrateDelayMs?: number;
   /** Every `ai.joinRun` waits this long before it replays. */
   joinDelayMs?: number;
+  /** Serve history as cursor pages so the benchmark can load all 1,000 messages. */
+  paginateHistory?: boolean;
 }
 
 const CASES: Record<string, BenchCase> = {
-  "bench-rich": { thread: () => richThread() },
+  "bench-rich": { thread: () => richThread(), paginateHistory: true },
   "bench-replay": { thread: () => activeReplay() },
   "bench-tools": { thread: () => hugeToolMessage() },
   "bench-slow-hydrate": { thread: onlyActiveRun, hydrateDelayMs: 2000 },
@@ -110,6 +112,7 @@ const build = (id: string): BenchState => {
     threadId: id,
     history: thread.history,
     events: thread.events,
+    paginateHistory: bench.paginateHistory,
   });
   if (bench.hydrateDelayMs != null) {
     const delay = bench.hydrateDelayMs;
@@ -125,7 +128,14 @@ const build = (id: string): BenchState => {
       yield* join(...args);
     };
   }
-  const runtime = createChatRuntime(relay.ai, { host: inertHostActions });
+  const runtime = createChatRuntime(relay.ai, {
+    host: inertHostActions,
+    // The history-window acceptance test must page through all 1,000 synthetic
+    // messages. Production sessions keep the normal 300-message retention cap.
+    ...(id === "bench-rich"
+      ? { sessionOptions: { retentionMaxMessages: 1200 } }
+      : {}),
+  });
   const session = runtime.session(id);
   const state: BenchState = {
     id,

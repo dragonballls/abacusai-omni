@@ -31,6 +31,8 @@ const GROUPS = [
   "conversation",
   "debug-sync",
   "diagnostics",
+  // Safe external-link policy and link classification for the renderer.
+  "links",
   "device",
   // The models the app downloads and serves on this machine: the store, the
   // llama.cpp server, the endpoint in front of it, and what ties them together.
@@ -122,6 +124,8 @@ const MAIN_ROOT_FILES = [
   "renderer-host.ts",
   "resources.ts",
   "service-host.ts",
+  // Covers the process-level routine bridge that lives beside service-host.
+  "service-host.routines.test.ts",
   "spellcheck-dictionary.ts",
   "startup-theme.test.ts",
   "startup-theme.ts",

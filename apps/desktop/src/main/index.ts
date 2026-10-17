@@ -130,6 +130,7 @@ import {
   signOut,
   skipOnboarding,
 } from "./services/providers/account-service";
+import { stopOmniRoute } from "./services/providers/omniroute.js";
 import { getLocalUsageSnapshot } from "./services/providers/usage";
 import { accountStashKey } from "./services/session/account-session-stash";
 import { ArtifactResolverService } from "./services/session/artifact-resolver-service";
@@ -1899,6 +1900,11 @@ app.on("before-quit", (event) => {
     } catch (err) {
       console.warn("[quit] graceful shutdown failed:", err);
     } finally {
+      try {
+        await stopOmniRoute();
+      } catch (error) {
+        console.warn("[omniroute] graceful shutdown failed", error);
+      }
       app.exit(0);
     }
   })();
