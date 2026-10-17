@@ -222,11 +222,14 @@ const Placeholder = ({
   rows,
   height,
   label,
+  edge,
   onActivate,
 }: {
   rows: number;
   height: number;
   label: string;
+  /** Keep the paging control at the edge adjacent to the mounted transcript. */
+  edge: "start" | "end";
   onActivate(): void;
 }) => {
   const spacer = useRef<HTMLDivElement>(null);
@@ -255,7 +258,7 @@ const Placeholder = ({
     <div
       ref={spacer}
       style={{ minHeight: height }}
-      className="flex shrink-0 items-center justify-center"
+      className={`flex shrink-0 justify-center ${edge === "start" ? "items-start" : "items-end"}`}
     >
       <Button
         variant="ghost"
@@ -902,6 +905,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             rows={start}
             height={placeholderHeight(0, start)}
             label={t("chat.transcript.showEarlier")}
+            edge="end"
             onActivate={() =>
               preserve(() => {
                 const protectedAnchor = anchor.current ?? observed.current;
@@ -931,6 +935,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             rows={visible.length - end}
             height={placeholderHeight(end, visible.length)}
             label={t("chat.transcript.showLater")}
+            edge="start"
             onActivate={() =>
               preserve(() => {
                 const protectedAnchor = anchor.current ?? observed.current;
