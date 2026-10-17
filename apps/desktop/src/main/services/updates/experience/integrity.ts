@@ -32,6 +32,22 @@ export interface ExperienceManifest {
 
 const DIGEST = /^[\da-f]{64}$/u;
 
+/**
+ * A signed experience can still be stale for the installed foundation.
+ * Detect only a well-formed, explicit version mismatch; malformed manifests
+ * continue through the strict verifier and remain errors.
+ */
+export const incompatibleExperienceFoundation = (
+  raw: unknown,
+  expectedFoundation: string
+): string | null => {
+  if (typeof raw !== "object" || raw === null) return null;
+  const foundation = (raw as Record<string, unknown>).foundation;
+  return typeof foundation === "string" && foundation !== expectedFoundation
+    ? foundation
+    : null;
+};
+
 const parseManifest = (
   raw: unknown,
   expectedFoundation: string
