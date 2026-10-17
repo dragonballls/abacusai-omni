@@ -451,6 +451,11 @@ describe.skipIf(!ready.runnable)("chat kit gates (Electron)", () => {
           const top = el.getBoundingClientRect().bottom - v.getBoundingClientRect().top + v.scrollTop;
           v.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, bubbles: true }));
           v.scrollTop = Math.max(0, Math.min(v.scrollHeight - v.clientHeight - 100, top + 8));
+          // scrollTop assignment is not guaranteed to deliver the native scroll
+          // event before the next animation-frame/task pair on every CI OS.
+          // Commit the current geometry immediately so scroll anchoring does
+          // not protect the stale end-of-transcript row during paging.
+          v.dispatchEvent(new Event("scroll", { bubbles: true }));
           return true;
         })()`);
         if (!found) break;
