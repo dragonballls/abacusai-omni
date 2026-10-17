@@ -10,7 +10,7 @@ import {
 import { buildExperience } from "@abacus-ai/updater/experience";
 import { describe, expect, it } from "vitest";
 
-import { verifyExperience } from "./integrity";
+import { incompatibleExperienceFoundation, verifyExperience } from "./integrity";
 
 /**
  * Builder and verifier are two views of one canon: what
@@ -48,6 +48,21 @@ const buildFixture = async () => {
 };
 
 describe("experience integrity", () => {
+  it("recognizes an explicitly stale or future foundation without accepting the bundle", () => {
+    expect(
+      incompatibleExperienceFoundation({ foundation: "1.0.85" }, "1.0.86")
+    ).toBe("1.0.85");
+    expect(
+      incompatibleExperienceFoundation({ foundation: "1.0.87" }, "1.0.86")
+    ).toBe("1.0.87");
+    expect(
+      incompatibleExperienceFoundation({ foundation: "1.0.86" }, "1.0.86")
+    ).toBeNull();
+    expect(
+      incompatibleExperienceFoundation({ foundationApi: 2 }, "1.0.86")
+    ).toBeNull();
+  });
+
   it("accepts a built experience and its identities", async () => {
     const { current, root } = await buildFixture();
 
