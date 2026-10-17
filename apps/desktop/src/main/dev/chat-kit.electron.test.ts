@@ -127,7 +127,15 @@ const HELPERS = `(() => {
           observer?.disconnect();
           reject(
             new Error(
-              `paging control did not commit after activation (transcript window ${beforeWindow.start}..${beforeWindow.end} -> ${v.getAttribute("data-transcript-window-start")}..${v.getAttribute("data-transcript-window-end")})`
+              "paging control did not commit after activation (transcript window " +
+              beforeWindow.start +
+              ".." +
+              beforeWindow.end +
+              " -> " +
+              v.getAttribute("data-transcript-window-start") +
+              ".." +
+              v.getAttribute("data-transcript-window-end") +
+              ")"
             )
           );
         }, 1500);
