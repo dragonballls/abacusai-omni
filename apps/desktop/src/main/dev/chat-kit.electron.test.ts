@@ -58,7 +58,20 @@ const rows = () =>
 /** Page helpers: the viewport, rows, the anchor row and its offset. */
 const HELPERS = `(() => {
   if (window.__chatHelpers) return;
-  const viewport = () => document.querySelector('[data-slot="message-scroller-viewport"]');
+  // A route transition can keep the previous bench mounted briefly. Scope
+  // every geometry and paging operation to the active fixture instead of
+  // accidentally driving the outgoing transcript.
+  const viewport = () => {
+    const id = window.__chatBench?.id;
+    const root = id == null
+      ? null
+      : [...document.querySelectorAll("[data-bench]")].find(
+          (el) => el.getAttribute("data-bench") === id
+        );
+    return (root ?? document).querySelector(
+      '[data-slot="message-scroller-viewport"]'
+    );
+  };
   const ROW = '[data-slot="message-scroller-item"], [data-tool], [data-slot="subagent-row"]';
   const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
   const task = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
