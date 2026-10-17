@@ -75,6 +75,16 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
 
+  it("uses the bundled Windows runtime before requiring a system Node/npm install", () => {
+    expect(source).toContain('join(process.resourcesPath, "omniroute-runtime")');
+    expect(source).toContain('const omniRouteBundleNode = join(omniRouteBundleRoot, "node.exe")');
+    expect(source).toContain("function bundledNodeExecutable()");
+    expect(source).toContain("const bundledNode = bundledNodeExecutable()");
+    expect(source).toContain("cpSync(\n      omniRouteBundleModules,\n      join(omniRouteDataDir, \"node_modules\")");
+    expect(source).toContain("if (npmArgs.length === 0)");
+    expect(source).toContain("The bundled OmniRoute runtime is missing");
+  });
+
   it("rejects Node.js versions outside OmniRoute's supported engine range", () => {
     expect(source).toContain('spawnSync(node, ["--version"]');
     expect(source).toContain("22.22.2");
