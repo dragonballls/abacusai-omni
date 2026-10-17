@@ -33,7 +33,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-function runNode(args, { cwd = runtimeRoot, env = process.env, timeout = 15 * 60_000 } = {}) {
+function runNode(
+  args,
+  { cwd = runtimeRoot, env = process.env, timeout = 15 * 60_000 } = {}
+) {
   const result = spawnSync(sourceNode, args, {
     cwd,
     env,
@@ -45,7 +48,9 @@ function runNode(args, { cwd = runtimeRoot, env = process.env, timeout = 15 * 60
   if (result.error) throw result.error;
   if (result.status !== 0) {
     const details = `${result.stdout ?? ""}${result.stderr ?? ""}`.slice(-16_000);
-    throw new Error(`Command failed with exit code ${result.status}: ${args.join(" ")}\n${details}`);
+    throw new Error(
+      `Command failed with exit code ${result.status}: ${args.join(" ")}\n${details}`
+    );
   }
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
 }
@@ -78,8 +83,14 @@ function copyNodeRuntime() {
     windowsHide: true,
     timeout: 10_000,
   });
-  assert(!copied.error && copied.status === 0, "The staged node.exe could not start independently.");
-  assert(copied.stdout.trim() === version, "The staged Node.js version does not match the build Node.js version.");
+  assert(
+    !copied.error && copied.status === 0,
+    "The staged node.exe could not start independently."
+  );
+  assert(
+    copied.stdout.trim() === version,
+    "The staged Node.js version does not match the build Node.js version."
+  );
   const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
   const major = Number(match?.[1]);
   const minor = Number(match?.[2]);
@@ -138,7 +149,10 @@ function copyFallbackPackages(modulesRoot) {
         }
       );
       const source = join(tempDir, "node_modules", scope, packageName);
-      assert(existsSync(join(source, "package.json")), `Could not stage ${platformPackage}.`);
+      assert(
+        existsSync(join(source, "package.json")),
+        `Could not stage ${platformPackage}.`
+      );
       mkdirSync(dirname(destination), { recursive: true });
       cpSync(source, destination, { recursive: true, force: true });
     } finally {
@@ -191,14 +205,21 @@ function collectPackageNotices(modulesRoot) {
     if (existsSync(nested)) visitModules(nested);
   }
   visitModules(modulesRoot);
-  packages.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+  packages.sort(
+    (a, b) =>
+      a.name.localeCompare(b.name) || a.version.localeCompare(b.version)
+  );
   const lines = [
     "OmniRoute bundled runtime - third-party package inventory",
     `Pinned top-level package: omniroute@${VERSION}`,
-    "Each package's license/copyright files are shipped with the package where provided.",
+    "Each package's license/copyright files are shipped with the package " +
+      "where provided.",
     "Review the corresponding package directory below for the license text.",
     "",
-    ...packages.map((pkg) => `- ${pkg.name}@${pkg.version} — ${pkg.license} — node_modules/${pkg.path}`),
+    ...packages.map(
+      (pkg) =>
+        `- ${pkg.name}@${pkg.version} — ${pkg.license} — node_modules/${pkg.path}`
+    ),
     "",
   ];
   writeFileSync(join(runtimeRoot, "THIRD_PARTY_NOTICES.txt"), lines.join("\n"), "utf8");
@@ -206,8 +227,14 @@ function collectPackageNotices(modulesRoot) {
 }
 
 async function main() {
-  assert(process.platform === "win32", "The portable OmniRoute runtime bundle is Windows-only.");
-  assert(existsSync(npmCli), `npm's JavaScript CLI is missing beside the CI Node runtime: ${npmCli}`);
+  assert(
+    process.platform === "win32",
+    "The portable OmniRoute runtime bundle is Windows-only."
+  );
+  assert(
+    existsSync(npmCli),
+    `npm's JavaScript CLI is missing beside the CI Node runtime: ${npmCli}`
+  );
 
   rmSync(runtimeRoot, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
   mkdirSync(runtimeRoot, { recursive: true });
@@ -222,7 +249,9 @@ async function main() {
     PUPPETEER_SKIP_DOWNLOAD: "1",
   };
 
-  console.info(`[omniroute-bundle] staging OmniRoute ${VERSION} with Node.js ${nodeVersion}`);
+  console.info(
+    `[omniroute-bundle] staging OmniRoute ${VERSION} with Node.js ${nodeVersion}`
+  );
   npm(
     [
       "install",
@@ -244,7 +273,10 @@ async function main() {
   const packageManifest = join(modulesRoot, "omniroute", "package.json");
   assert(existsSync(packageManifest), "OmniRoute package manifest was not staged.");
   const pkg = JSON.parse(readFileSync(packageManifest, "utf8"));
-  assert(pkg.name === "omniroute" && pkg.version === VERSION, `Expected omniroute@${VERSION}, got ${pkg.name}@${pkg.version}.`);
+  assert(
+    pkg.name === "omniroute" && pkg.version === VERSION,
+    `Expected omniroute@${VERSION}, got ${pkg.name}@${pkg.version}.`
+  );
   copyFallbackPackages(modulesRoot);
   const packages = collectPackageNotices(modulesRoot);
   writeFileSync(
@@ -264,12 +296,19 @@ async function main() {
     "utf8"
   );
   console.info(
-    `[omniroute-bundle] verified omniroute@${VERSION}; inventoried ${packages.length} packages. Bundle source: ${runtimeRoot}`
+    `[omniroute-bundle] verified omniroute@${VERSION}; ` +
+      `inventoried ${packages.length} packages. Bundle source: ${runtimeRoot}`
   );
-  console.info("[omniroute-bundle] runtime stays under apps/desktop/resources so electron-builder copies it into the portable app.");
+  console.info(
+    "[omniroute-bundle] runtime stays under apps/desktop/resources so " +
+      "electron-builder copies it into the portable app."
+  );
 }
 
 main().catch((error) => {
-  console.error("[omniroute-bundle] failed:", error instanceof Error ? error.stack ?? error.message : String(error));
+  console.error(
+    "[omniroute-bundle] failed:",
+    error instanceof Error ? error.stack ?? error.message : String(error)
+  );
   process.exitCode = 1;
 });
