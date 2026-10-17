@@ -233,6 +233,7 @@ const Placeholder = ({
   onActivate(): void;
 }) => {
   const spacer = useRef<HTMLDivElement>(null);
+  const activate = useEffectEvent(onActivate);
   const away = useMessageScrollerScrollable().end;
   useEffect(() => {
     const el = spacer.current;
@@ -242,7 +243,7 @@ const Placeholder = ({
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           observer.disconnect();
-          onActivate();
+          activate();
         }
       },
       {
@@ -253,7 +254,7 @@ const Placeholder = ({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [onActivate, away]);
+  }, [away]);
   return (
     <div
       ref={spacer}
