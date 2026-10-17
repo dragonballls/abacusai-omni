@@ -34,14 +34,21 @@ Gateway**.
   it as the default for new sessions. Authenticated `/v1/models` checks use the
   same app-specific API key as model requests. The gateway must have at least
   one usable upstream provider configured before inference can succeed.
-- Node.js and npm must be installed. The app installs only the pinned OmniRoute
-  package into the per-user runtime directory; it does not install packages
-  globally. The embedded API-key gateway omits the broad optional dependency
-  closure and skips npm lifecycle scripts to avoid first-run native build and
-  download hangs. It restores the three standalone JavaScript support packages,
-  reinstalls the exact platform-matched esbuild binary, and uses Node's built-in
-  SQLite driver with sql.js fallback. Native-only OAuth/web transport backends
-  that require install scripts are not initialized by this lightweight setup.
+- The Windows portable build includes a platform-matched Node.js executable,
+  npm CLI, and a pre-installed OmniRoute **3.8.50** runtime seed. A first launch
+  can provision the shared per-user runtime offline and does not require the
+  user to separately install Node.js/npm. The archive contains runtime software
+  only: it never contains provider API keys, user settings, database contents,
+  or generated client keys. If the seed is unavailable or an existing runtime
+  must be upgraded, the app retains its npm-install fallback.
+- The runtime install omits the broad optional dependency closure and skips npm
+  lifecycle scripts to avoid first-run native builds and browser downloads. It
+  restores the three standalone JavaScript support packages and the exact
+  platform-matched esbuild binary, then uses Node's built-in SQLite driver with
+  sql.js fallback. Native-only OAuth/web transport backends that require install
+  scripts are not initialized by this lightweight setup. Other platform builds
+  and development checkouts still need a compatible Node.js/npm installation if
+  no suitable runtime already exists.
 
 OmniRoute is an independently maintained package. Review its provider and
 network-security settings before entering production credentials. Only use
