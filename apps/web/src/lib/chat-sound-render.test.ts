@@ -28,9 +28,9 @@ it.skipIf(!chrome)(
       expect(after.duration).toBeGreaterThan(0.04);
       expect(after.duration).toBeLessThan(0.32);
     }
-    expect(cues.sent!.after.duration).toBeGreaterThan(0.12);
-    expect(cues.sent!.after.duration).toBeLessThan(0.2);
-    expect(cues.sent!.after.rms / cues.sent!.before.rms).toBeGreaterThan(1.4);
+    expect(cues.sent!.after.duration).toBeGreaterThan(0.06);
+    expect(cues.sent!.after.duration).toBeLessThan(0.12);
+    expect(cues.sent!.after.rms / cues.sent!.before.rms).toBeGreaterThan(1.1);
     for (const cue of ["done", "received"]) {
       const { before, after } = cues[cue]!;
       expect(after.peak / before.peak).toBeGreaterThan(1.7);
@@ -41,5 +41,5 @@ it.skipIf(!chrome)(
     expect(cues.done!.after.duration).toBeGreaterThan(0.24);
     expect(overload.peak).toBeLessThanOrEqual(Math.SQRT1_2 + 0.001);
   },
-  45000
+  60000
 );

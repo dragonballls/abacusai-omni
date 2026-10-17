@@ -410,24 +410,24 @@ describe("symlinks and the workspace guard", () => {
     ).toBeUndefined();
   });
 
-  // Skipped on Windows: /tmp is not the platform temp directory.
-  it.skipIf(process.platform === "win32")(
-    "leaves the scratch carve-out alone",
-    async () => {
-      // A link into /tmp is not an escape the guard cares about: scratch space is
-      // deliberately writable, and refusing it cost a real run three turns.
-      const scratch = fs.mkdtempSync("/tmp/guard-scratch-");
+  it("leaves the platform temp-directory carve-out alone", async () => {
+    // Resolve through the same platform-specific temp path the guard uses:
+    // on Windows this catches short-name versus realpath prefix mismatches.
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "guard-scratch-"));
+    try {
       fs.symlinkSync(
         path.join(scratch, "log.txt"),
-        path.join(cwd, "log-link.txt")
+        path.join(cwd, "log-link.txt"),
+        "file"
       );
 
       expect(
         await pi.fire("tool_call", writeCall("log-link.txt"), ctx())
       ).toBeUndefined();
+    } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
     }
-  );
+  });
 });
 
 /**

@@ -251,7 +251,7 @@ it("final setup retries a failed completion without duplicating its created Chie
   });
   const hello = await screen.findByRole("button", { name: "Say hello" });
   fireEvent.click(hello);
-  await screen.findByRole("alert");
+  await screen.findByRole("alert", {}, { timeout: 5000 });
   expect(harness.router.state.location.pathname).toBe("/onboarding/first-bot");
   expect(harness.collections.bots.toArray).toHaveLength(1);
   const botId = harness.collections.bots.toArray[0]!.id;

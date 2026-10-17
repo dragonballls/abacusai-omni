@@ -336,11 +336,16 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** A minimal CDP client over Node's WebSocket. */
 const connect = async (port) => {
   let page = null;
-  for (let attempt = 0; attempt < 120 && page == null; attempt += 1) {
+  for (let attempt = 0; attempt < 60 && page == null; attempt += 1) {
     try {
-      const targets = await (
-        await fetch(`http://127.0.0.1:${port}/json`)
-      ).json();
+      const response = await fetch(`http://127.0.0.1:${port}/json`, {
+        signal: AbortSignal.timeout(1_500),
+      });
+      if (!response.ok)
+        throw new Error(
+          `DevTools target list returned HTTP ${response.status}`
+        );
+      const targets = await response.json();
       page = targets.find(
         (target) => target.type === "page" && target.url.includes("index.html")
       );
@@ -352,24 +357,85 @@ const connect = async (port) => {
   if (page == null) throw new Error("no renderer page appeared");
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    ws.onopen = resolve;
-    ws.onerror = reject;
+    let settled = false;
+    let timer;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    timer = setTimeout(() => {
+      finish(
+        new Error(
+          "Chrome DevTools WebSocket connection timed out after 10 seconds"
+        )
+      );
+      ws.close();
+    }, 10_000);
+    ws.addEventListener("open", () => finish());
+    ws.addEventListener("error", () =>
+      finish(new Error("Chrome DevTools WebSocket connection failed"))
+    );
+    ws.addEventListener("close", () =>
+      finish(new Error("Chrome DevTools WebSocket closed before opening"))
+    );
   });
   let id = 0;
   const pending = new Map();
-  ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+  const failPending = (error) => {
+    for (const waiter of pending.values()) {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+    }
+    pending.clear();
+  };
+  ws.addEventListener("error", () =>
+    failPending(new Error("Chrome DevTools WebSocket reported an error"))
+  );
+  ws.addEventListener("close", () =>
+    failPending(new Error("Chrome DevTools WebSocket closed during a command"))
+  );
+  ws.addEventListener("message", (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch {
+      failPending(new Error("Chrome DevTools returned invalid JSON"));
+      return;
+    }
     const waiter = pending.get(message.id);
     if (waiter == null) return;
     pending.delete(message.id);
+    clearTimeout(waiter.timer);
     if (message.error) waiter.reject(new Error(JSON.stringify(message.error)));
     else waiter.resolve(message.result);
-  };
+  });
   const send = (method, params = {}) =>
     new Promise((resolve, reject) => {
       id += 1;
-      pending.set(id, { resolve, reject });
-      ws.send(JSON.stringify({ id, method, params }));
+      const requestId = id;
+      const timer = setTimeout(() => {
+        pending.delete(requestId);
+        const expression =
+          typeof params.expression === "string"
+            ? ` (${params.expression.slice(0, 80)})`
+            : "";
+        reject(
+          new Error(
+            `Chrome DevTools command ${method} timed out after 60 seconds${expression}`
+          )
+        );
+      }, 60_000);
+      pending.set(requestId, { resolve, reject, timer });
+      try {
+        ws.send(JSON.stringify({ id: requestId, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        pending.delete(requestId);
+        reject(error);
+      }
     });
   const evaluate = async (expression) => {
     const result = await send("Runtime.evaluate", {
@@ -435,13 +501,22 @@ const settle = (cdp, href) =>
 /** Every finite animation done (dialogs fade in; axe must see the end state). */
 const animationsDone = (cdp) =>
   cdp.evaluate(`(async () => {
+    const deadline = Date.now() + 5000;
     for (let round = 0; round < 10; round += 1) {
       const running = document.getAnimations().filter((a) =>
-        a.playState === "running" && a.effect?.getComputedTiming().endTime !== Infinity);
+        a.playState === "running" &&
+        a.effect?.getComputedTiming().endTime !== Infinity
+      );
       if (running.length === 0) return true;
-      await Promise.all(running.map((a) => a.finished.catch(() => undefined)));
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return false;
+      await Promise.race([
+        Promise.all(running.map((a) => a.finished.catch(() => undefined))),
+        new Promise((resolve) => setTimeout(resolve, remaining)),
+      ]);
+      if (Date.now() >= deadline) return false;
     }
-    return true;
+    return false;
   })()`);
 
 const waitFor = async (cdp, expression, timeoutMs = 5_000) => {
@@ -616,7 +691,11 @@ const main = async () => {
             cdp,
             `(() => {
             const pane = document.querySelector('[data-slot="pane"]')?.getBoundingClientRect();
-            const identity = document.querySelector('[data-slot="topbar-identity"]')?.getBoundingClientRect();
+            const identityNode = document.querySelector('[data-slot="topbar-identity"]');
+            const identity =
+              identityNode && getComputedStyle(identityNode).display !== "none"
+                ? identityNode.getBoundingClientRect()
+                : null;
             const leading = document.querySelector('[data-slot="topbar-leading"]')?.getBoundingClientRect();
             const popup = document.querySelector('[data-slot="drawer-popup"][data-side-panel]')?.getBoundingClientRect();
             const scrim = document.querySelector('[data-slot="side-panel-scrim"]')?.getBoundingClientRect();
@@ -682,8 +761,8 @@ const main = async () => {
           // The 1100 minimum with the panel in layout (Codex impl r1 #13).
           if (width === 1100 && route.includes("tab=")) {
             const split = await cdp.evaluate(`({
-              pane: ${rect('[data-slot="session-dock"][data-view="split"] [data-session-pane="chat"]')},
-              panel: ${rect('[data-slot="session-dock"][data-view="split"] [data-session-pane="tools"]')},
+              pane: ${rect('[data-slot="session-dock"][data-view="split"] [data-workspace-pane="chat"]')},
+              panel: ${rect('[data-slot="session-dock"][data-view="split"] [data-workspace-pane="tools"]')},
               innerWidth,
             })`);
             failures.push(...panelSplitProblems(name, split));
@@ -914,7 +993,15 @@ const main = async () => {
           const compact = await cdp.evaluate(`({
             toolbar: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h')),
             topbar: document.querySelector('[data-slot="topbar"]').getBoundingClientRect().height,
-            rows: [...document.querySelectorAll('[data-slot="nav-list"] a[data-slot="item"]')].slice(0, 4).map((a) => a.getBoundingClientRect().height),
+            rows: [...document.querySelectorAll('[data-slot="nav-list"] a[data-slot="item"]')]
+              .slice(0, 4)
+              .map((a) => {
+                const rowHeight = a.getBoundingClientRect().height;
+                const rowGap = Number.parseFloat(
+                  getComputedStyle(a.closest(".ui-list") ?? a.parentElement).rowGap
+                ) || 0;
+                return rowHeight + rowGap;
+              }),
           })`);
           const name = `compact-${slug(route)}@${width}-${theme}.png`;
           failures.push(...compactProblems(name, compact));

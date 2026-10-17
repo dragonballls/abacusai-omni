@@ -112,7 +112,7 @@ describe("the floating composer dock", () => {
         '[data-slot="message-scroller-content"]'
       )!;
       expect(content.className).toContain(
-        "pb-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+        "pb-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
       );
       const viewport = document.querySelector<HTMLElement>(
         '[data-slot="message-scroller-viewport"]'
@@ -141,7 +141,7 @@ describe("the floating composer dock", () => {
         '[data-slot="message-scroller-button"]'
       )!;
       expect(jump.className).toContain(
-        "bottom-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+        "bottom-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
       );
     } finally {
       vi.unstubAllGlobals();

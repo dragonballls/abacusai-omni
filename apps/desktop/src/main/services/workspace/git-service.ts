@@ -36,6 +36,12 @@ const LITERAL_PATHSPECS = {
   maxBuffer: 64 * 1024 * 1024,
 };
 
+/** Status probes must not take an optional index-refresh lock. */
+const READ_ONLY_STATUS_OPTIONS = {
+  ...LITERAL_PATHSPECS,
+  env: { ...LITERAL_PATHSPECS.env, GIT_OPTIONAL_LOCKS: "0" },
+};
+
 /** Paths per git call, well under any platform's argument limit. */
 const PATHSPEC_CHUNK = 200;
 
@@ -660,14 +666,14 @@ export class GitService {
     }
 
     try {
-      const statusOutput = await execFileAsync("git", [
-        "-C",
-        workspacePath,
-        "status",
-        "--porcelain",
-        "-uall",
-        "-z",
-      ]);
+      // This is a read-only status probe. Prevent Git's optional index
+      // refresh from taking index.lock while the user (or another process)
+      // stages changes in the same checkout.
+      const statusOutput = await execFileAsync(
+        "git",
+        ["-C", workspacePath, "status", "--porcelain", "-uall", "-z"],
+        READ_ONLY_STATUS_OPTIONS
+      );
       let changes: GitChangeItem[] = parseStatusZ(statusOutput.stdout);
       if (options.checkoutRelative === true) {
         const location = await this.repositoryLocation(workspacePath);
@@ -1110,7 +1116,7 @@ export class GitService {
           "--",
           relativePath,
         ],
-        LITERAL_PATHSPECS
+        READ_ONLY_STATUS_OPTIONS
       );
       // Status paths are top-level relative, whatever `-C` is.
       const gitPath = `${location?.prefix ?? ""}${relativePath}`;
@@ -1206,7 +1212,7 @@ export class GitService {
           "-z",
           ...(prefix === "" ? [] : ["--", prefix]),
         ],
-        LITERAL_PATHSPECS
+        READ_ONLY_STATUS_OPTIONS
       );
       changes = new Map(
         parseStatusZ(stdout).map((change) => [

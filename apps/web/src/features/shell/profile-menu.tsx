@@ -119,8 +119,13 @@ export const ProfileMenu = () => {
           data-sidebar-overlay=""
           onKeyDownCapture={(event) => {
             if (event.key === "Escape") {
+              // Keep Escape inside the menu so it cannot close the floating
+              // sidebar too. This handler runs in capture phase, before the
+              // menu primitive can restore focus, so explicitly return focus
+              // after React removes the portal.
               event.stopPropagation();
               setOpen(false);
+              requestAnimationFrame(() => trigger.current?.focus());
               return;
             }
             if (event.key !== "Tab") return;

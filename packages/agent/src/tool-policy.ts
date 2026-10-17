@@ -293,6 +293,7 @@ export const UNATTENDED_EXCLUDED_TOOLS: Readonly<Record<string, string>> = {
   browser_vault_fill: NO_VAULT,
   browser_traveler_fill: NO_VAULT,
   browser_checkout: NO_VAULT,
+  browser_media: NO_MEDIA,
   browser_pause: "waits for a person, and nobody is there",
   browser_interact: "types, clicks and submits",
   browser_execute: "runs code in the page, an outbound channel",

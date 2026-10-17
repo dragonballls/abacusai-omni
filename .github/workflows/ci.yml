@@ -9,16 +9,19 @@ name: CI
 # workflow in this repo can reach a signing key.
 
 on:
+  # Also build this integration branch directly while validating its PR.
   push:
-    branches: [main]
+    branches: [main, feat/omniroute-integrated-gateway]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Serialize push and pull_request events for the same source branch.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -84,6 +87,8 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run check:knip
       - run: pnpm run check:scripts
+      - name: Smoke test pinned OmniRoute authentication and client-key provisioning
+        run: node scripts/omniroute-gateway-smoke.mjs
       # The guard compares the browser graph with the Electron renderer's, so
       # both builds have to exist; turbo builds the desktop's dependencies too.
       # Electron 44 fetches its binary on first require, not on install, and
@@ -99,7 +104,38 @@ jobs:
         run: |
           pnpm run check:licenses
           pnpm --filter @abacus-ai/desktop run generate:notices
-      - run: pnpm --filter @abacus-ai/desktop run check:ui-registry
+      - name: Check shadcn registry snapshot when its inputs change
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags origin "$BASE_REF"
+            base="origin/$BASE_REF"
+          else
+            # New branch pushes have an all-zero 'before' SHA; fail closed and
+            # run the guard rather than accidentally skipping its first check.
+            if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+              pnpm --filter @abacus-ai/desktop run check:ui-registry
+              exit $?
+            fi
+            if ! git fetch --no-tags origin "$BASE_SHA"; then
+              pnpm --filter @abacus-ai/desktop run check:ui-registry
+              exit $?
+            fi
+            base="$BASE_SHA"
+          fi
+
+          changed_paths="$(git diff --name-only "$base" HEAD)"
+          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
+            pnpm --filter @abacus-ai/desktop run check:ui-registry
+          else
+            echo "Shadcn registry inputs unchanged; snapshot replay is not applicable to this change." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Skipping shadcn registry snapshot replay because none of its inputs changed."
+          fi
       - name: i18n and locale guards
         run: |
           pnpm --filter @abacus-ai/web run check:i18n
@@ -129,13 +165,11 @@ jobs:
     # Windows blocks like the other platforms. A job nobody has to look at is
     # a job nobody looks at.
     #
-    # Two agent-side bugs are still open, with their tests skipped and the
-    # reason named at each skip: the scratch carve-out in
-    # extensions/guardrails.ts matches the temp dir in short form against a
-    # long-form real path, and backends.ts terminate() has no process-tree kill
-    # on Windows, so a stopped command leaks its descendants. Skipped is the
-    # right shape for those: they name themselves, and they do not hide a
-    # regression in everything else.
+    # Keep Windows process-tree cleanup and platform temp-path normalization
+    # in the ordinary matrix: both protect high-risk agent boundaries. The
+    # Windows termination test pins taskkill /T /F and its direct-kill fallback;
+    # the scratch carve-out test uses os.tmpdir() on every platform so realpath
+    # normalization cannot silently regress on Windows.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -169,6 +203,34 @@ jobs:
           sandbox=$(node -p 'require("path").join(require("path").dirname(require.resolve("electron/package.json")), "dist", "chrome-sandbox")')
           sudo chown root:root "$sandbox"
           sudo chmod 4755 "$sandbox"
+
+      # The pinned gateway has a sizeable production dependency tree. Persist
+      # npm tarballs across runs so retrying a flaky Windows download does not
+      # repeat the entire cold install.
+      - name: Restore OmniRoute npm download cache
+        if: runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/omniroute-npm-cache
+          key: omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-${{ github.run_id }}
+          restore-keys: |
+            omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-
+
+      # Exercise real pinned-runtime auth, client-key creation and Auto routing
+      # on Windows rather than relying only on the Linux smoke test.
+      - name: Smoke test OmniRoute authentication and Auto routing on Windows
+        # Avoid running the same gateway bootstrap in the push duplicate.
+        if: runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        env:
+          npm_config_cache: ${{ runner.temp }}/omniroute-npm-cache
+        run: node scripts/omniroute-gateway-smoke.mjs
+
+      - name: Save OmniRoute npm download cache
+        if: always() && runner.os == 'Windows' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/omniroute-npm-cache
+          key: omniroute-smoke-npm-${{ runner.os }}-${{ runner.arch }}-3.8.50-${{ github.run_id }}
 
       - name: Run tests
         shell: bash
@@ -253,6 +315,7 @@ jobs:
     name: renderer screenshots (Linux)
     needs: [check]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -401,3 +464,12 @@ jobs:
             echo "::error::the main process logged a fatal error on startup"
             exit 1
           fi
+      - name: Upload tested Windows portable app
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: AbacusAI-Bot-Windows-${{ github.sha }}
+          # Keep the runtime files beside AbacusBot.exe; the exe alone is not portable.
+          path: apps/desktop/release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 14

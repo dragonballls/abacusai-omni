@@ -142,9 +142,10 @@ it.each(["pdf", "html"])(
         },
       },
     });
+    const expectedUrl = `file:///host/report.${extension}`;
     await waitFor(() =>
       expect(document.querySelector("webview")?.getAttribute("src")).toBe(
-        `file:///host/report.${extension}`
+        extension === "pdf" ? `${expectedUrl}#view=FitH` : expectedUrl
       )
     );
     expect(materializeFile).toHaveBeenCalledWith({

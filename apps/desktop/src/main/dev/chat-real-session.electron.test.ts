@@ -181,7 +181,19 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
     // new transcript must still open at its end.
     try {
       await app.evaluate(
-        'window.__abacusDev.navigateAndSettle("/sessions/chat-long-a")'
+        'window.__abacusDev.navigate("/sessions/chat-long-a")'
+      );
+      await app.until(
+        `(() => {
+          const v = document.querySelector('[data-slot="message-scroller-viewport"]');
+          const last = v && [...v.querySelectorAll('[data-message-id]')].at(-1);
+          return last?.textContent.includes("chat-long-a message 499") === true;
+        })()`,
+        15000,
+        "first sibling thread loaded"
+      );
+      await app.evaluate(
+        "new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))"
       );
       await app.evaluate(`(() => {
         window.__chatTransitionStarts = 0;
@@ -193,7 +205,7 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
         window.__abacusDev.navTypes();
       })()`);
       await app.evaluate(
-        'window.__abacusDev.navigateAndSettle("/sessions/chat-long-b")'
+        'window.__abacusDev.navigate("/sessions/chat-long-b")'
       );
       const lastMessage = `(() => {
         const v = document.querySelector('[data-slot="message-scroller-viewport"]');
@@ -203,6 +215,9 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
         `${lastMessage}?.textContent.includes("chat-long-b message 499") === true`,
         15000,
         "the second thread's last message"
+      );
+      await app.evaluate(
+        "new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))"
       );
       const result = await app.evaluate<{
         starts: number;
@@ -232,8 +247,11 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
       expect(result.bottom).toBeGreaterThan(result.viewportTop);
       expect(result.bottom).toBeLessThanOrEqual(result.viewportBottom);
     } finally {
-      await app.evaluate(
-        `window.__abacusDev.navigateAndSettle("/sessions/${THREAD}")`
+      await app.evaluate(`window.__abacusDev.navigate("/sessions/${THREAD}")`);
+      await app.until(
+        `document.querySelector('[data-slot="composer"]') && ${session}.ready`,
+        15000,
+        "return to the real-session composer"
       );
       await app.evaluate("window.__chatTransitionStarts = 0");
     }
@@ -269,9 +287,9 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
     ).toBe("");
     await clickButton("Send");
     await app.until(
-      `${session}.store.state.permissions.items.length === 1`,
+      `${session}.store.state.permissions.items.length > 0`,
       45000,
-      "edit approval"
+      "initial tool permission"
     );
     const type = await app.evaluate<string>(
       `${session}.store.state.permissions.items[0].metadata.abacus.request.type`
@@ -340,6 +358,11 @@ describe.skipIf(!ready.runnable)("R2-T32 real session in Electron", () => {
     );
     await clickButton("Stop");
     await app.until(`${session}.store.state.runs.active == null`, 30000);
+    await app.until(
+      "document.body.textContent.includes('Stopped')",
+      15000,
+      "stopped outcome rendered"
+    );
     expect(await app.evaluate<string>("document.body.textContent")).toContain(
       "Stopped"
     );

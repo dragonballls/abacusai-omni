@@ -93,6 +93,27 @@ describe("R2-T16 window (pure)", () => {
       end: Math.min(250, 60 + MAX_ROWS),
       ranges: {},
     });
+    const shortened = items.slice(0, 30);
+    expect(
+      followWindow({ start: 40, end: 60, ranges: {} }, 60, shortened, 0, false)
+    ).toEqual(newestWindow(shortened));
+  });
+
+  it("keeps the visible anchor mounted at either window edge", () => {
+    const items = Array.from({ length: 300 }, (_, i) => ({
+      id: String(i),
+      fixed: 1,
+      units: 0,
+    }));
+    const state = { start: 100, end: 200, ranges: {} };
+
+    const earlier = showEarlier(items, state, "190");
+    expect(earlier).toEqual({ start: 91, end: 191, ranges: {} });
+    expect(mountedRows(items, earlier)).toBe(MAX_ROWS);
+
+    const later = showLater(items, state, "109");
+    expect(later).toEqual({ start: 109, end: 209, ranges: {} });
+    expect(mountedRows(items, later)).toBe(MAX_ROWS);
   });
 
   it("times from createdAt or metadata.tanstack.createdAt; none starts no day", () => {
@@ -103,6 +124,7 @@ describe("R2-T16 window (pure)", () => {
       })?.toISOString()
     ).toBe("2026-09-01T10:00:00.000Z");
     expect(messageTime({})).toBeNull();
+    expect(messageTime(undefined)).toBeNull();
     expect(dayKey(null)).toBeNull();
   });
 });

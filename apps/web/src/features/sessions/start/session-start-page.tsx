@@ -95,6 +95,8 @@ export const SessionStartPage = ({
       startDraftStore.setState((s) => ({ ...s, workspaceId }));
   }, [workspaceId, draft.workspaceId, draft.stage]);
   const send = async (envelope?: SubmissionEnvelope) => {
+    let failed = false;
+    let failure: unknown;
     try {
       await startSession(
         {
@@ -112,11 +114,12 @@ export const SessionStartPage = ({
       );
     } catch (e) {
       setError(String(e));
-      throw e;
-    } finally {
-      inFlight.delete("submit");
-      setPending(false);
+      failed = true;
+      failure = e;
     }
+    inFlight.delete("submit");
+    setPending(false);
+    if (failed) throw failure;
   };
   const submit = async (envelope: SubmissionEnvelope) => {
     if (inFlight.has("submit")) return;

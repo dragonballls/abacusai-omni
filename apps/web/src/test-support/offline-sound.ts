@@ -58,9 +58,11 @@ export const renderSoundLevels = async (
   try {
     const url = await new Promise<string>((resolve, reject) => {
       let stderr = "";
+      const startupError = (message: string) =>
+        new Error([message, stderr.slice(-2000)].join("\n"));
       const timer = setTimeout(
-        () => reject(new Error("Chrome did not start")),
-        15000
+        () => reject(startupError("Chrome did not start within 30 seconds.")),
+        30_000
       );
       browserProcess.stderr!.on("data", (chunk) => {
         stderr += chunk.toString();
@@ -72,7 +74,10 @@ export const renderSoundLevels = async (
           resolve(endpoint);
         }
       });
-      browserProcess.once("error", reject);
+      browserProcess.once("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
     });
     socket = new WebSocket(url);
     await once(socket, "open");
@@ -158,10 +163,20 @@ export const renderSoundLevels = async (
     return result;
   } finally {
     socket?.close();
-    const exited = once(browserProcess, "exit");
-    browserProcess.kill();
-    await exited;
+    if (
+      browserProcess.exitCode === null &&
+      browserProcess.signalCode === null
+    ) {
+      const exited = once(browserProcess, "exit");
+      browserProcess.kill();
+      await exited;
+    }
     await bundle.close();
-    await rm(scratch, { recursive: true, force: true });
+    await rm(scratch, {
+      recursive: true,
+      force: true,
+      maxRetries: 8,
+      retryDelay: 100,
+    });
   }
 };

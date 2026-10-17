@@ -248,6 +248,7 @@ it("calls every retained procedure under the shim through a memory transport", a
       const name = path.join(".");
       const schema = procedure["~orpc"].inputSchema;
       let input = procedureInput(schema, fixture.home);
+      if (name === "files.listDirectory") input = { path: fixture.home };
       if (name === "auth.web.complete") input = { code: "fixture" };
       const parsed =
         schema?.kind === "schema"

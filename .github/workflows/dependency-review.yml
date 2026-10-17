@@ -1,4 +1,4 @@
-name: Dependency review
+name: Dependency security audit
 
 on:
   pull_request:
@@ -8,17 +8,18 @@ permissions:
 
 jobs:
   review:
-    name: Review dependency changes
-    # Dependency review is free for public repositories. Keeping the workflow
-    # gated while this repository is private lets it switch on automatically at
-    # open-source launch without making today's PRs fail on an unavailable API.
-    if: ${{ !github.event.repository.private }}
+    name: High/critical dependency audit
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          fail-on-severity: high
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Audit the complete workspace lockfile
+        run: pnpm run check:audit
+      - name: Explain the dependency-review fallback
+        run: |
+          echo "GitHub's diff-based dependency-review endpoint requires Dependency Graph to be enabled in repository settings. This job instead audits the full locked dependency tree and fails on unaccepted high/critical advisories. Enable Dependency Graph in repository security settings to restore diff-aware review." >> "$GITHUB_STEP_SUMMARY"

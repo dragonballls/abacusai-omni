@@ -426,6 +426,7 @@ function preserveScroll(
   change: () => void
 ) {
   const viewport = viewportRef.current;
+  anchor.current = null;
   if (viewport != null) {
     const box = viewport.getBoundingClientRect();
     const elements = Array.from(
@@ -436,10 +437,31 @@ function preserveScroll(
     // Start near the last visible row. Scanning from the first mounted row
     // on each scroll forces layout of content-visibility's offscreen rows.
     const hint = observed.current?.el;
-    let start = hint == null ? 0 : Math.max(0, elements.indexOf(hint));
+    const hintIndex = hint == null ? -1 : elements.indexOf(hint);
+    let start = Math.max(0, hintIndex);
+    if (hintIndex >= 0) {
+      const rect = elements[start]!.getBoundingClientRect();
+      if (rect.bottom < box.top) {
+        // The previous anchor is above the current viewport. Move forward;
+        // walking backwards from it would never find the current visible rows.
+        while (
+          start < elements.length &&
+          elements[start]!.getBoundingClientRect().bottom < box.top
+        )
+          start += 1;
+      } else if (rect.top >= box.bottom) {
+        // The previous anchor is below the current viewport. Move backward
+        // before looking for the first visible row.
+        while (
+          start > 0 &&
+          elements[start]!.getBoundingClientRect().top >= box.bottom
+        )
+          start -= 1;
+      }
+    }
     while (start > 0) {
       const rect = elements[start - 1]!.getBoundingClientRect();
-      if (rect.height > 0 && rect.top < box.top) break;
+      if (rect.bottom <= box.top) break;
       start -= 1;
     }
     for (let index = start; index < elements.length; index += 1) {
@@ -453,6 +475,27 @@ function preserveScroll(
       anchor.current = { el, top: rect.top, viewport };
       break;
     }
+  }
+  // Virtualized or content-visibility rows can temporarily leave no fully
+  // visible candidate during a layout transition. Reuse the last live anchor
+  // instead of allowing a paging update to evict it without protection.
+  const previousAnchor = observed.current;
+  const previousViewport = viewport?.getBoundingClientRect();
+  const previousRect = previousAnchor?.el.getBoundingClientRect();
+  if (
+    anchor.current == null &&
+    viewport != null &&
+    previousAnchor?.el.isConnected &&
+    previousAnchor.viewport === viewport &&
+    previousViewport != null &&
+    previousRect != null &&
+    previousRect.bottom > previousViewport.top &&
+    previousRect.top < previousViewport.bottom
+  ) {
+    // Only reuse a fallback anchor if it still intersects the viewport.
+    // A connected but off-screen row can otherwise make paging evict the
+    // newly exposed rows immediately and turn "Show earlier" into a no-op.
+    anchor.current = previousAnchor;
   }
   change();
 }
@@ -604,6 +647,7 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
   const onPrepend = useEffectEvent(() => preserve(() => {}));
   useEffect(() => session.onPrepend(onPrepend), [session]);
   const lastMessages = useRef(messages);
+  const lastMeasured = useRef(measured);
   const messageIds = messages.map((item) => item.id).join("\0");
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return;
@@ -631,12 +675,17 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
     return () => observer.disconnect();
   }, [messageIds, window.start, window.end]);
   useLayoutEffect(() => {
-    const saved =
-      anchor.current ??
-      (lastMessages.current !== messages ? observed.current : null);
+    const measuredChanged = lastMeasured.current !== measured;
+    lastMeasured.current = measured;
+    const messagesChanged = lastMessages.current !== messages;
+    let saved = anchor.current;
+    if (saved == null && (messagesChanged || (measuredChanged && !away))) {
+      saved = observed.current;
+    }
     lastMessages.current = messages;
     anchor.current = null;
     if (saved == null) return;
+    if (saved.el.isConnected) observed.current = saved;
     const restore = () => {
       if (saved.el.isConnected)
         saved.viewport.scrollTop +=
@@ -727,8 +776,24 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
       document.removeEventListener("selectionchange", changed);
     };
   }, []);
-  const start = Math.min(window.start, selectionWindow?.start ?? window.start);
-  const end = Math.max(window.end, selectionWindow?.end ?? window.end);
+  // Message visibility can change while a stored window still refers to the
+  // previous list (for example when an optimistic user echo is reconciled).
+  // Clamp the render slice before the day-separator scan below; otherwise the
+  // scan can read past the end of `visible` and crash the renderer.
+  const start = Math.max(
+    0,
+    Math.min(
+      visible.length,
+      Math.min(window.start, selectionWindow?.start ?? window.start)
+    )
+  );
+  const end = Math.max(
+    start,
+    Math.min(
+      visible.length,
+      Math.max(window.end, selectionWindow?.end ?? window.end)
+    )
+  );
   const shown = visible.slice(start, end);
   let lastDay: string | null = null;
   for (let index = 0; index < start; index += 1) {
@@ -774,7 +839,10 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
     );
     for (const outcome of byAnchor.get(message.id) ?? [])
       rows.push(
-        <MessageScrollerItem key={`outcome-${outcome.runId}`}>
+        <MessageScrollerItem
+          key={`outcome-${outcome.runId}`}
+          messageId={message.id}
+        >
           <Outcome outcome={outcome} latest={outcome.runId === latest} />
         </MessageScrollerItem>
       );
@@ -786,6 +854,8 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
         ref={viewportRef}
         className="scroll-fade-y"
         data-transcript-fade
+        data-transcript-window-start={start}
+        data-transcript-window-end={end}
         data-continuity-scroll="chat-transcript"
         // The header's scroll-linked morph into the title bar reads this
         // viewport's named timeline (bots.css).
@@ -812,6 +882,10 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             setSelectionWindow({ start, end });
         }}
         onScroll={() => {
+          // A delayed scroll event can run while a paging click holds the
+          // anchor that the upcoming layout commit must restore. Do not
+          // replace that pending anchor with pre-commit geometry.
+          if (anchor.current != null) return;
           preserve(() => {});
           observed.current = anchor.current;
           anchor.current = null;
@@ -829,13 +903,20 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             height={placeholderHeight(0, start)}
             label={t("chat.transcript.showEarlier")}
             onActivate={() =>
-              preserve(() => setWindow(showEarlier(items, window)))
+              preserve(() => {
+                const protectedAnchor = anchor.current ?? observed.current;
+                const protect =
+                  protectedAnchor?.el.closest<HTMLElement>(
+                    '[data-slot="message-scroller-item"][data-message-id]'
+                  )?.dataset.messageId ?? null;
+                setWindow((current) => showEarlier(items, current, protect));
+              })
             }
           />
         ) : null}
         <MessageScrollerContent
           aria-busy={active}
-          className="mx-auto w-full max-w-(--content-max-w) min-w-0 gap-0 px-4 pt-6 pb-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+          className="mx-auto w-full max-w-(--content-max-w) min-w-0 gap-0 px-4 pt-6 pb-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
         >
           {orphans.map((outcome) => (
             <MessageScrollerItem key={`outcome-${outcome.runId}`}>
@@ -851,14 +932,21 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             height={placeholderHeight(end, visible.length)}
             label={t("chat.transcript.showLater")}
             onActivate={() =>
-              preserve(() => setWindow(showLater(items, window)))
+              preserve(() => {
+                const protectedAnchor = anchor.current ?? observed.current;
+                const protect =
+                  protectedAnchor?.el.closest<HTMLElement>(
+                    '[data-slot="message-scroller-item"][data-message-id]'
+                  )?.dataset.messageId ?? null;
+                setWindow((current) => showLater(items, current, protect));
+              })
             }
           />
         ) : null}
       </MessageScrollerViewport>
       <MessageScrollerButton
         direction="end"
-        className="bg-popover text-popover-foreground phone:h-10 phone:min-w-10 phone:rounded-full phone:bg-popover/85 phone:backdrop-blur-lg border opacity-100 shadow-lg data-[direction=end]:bottom-[calc(var(--composer-dock-h,0px)+var(--composer-dock-gap,16px)+var(--transcript-fade-size,80px))]"
+        className="bg-popover text-popover-foreground phone:h-10 phone:min-w-10 phone:rounded-full phone:bg-popover/85 phone:backdrop-blur-lg border opacity-100 shadow-lg data-[direction=end]:bottom-[calc(var(--composer-dock-h,0px)_+_var(--composer-dock-gap,16px)_+_var(--transcript-fade-size,80px))]"
         aria-label={
           marker.count > 0
             ? t("chat.transcript.jumpNew", { count: marker.count })
