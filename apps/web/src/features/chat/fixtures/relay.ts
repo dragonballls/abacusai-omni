@@ -643,20 +643,14 @@ export class FakeRelay {
       if (!this.#options.paginateHistory) return snapshot;
 
       const request = input as { limit?: number; before?: string | null };
-      const limit =
-        typeof request.limit === "number" &&
-        Number.isSafeInteger(request.limit) &&
-        request.limit > 0
-          ? request.limit
-          : snapshot.messages.length;
-      const before =
-        typeof request.before === "string" ? request.before : null;
+      const limit = request.limit ?? snapshot.messages.length;
+      const before = request.before ?? null;
       let end = snapshot.messages.length;
       if (before != null) {
         const index = snapshot.messages.findIndex(
           (message) => message.id === before
         );
-        // A stale cursor is exhausted, not a request to repeat the newest page.
+        // A stale cursor is exhausted; do not repeat the newest page.
         end = index < 0 ? 0 : index;
       }
       const start = Math.max(0, end - limit);
@@ -667,7 +661,7 @@ export class FakeRelay {
         messages,
         page: {
           truncated,
-          cursor: truncated ? (messages[0]?.id ?? "") : "",
+          cursor: truncated ? messages[0]!.id : "",
         },
       };
     },
