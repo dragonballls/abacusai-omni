@@ -602,11 +602,16 @@ async function main() {
       process.platform !== "win32" || existsSync(npmCli),
       `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
     );
+    console.info(
+      `[omniroute-smoke] installing pinned OmniRoute ${VERSION} with npm on ${process.platform}/${process.arch}`
+    );
     const install = await runCommand(
       npmCommand,
       [
         ...npmArgs,
         "install",
+        "--loglevel=verbose",
+        "--no-progress",
         "--prefix",
         dataDir,
         "--no-fund",
@@ -634,6 +639,7 @@ async function main() {
       install.code === 0,
       `Could not install pinned OmniRoute ${VERSION}. Last output:\n${install.output}`
     );
+    console.info(`[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`);
 
     const entry = join(
       dataDir,
