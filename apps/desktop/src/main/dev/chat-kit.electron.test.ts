@@ -65,9 +65,9 @@ const HELPERS = `(() => {
     const id = window.__chatBench?.id;
     const root = id == null
       ? null
-      : [...document.querySelectorAll("[data-bench]")].find(
-          (el) => el.getAttribute("data-bench") === id
-        );
+      : [...document.querySelectorAll("[data-bench]")]
+          .filter((el) => el.getAttribute("data-bench") === id)
+          .at(-1);
     return (root ?? document).querySelector(
       '[data-slot="message-scroller-viewport"]'
     );
