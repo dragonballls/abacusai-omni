@@ -63,7 +63,6 @@ const omniRouteBundleRoot = join(process.resourcesPath, "omniroute-runtime");
 const omniRouteBundleNode = join(omniRouteBundleRoot, "node.exe");
 const omniRouteBundleModules = join(omniRouteBundleRoot, "node_modules");
 
-
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
 let ensurePromise: Promise<string> | null = null;
@@ -260,7 +259,8 @@ async function ensureRuntimeFallbackPackages(
   }
   if (npmArgs.length === 0) {
     throw new Error(
-      `The OmniRoute install is missing ${platformPackage}, and npm is unavailable to repair it.`
+      `The OmniRoute install is missing ${platformPackage}, and npm is unavailable ` +
+        "to repair it."
     );
   }
 
@@ -312,7 +312,6 @@ async function ensureRuntimeFallbackPackages(
     });
   }
 }
-
 
 function runCommand(
   command: string,
@@ -448,7 +447,8 @@ async function ensureRuntimeInstalled(): Promise<string> {
     ) as { version?: string };
     if (bundledPackage.version !== OMNIROUTE_VERSION) {
       throw new Error(
-        `Bundled OmniRoute version mismatch; expected ${OMNIROUTE_VERSION}, got ${bundledPackage.version ?? "(unknown)"}.`
+        `Bundled OmniRoute version mismatch; expected ${OMNIROUTE_VERSION}, ` +
+          `got ${bundledPackage.version ?? "(unknown)"}.`
       );
     }
     // Copy only executable package dependencies into the shared data directory.
@@ -763,7 +763,8 @@ async function createOmniRouteClientKey(
   }
   if (!response.ok) {
     throw new Error(
-      `OmniRoute rejected loopback client-key provisioning (HTTP ${response.status}). ` +
+      `OmniRoute rejected loopback client-key provisioning ` +
+        `(HTTP ${response.status}). ` +
         "The existing gateway was left running and untouched."
     );
   }
