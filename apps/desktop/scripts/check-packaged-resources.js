@@ -21,6 +21,7 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const EXE = process.platform === "win32" ? ".exe" : "";
@@ -60,6 +61,7 @@ const REQUIRED = [
   // is offered and fails on the first request.
   `vendor/llama/llama-server${EXE}`,
   "skills",
+  ...(process.platform === "win32" ? ["omniroute-seed.zip"] : []),
 ];
 
 /**
@@ -104,6 +106,126 @@ function resourcesDir() {
   return found;
 }
 
+
+/**
+ * Validate the actual Windows seed archive after electron-builder has copied
+ * it. Presence alone is insufficient: an incomplete ZIP would strand users
+ * without Node.js and defeat the offline-install promise.
+ */
+function checkBundledOmniRouteSeed(resources) {
+  if (process.platform !== "win32") return;
+
+  const archive = path.join(resources, "omniroute-seed.zip");
+  if (fs.statSync(archive).size < 5 * 1024 * 1024) {
+    throw new Error("The bundled OmniRoute seed archive is unexpectedly small.");
+  }
+
+  const temporary = fs.mkdtempSync(
+    path.join(os.tmpdir(), "abacus-omniroute-seed-check-")
+  );
+  try {
+    const quote = (value) => "'" + value.replace(/'/g, "''") + "'";
+    const command =
+      "$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath " +
+      quote(archive) +
+      " -DestinationPath " +
+      quote(temporary) +
+      " -Force";
+    const expanded = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command],
+      { encoding: "utf8", windowsHide: true, timeout: 180_000 }
+    );
+    if (expanded.error || expanded.status !== 0) {
+      throw new Error(
+        "The bundled OmniRoute seed could not be extracted: " +
+          (expanded.error?.message ?? expanded.stderr ?? "unknown error")
+      );
+    }
+
+    const metadata = JSON.parse(
+      fs.readFileSync(path.join(temporary, "seed-manifest.json"), "utf8")
+    );
+    if (
+      metadata.platform !== process.platform ||
+      metadata.arch !== process.arch ||
+      metadata.omnirouteVersion !== "3.8.50"
+    ) {
+      throw new Error(
+        "The bundled OmniRoute seed is for the wrong platform, architecture, or version."
+      );
+    }
+
+    const node = path.join(temporary, "node.exe");
+    const npmCli = path.join(
+      temporary,
+      "node_modules",
+      "npm",
+      "bin",
+      "npm-cli.js"
+    );
+    const omniManifest = path.join(
+      temporary,
+      "node_modules",
+      "omniroute",
+      "package.json"
+    );
+    const esbuildManifest = path.join(
+      temporary,
+      "node_modules",
+      "@esbuild",
+      process.platform + "-" + process.arch,
+      "package.json"
+    );
+    for (const required of [node, npmCli, omniManifest, esbuildManifest]) {
+      if (!fs.existsSync(required)) {
+        throw new Error("The bundled OmniRoute seed is missing " + required);
+      }
+    }
+
+    const nodeVersion = spawnSync(node, ["--version"], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    if (nodeVersion.status !== 0 || nodeVersion.stdout.trim() !== metadata.nodeVersion) {
+      throw new Error("The bundled Node.js executable did not pass its version check.");
+    }
+
+    const runtime = JSON.parse(fs.readFileSync(omniManifest, "utf8"));
+    if (runtime.version !== "3.8.50") {
+      throw new Error("The bundled OmniRoute package version is not 3.8.50.");
+    }
+
+    const esbuildPath = path.join(
+      temporary,
+      "node_modules",
+      "@esbuild",
+      process.platform + "-" + process.arch,
+      "esbuild.exe"
+    );
+    const esbuild = spawnSync(esbuildPath, ["--version"], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    if (esbuild.status !== 0) {
+      throw new Error("The bundled esbuild platform executable did not run.");
+    }
+
+    console.log(
+      "[packaged-resources] offline OmniRoute seed verified: Node " +
+        metadata.nodeVersion +
+        ", OmniRoute " +
+        runtime.version +
+        ", esbuild " +
+        esbuild.stdout.trim()
+    );
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+  }
+}
+
 function main() {
   const resources = resourcesDir();
   const missing = REQUIRED.filter(
@@ -145,6 +267,8 @@ function main() {
     );
     process.exit(1);
   }
+
+  checkBundledOmniRouteSeed(resources);
 
   // Present is not the same as usable. A binary that lost its executable bit on
   // the way into the bundle, or that was packaged for another architecture,
