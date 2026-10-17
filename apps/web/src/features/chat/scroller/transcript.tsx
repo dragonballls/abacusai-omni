@@ -871,6 +871,10 @@ export const Transcript = ({ messages, Message }: TranscriptProps) => {
             setSelectionWindow({ start, end });
         }}
         onScroll={() => {
+          // A delayed scroll event can run while a paging click holds the
+          // anchor that the upcoming layout commit must restore. Do not
+          // replace that pending anchor with pre-commit geometry.
+          if (anchor.current != null) return;
           preserve(() => {});
           observed.current = anchor.current;
           anchor.current = null;
