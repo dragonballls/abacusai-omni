@@ -16,6 +16,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -305,7 +306,7 @@ function main() {
       { cwd: repoRoot, timeout }
     );
 
-    const size = requireStat(archivePath);
+    const size = statSync(archivePath).size;
     assert(size > 5 * 1024 * 1024, "The bundled OmniRoute ZIP is unexpectedly small.");
     console.info(
       "[omniroute-bundle] Created " +
@@ -317,17 +318,6 @@ function main() {
   } finally {
     rmSync(workRoot, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
   }
-}
-
-function requireStat(file) {
-  return (awaitStat(file)).size;
-}
-
-function awaitStat(file) {
-  return (globalThis.__unusedStatShim ?? (() => {
-    // Dynamic import is unnecessary for stat; the shim keeps this helper sync.
-    return { size: readFileSync(file).byteLength };
-  }))();
 }
 
 main();
