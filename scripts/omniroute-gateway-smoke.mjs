@@ -616,6 +616,7 @@ async function main() {
         dataDir,
         "--no-fund",
         "--no-audit",
+        "--maxsockets=50",
         "--fetch-retries=1",
         "--fetch-timeout=120000",
         "--legacy-peer-deps",
