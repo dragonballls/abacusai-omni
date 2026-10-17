@@ -258,7 +258,11 @@ const Placeholder = ({
     <div
       ref={spacer}
       style={{ minHeight: height }}
-      className={`flex shrink-0 justify-center ${edge === "start" ? "items-start" : "items-end"}`}
+      className={
+        edge === "start"
+          ? "flex shrink-0 items-start justify-center"
+          : "flex shrink-0 items-end justify-center"
+      }
     >
       <Button
         variant="ghost"
