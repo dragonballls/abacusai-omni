@@ -26,8 +26,11 @@ vi.mock("./abacus-endpoint.js", async (importActual) => ({
 const { AgentMode } = await import("./protocol.js");
 type DesktopEvent = import("./protocol.js").DesktopEvent;
 type AgentEvent = import("./protocol.js").AgentEvent;
-const { AbacusBotSession, OPENLLM_POOL_SHUT_MESSAGE } =
-  await import("./session.js");
+const {
+  AbacusBotSession,
+  OPENLLM_POOL_EMPTY_MESSAGE,
+  OPENLLM_POOL_SHUT_MESSAGE,
+} = await import("./session.js");
 
 let provider: FakeProvider;
 let home: string;
@@ -183,7 +186,7 @@ describe("RouteLLM - Open across direct API sources", () => {
     // direct API source configured, startup must not fall back to Abacus.
     expect(
       chat.agent("error").some(
-        (event) => event.error.message === "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly."
+        (event) => event.error.message === OPENLLM_POOL_EMPTY_MESSAGE
       )
     ).toBe(true);
     expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
