@@ -590,7 +590,9 @@ export class ForeverEngine {
         : this.openLlmActive
           ? undefined
           : fallBack(
-              registry.getAvailable().find((candidate) => candidate.provider !== "abacus")
+              registry.getAvailable().find(
+                (candidate) => candidate.provider !== "abacus"
+              )
             );
 
     return model != null
