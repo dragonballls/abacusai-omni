@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useEffectEvent } from "react";
 
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
-import { useAppContext } from "#renderer/lib/use-app-context";
 import { creditMarkState } from "#renderer/lib/credits";
 import { useAccount } from "#renderer/lib/use-account";
+import { useAppContext } from "#renderer/lib/use-app-context";
 
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
 export const useCreditsAccount = () => {
