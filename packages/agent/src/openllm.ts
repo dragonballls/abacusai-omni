@@ -1,8 +1,8 @@
 /**
  * OpenLLM: one picker entry standing for "every model I can run for free right
- * now": Abacus's cheap drivers, a Studio key's daily quota, OpenRouter's
- * `:free` tier. The sources fail independently, so pooled with automatic
- * fallback they keep the agent working. The id is virtual: never sent
+ * now": a Studio key's daily quota, OpenRouter's `:free` tier, and other
+ * explicitly listed provider free tiers. Abacus-hosted models are excluded so
+ * automatic routing never spends Abacus credits. The id is virtual: never sent
  * to pi's fuzzy-matching resolver, the session swaps in a concrete free model.
  */
 import { listedModelRank, sourceRank } from "./free-sources.js";
@@ -124,13 +124,6 @@ export function accountWideFailure(
 const LOCAL_PROVIDER = "local";
 
 /**
- * Abacus's CHAT router, never pooled: above 5000 tokens of context it
- * short-circuits to a Flash model, which an agent passes on its system prompt
- * alone. See CHAT_ROUTER_ID in providers.ts.
- */
-const ABACUS_CHAT_ROUTER = "route-llm";
-
-/**
  * Families with a record of driving an agent loop, best first, matched against
  * the OpenRouter model id (`deepseek/deepseek-chat-v3:free`).
  */
@@ -163,18 +156,13 @@ const isOpenRouterFreeTier = (choice: ModelChoice): boolean =>
   openRouterTakesTools(choice.modelId);
 
 /**
- * Whether one model is in the pool. Gemini qualifies as a whole: its catalog
- * cost is the paid rate, but a Studio key serves it under a daily free quota.
- * Abacus qualifies by the provider's poolEligible flag rather than a price
- * test, since rates drift past any hardcoded ceiling.
+ * Whether a model is part of the API-only automatic pool. Gemini qualifies
+ * as a whole because a Studio key has its own daily quota, even when the model
+ * catalog lists a paid rate. Abacus is intentionally never auto-pooled.
  */
 const inPool = (choice: ModelChoice): boolean => {
+  if (choice.provider === "abacus") return false;
   if (choice.provider === "openrouter") return isOpenRouterFreeTier(choice);
-  if (choice.provider === "abacus") {
-    return (
-      choice.modelId !== ABACUS_CHAT_ROUTER && choice.poolEligible === true
-    );
-  }
 
   if (choice.provider === "gemini" || choice.provider === LOCAL_PROVIDER)
     return true;
@@ -183,20 +171,9 @@ const inPool = (choice: ModelChoice): boolean => {
   return listedModelRank(choice.provider, choice.modelId) !== -1;
 };
 
-/**
- * Order within the Abacus slice: the platform's, from the catalog's
- * `route-llm-open` entry (see providers.ts), so a reorder, a new $0 model or
- * a retired one never waits on an app release. Unranked members trail.
- */
 /** A listed source's own order (free-sources.ts); zero for the rest. */
 const listedRank = (choice: ModelChoice): number =>
   Math.max(0, listedModelRank(choice.provider, choice.modelId));
-
-const abacusRank = (choice: ModelChoice): number => {
-  if (choice.provider !== "abacus") return 0;
-
-  return choice.poolRank ?? Number.MAX_SAFE_INTEGER;
-};
 
 /**
  * The models OpenLLM may route to, best first: by source, then family within
@@ -209,7 +186,6 @@ export function openLlmCandidates(models: ModelChoice[]): ModelChoice[] {
     .sort(
       (a, b) =>
         sourceRank(a.provider) - sourceRank(b.provider) ||
-        abacusRank(a) - abacusRank(b) ||
         listedRank(a) - listedRank(b) ||
         familyRank(a) - familyRank(b) ||
         b.contextWindow - a.contextWindow ||
