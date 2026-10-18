@@ -104,15 +104,12 @@ export const CreditsCard = ({
   return (
     <>
       <div data-slot="provider-fallback">
-        <GroupCard
-          title={title ?? t("phase5.providers")}
-        >
+        <GroupCard title={title ?? t("phase5.providers")}>
           <p className="text-muted-foreground p-3 text-sm">
             {note ?? t("phase5.settings.modelsDetail")}
           </p>
           <div className="flex flex-col gap-3 p-3">
-            {
-              missing.map((source, index) => (
+            {missing.map((source, index) => (
                 <div key={source}>
                   {index > 0 && <Separator className="mb-3" />}
                   <div
@@ -149,8 +146,7 @@ export const CreditsCard = ({
                     </Button>
                   </div>
                 </div>
-              ))
-            }
+            ))}
             {alternatives && (
               <>
                 <Separator />
