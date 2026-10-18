@@ -240,30 +240,11 @@ export const ErrorCard = ({
 }: ErrorCardProps) => {
   const { t } = useTranslation();
   const { session, composer, runtime, skin } = useChatView();
-  const [accountTier, setAccountTier] =
-    useState<NonNullable<ErrorCardProps["tier"]>>("unknown");
-  useEffect(() => {
-    if (providedTier != null) return;
-    let live = true;
-    runtime.host
-      .accountTier()
-      .then((value) => {
-        if (live) setAccountTier(value);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [providedTier, runtime]);
-  const tier = providedTier ?? accountTier;
   const error = outcome.error ?? { message: "" };
   const actions = ((error as { actions?: ErrorAction[] }).actions ??
     []) as ErrorAction[];
   const detail = (error as { detail?: string }).detail;
-  const upgrade = wantsUpgradeCard(actions);
-  useEffect(() => {
-    if (upgrade) void runtime.host.markCreditsExhausted?.().catch(() => {});
-  }, [upgrade, runtime]);
+  const providerFallback = wantsUpgradeCard(actions);
   const crashed = error.code === "agent_exit" || error.code === "agent_crashed";
   const canReply = composer.readOnly == null;
   const retry = () =>
@@ -273,17 +254,16 @@ export const ErrorCard = ({
         skin === "bot" ? t("workspace.retryMessage") : undefined
       )
       .catch(() => {});
-  if (wantsUpgradeCard(actions)) {
+  if (providerFallback) {
     return (
       <div
         role="group"
         aria-label={t("chat.error.label")}
         data-slot="error-card"
-        data-variant="upgrade"
+        data-variant="provider-fallback"
       >
         <CreditsCard
           host={runtime.host}
-          tier={tier}
           scope={exhaustedScope(actions)}
           alternatives={
             canReply ? (
@@ -314,22 +294,6 @@ export const ErrorCard = ({
                 )}
               </>
             ) : undefined
-          }
-          onResume={
-            latest && canReply
-              ? async () => {
-                  await composer.onResumeOnFreePool?.();
-                  await session.retry(
-                    {
-                      model: "abacus/openllm",
-                      ...(composer.fixedMode
-                        ? { mode: composer.fixedMode }
-                        : {}),
-                    },
-                    skin === "bot" ? t("workspace.retryMessage") : undefined
-                  );
-                }
-              : undefined
           }
         />
       </div>
