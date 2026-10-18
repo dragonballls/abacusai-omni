@@ -339,12 +339,15 @@ describe("the same chain in a bot's chat", () => {
     let result = await turn("again");
     expect(result.reply).toContain("answered on gemini-3.6-flash");
     expect(result.failed).toBe(false);
+    expect(result.models).not.toContain(ABACUS_MODEL);
 
     behaviour.set("gemini-3.6-flash", GEMINI_QUOTA_SPENT);
     connect("openrouter");
     await bot.refreshProviders();
     result = await turn("again");
     expect(result.reply).toContain("answered on big:free");
+    expect(result.failed).toBe(false);
+    expect(result.models).not.toContain(ABACUS_MODEL);
 
     behaviour.set("big:free", OPENROUTER_DAY_SPENT);
     connect("mistral");
@@ -352,6 +355,7 @@ describe("the same chain in a bot's chat", () => {
     result = await turn("again");
     expect(result.reply).toContain("answered on devstral-latest");
     expect(result.failed).toBe(false);
+    expect(result.models).not.toContain(ABACUS_MODEL);
 
     await bot.stop?.();
     delete process.env.ABACUSAI_BOT_BOT_DIR;
