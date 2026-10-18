@@ -27,8 +27,8 @@ export const useCreditsAccount = () => {
   });
   // Require the result of a settings request started by this hook. Cached
   // settings can still contain an Abacus key that has since been removed.
-  const [settingsVerified, setSettingsVerified] = useState(
-    !IS_ELECTRON || !hasSettingsQuery
+  const [verifiedSettingsAt, setVerifiedSettingsAt] = useState<number | null>(
+    null
   );
   const { refetch: refetchSettings } = settings;
   useEffect(() => {
@@ -36,10 +36,11 @@ export const useCreditsAccount = () => {
     let active = true;
     void refetchSettings({ cancelRefetch: false })
       .then((result) => {
-        if (active) setSettingsVerified(!result.isError);
+        if (active)
+          setVerifiedSettingsAt(!result.isError ? result.dataUpdatedAt : null);
       })
       .catch(() => {
-        if (active) setSettingsVerified(false);
+        if (active) setVerifiedSettingsAt(null);
       });
     return () => {
       active = false;
@@ -48,7 +49,9 @@ export const useCreditsAccount = () => {
   const canQueryAccount =
     !IS_ELECTRON ||
     !hasSettingsQuery ||
-    (settingsVerified && Boolean(settings.data?.apiKeys?.ABACUS_API_KEY));
+    (verifiedSettingsAt !== null &&
+      settings.dataUpdatedAt >= verifiedSettingsAt &&
+      Boolean(settings.data?.apiKeys?.ABACUS_API_KEY));
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const account = useAccount({ enabled: canQueryAccount });
