@@ -348,8 +348,12 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
                           '[data-slot="chat-model-picker"]'
                         )
                         ?.click();
-                  } else if (action.type !== "upgrade-abacus" && action.link != null)
+                  } else if (
+                    action.type !== "upgrade-abacus" &&
+                    action.link != null
+                  ) {
                     void runtime.host.openExternal(action.link);
+                  }
                 }}
               >
                 {action.label ?? t("chat.error.open")}
@@ -538,8 +542,12 @@ export const NoticeRow = ({
                       '[data-slot="chat-model-picker"]'
                     )
                     ?.click();
-              } else if (action.type !== "upgrade-abacus" && action.link != null)
+              } else if (
+                action.type !== "upgrade-abacus" &&
+                action.link != null
+              ) {
                 void runtime.host.openExternal(action.link);
+              }
             }}
           >
             {action.label ?? t("chat.error.open")}
