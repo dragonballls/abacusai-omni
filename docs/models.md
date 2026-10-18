@@ -29,10 +29,10 @@ Settings, then Models, has an "On this machine" section: the app can download
 a model (a Qwen build in GGUF form, pinned by checksum) into
 `~/.abacusai-bot/models` and run it with the bundled llama.cpp server. It
 appears in the model picker under "On this machine" and joins RouteLLM - Open
-as its last resort, after Abacus.AI, Google AI Studio and OpenRouter. The
-recommendation follows the machine's memory. A local model needs no account,
-key or quota; it is slower than the cloud, and the server is stopped after
-fifteen idle minutes so the memory comes back.
+as its last resort, after the direct provider API sources. The recommendation
+follows the machine's memory. A local model needs no account, key or quota; it
+is slower than the cloud, and the server is stopped after fifteen idle minutes
+so the memory comes back.
 
 ## Key precedence
 
@@ -61,12 +61,13 @@ See [Privacy](privacy.md).
 
 ## RouteLLM - Open
 
-`RouteLLM - Open` is the picker label for `openllm/auto`. It builds a pool from
-eligible models available through your keys, tried in this order:
+`RouteLLM - Open` is the picker label for `openllm/auto`. It provides
+automatic fallback across these direct provider APIs and local models. It does
+not send automatic requests through Abacus-hosted models or consume Abacus
+account credits.
 
 | Source | What it adds |
 | --- | --- |
-| Abacus.AI | The platform's low-cost models |
 | Google AI Studio | Gemini on the key's daily free quota |
 | OpenRouter | Its `:free` models |
 | Mistral | Devstral, Mistral Medium, Codestral and Mistral Small (free tier: one request a second) |
@@ -75,19 +76,20 @@ eligible models available through your keys, tried in this order:
 | Groq | GPT-OSS and Qwen. The free tier allows 8K tokens a minute, less than one agent request, so this helps only on a paid Groq plan |
 | On this machine | Local models, last |
 
-Every pooled model takes tool calls. On the free plan the model picker offers
-a "Connect" row for each source not yet connected, and the out-of-credits card
-offers the next two in this order. Every source but OpenRouter (which signs in
-through the browser) takes a pasted API key, and a connected source joins the
-pool from the next message, with no restart.
+Provider rows use the keys saved on this device. When a provider asks for a
+key, the app stores it locally; OpenRouter's supported sign-in flow is optional.
+Connect more than one source to get fallback across independent quotas.
+`RouteLLM - Open` is intended for free-tier eligible sources, not as a spending
+policy: each provider controls its own access and billing, and paid models you
+choose directly can incur charges on that provider's account.
 
-The router keeps count of each source's published free limits (calls and
-tokens per minute and per day) and skips a model whose window is spent instead
-of waiting for the provider to refuse it. A key that keeps answering past those
-limits is on a paid tier and is no longer held back. When a provider names a
-wait ("try again in 7m12s"), the model sits out exactly that long; a spent
-daily quota waits for UTC midnight; a rejected key pauses its whole provider
-until the key changes; a retired model sits out for a day.
+The router tracks advertised free limits (calls and tokens per minute and per
+day) and can skip a model whose quota window is spent rather than repeatedly
+requesting it. These are fallback heuristics, not a guarantee of free usage:
+the provider's own quota, account type, rates, and billing rules still apply.
+When a provider names a wait (such as "try again in 7m12s"), the model sits out
+for that long; a rejected key pauses its provider until the key changes; a
+retired model sits out for a day.
 
 A failed request is retried once, then the conversation moves to another
 eligible model. A model that writes its tool call as text, after the app's own
