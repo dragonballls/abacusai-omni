@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "#renderer/lib/use-app-context";
 
 /** Name, photo, plan and credits use the same account RPC on both platforms. */
-export const useAccount = () => {
+export const useAccount = (options?: { enabled?: boolean }) => {
   const { transport } = useAppContext();
   return useQuery({
     ...transport.orpc.account.abacus.queryOptions({ input: { refresh: true } }),
+    enabled: options?.enabled ?? true,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchInterval: 300_000,

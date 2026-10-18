@@ -59,9 +59,6 @@ export const ProfileMenu = () => {
   const context = useAppContext();
   const { transport } = context;
   const navigate = useAppNavigate();
-  const account = useAccount();
-  const identity = accountIdentity(account.data);
-  const policy = sidebarAccount(account.data);
   const prefs = usePrefs();
   const updatePrefs = useUpdatePrefs();
   const [open, setOpen] = useState(false);
@@ -70,14 +67,21 @@ export const ProfileMenu = () => {
   const [inviteOpens, setInviteOpens] = useState(0);
   const reduced = useMotionPreference() === "reduced";
   const trigger = useRef<HTMLButtonElement>(null);
-  const summary = useQuery({
-    ...transport.orpc.referrals.summary.queryOptions({ input: {} }),
-    enabled: !IS_ELECTRON && account.data != null && (open || invite),
-    staleTime: 60_000,
-  });
   const settings = useQuery({
     ...transport.orpc.settings.get.queryOptions({ input: {} }),
     enabled: IS_ELECTRON && open,
+    staleTime: 60_000,
+  });
+  // Desktop sign-in is optional: don't make an Abacus account request just
+  // to render the profile menu when the user is using provider API keys.
+  const account = useAccount({
+    enabled: !IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null),
+  });
+  const identity = accountIdentity(account.data);
+  const policy = sidebarAccount(account.data);
+  const summary = useQuery({
+    ...transport.orpc.referrals.summary.queryOptions({ input: {} }),
+    enabled: !IS_ELECTRON && account.data != null && (open || invite),
     staleTime: 60_000,
   });
   const label = identity.name || t("shell.rail.account");
