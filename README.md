@@ -39,11 +39,11 @@ Coding is one of the jobs a bot can do. AbacusAI Bot is built for personal assis
 
 ## Start free
 
-The desktop app is free and MIT-licensed. You do not need an existing paid model subscription. A free Abacus.AI account starts with 2,000 credits, includes a selection of free models, and enables the built-in connector flow. OpenRouter, Google AI Studio, Mistral, NVIDIA, Cerebras and Groq keys add other free options.
+The desktop app is free and MIT-licensed. Use your own provider API keys, a provider's free tier, or a local model—an Abacus.AI account and Abacus credits are not required for direct provider chat. Add a Google AI Studio, OpenRouter, Mistral, NVIDIA, Cerebras, Groq, OpenAI, Anthropic or other supported provider key in Settings → Models.
 
-RouteLLM - Open selects from eligible free models and moves to another one when a model or provider is unavailable. You can also bring paid provider keys, subscriptions, or a local OpenAI-compatible model.
+RouteLLM - Open automatically falls back across eligible direct API free-tier sources and local models; it does not spend Abacus credits. You can also choose a paid model directly, in which case that provider's own pricing and account limits apply.
 
-Provider catalogs, quotas, and free-tier limits can change. The Models page shows what the installed app can use. Read [Models](docs/models.md) for routing and key behavior.
+The Abacus.AI integration remains optional for Abacus-hosted models and account-linked services. This app does not bypass upstream quotas, billing, or access controls. Provider catalogs and free-tier limits can change. Read [Models](docs/models.md) for routing and key behavior.
 
 ## Product tour
 
