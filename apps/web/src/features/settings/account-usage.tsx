@@ -197,53 +197,57 @@ export const AccountPage = () => {
           />
         )}
       </GroupCard>
-      <GroupCard title={t("phase5.referrals")}>
-        <SettingRow id="inviteLink" title={t("phase5.inviteLink")}>
-          <Button
-            size="sm"
-            disabled={!inviteLink}
-            onClick={() => {
-              if (inviteLink)
-                void navigator.clipboard
-                  .writeText(inviteLink)
-                  .then(() => showInfo(t("phase5.copied")));
-            }}
-          >
-            {t("phase5.copy")}
-          </Button>
-        </SettingRow>
-      </GroupCard>
-      <GroupCard>
-        {(
-          [
-            ...(referrals.data?.gmailConnected
-              ? (["gmail", "link"] as const)
-              : (["link", "gmail"] as const)),
-            "whatsapp",
-          ] as const
-        )
-          .filter((invite) => IS_ELECTRON || invite !== "whatsapp")
-          .map((invite) => (
-            <SettingRow
-              key={invite}
-              id={`invite-${invite}`}
-              title={t(`phase5.inviteChannels.${invite}`)}
-            >
+      {!IS_ELECTRON && (
+        <>
+          <GroupCard title={t("phase5.referrals")}>
+            <SettingRow id="inviteLink" title={t("phase5.inviteLink")}>
               <Button
                 size="sm"
-                onClick={() =>
-                  void navigate({
-                    to: "/settings/account",
-                    search: { invite },
-                    transition: "none",
-                  })
-                }
+                disabled={!inviteLink}
+                onClick={() => {
+                  if (inviteLink)
+                    void navigator.clipboard
+                      .writeText(inviteLink)
+                      .then(() => showInfo(t("phase5.copied")));
+                }}
               >
-                {t("phase5.invite")}
+                {t("phase5.copy")}
               </Button>
             </SettingRow>
-          ))}
-      </GroupCard>
+          </GroupCard>
+          <GroupCard>
+            {(
+              [
+                ...(referrals.data?.gmailConnected
+                  ? (["gmail", "link"] as const)
+                  : (["link", "gmail"] as const)),
+                "whatsapp",
+              ] as const
+            )
+              .filter((invite) => invite !== "whatsapp")
+              .map((invite) => (
+                <SettingRow
+                  key={invite}
+                  id={`invite-${invite}`}
+                  title={t(`phase5.inviteChannels.${invite}`)}
+                >
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      void navigate({
+                        to: "/settings/account",
+                        search: { invite },
+                        transition: "none",
+                      })
+                    }
+                  >
+                    {t("phase5.invite")}
+                  </Button>
+                </SettingRow>
+              ))}
+          </GroupCard>
+        </>
+      )}
       {local.data && (
         <GroupCard>
           <SettingRow
