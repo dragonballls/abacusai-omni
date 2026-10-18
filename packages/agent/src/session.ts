@@ -1012,7 +1012,11 @@ export class AbacusBotSession {
 
     if (model == null) {
       this.openLlmActive = false;
-      const fallback = registry.getAvailable()[0];
+      // `openllm/auto` is a free/API-source router, not permission to
+      // silently fall back to an arbitrary paid or Abacus-hosted model.
+      const fallback = isOpenLlmReference(requested)
+        ? undefined
+        : registry.getAvailable()[0];
 
       if (fallback != null) {
         // The requested model cannot run (no key, or an empty free pool), so
@@ -1026,9 +1030,11 @@ export class AbacusBotSession {
             : (resolved.error ?? "unavailable")
         }), so this session is running ${fallback.provider}/${fallback.id}.`;
       } else {
-        // No model at all: saying which key to set beats a resolution failure
-        // the user cannot act on.
-        startupError = NO_MODEL_CONFIGURED;
+        // An empty automatic pool needs a direct provider API key, or an
+        // explicit model selection. Do not use the Abacus key as a fallback.
+        startupError = isOpenLlmReference(requested)
+          ? OPENLLM_POOL_EMPTY_MESSAGE
+          : NO_MODEL_CONFIGURED;
       }
     }
 
@@ -3364,8 +3370,7 @@ export class AbacusBotSession {
  * a first-time user can act on. Plain text, so it reads the same anywhere.
  */
 const NO_MODEL_CONFIGURED =
-  "No model provider is configured. Set an API key (ABACUS_API_KEY, ANTHROPIC_API_KEY, " +
-  "OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY or GEMINI_API_KEY) or add one in Settings.";
+  "No model provider is configured. Add a provider API key in Settings → Models, or choose an explicitly configured model.";
 
 /** What to say when one model's key is missing but others are configured. */
 const missingKeyMessage = (reference: string, provider: string): string => {
