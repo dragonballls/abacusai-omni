@@ -1,11 +1,9 @@
 /**
  * Status components (spec 02 §5.6): the sessions busy line, the bots typing
- * bubble, run outcome markers, the error card with its action table (and
- * the upgrade variant), and notices.
+ * bubble, run outcome markers, provider fallback cards, and notices.
  */
 import type { UIMessage } from "@tanstack/ai-client";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditsCard } from "#renderer/components/credits-card";
@@ -233,11 +231,7 @@ export interface ErrorCardProps {
   tier?: "free" | "basic" | "paid" | "unknown";
 }
 
-export const ErrorCard = ({
-  outcome,
-  latest,
-  tier: providedTier,
-}: ErrorCardProps) => {
+export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
   const { t } = useTranslation();
   const { session, composer, runtime, skin } = useChatView();
   const error = outcome.error ?? { message: "" };
