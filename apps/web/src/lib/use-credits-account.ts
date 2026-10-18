@@ -11,13 +11,14 @@ export const useCreditsAccount = () => {
   const { transport } = useAppContext();
   // A desktop account endpoint is optional. Query settings directly rather
   // than trusting a cached query that can still contain a removed Abacus key.
-  const hasSettingsQuery = Boolean(transport.orpc.settings?.get?.queryOptions);
+  const hasSettingsReader =
+    typeof transport.client.settings?.get === "function";
   const [desktopAccountAllowed, setDesktopAccountAllowed] = useState(
-    !IS_ELECTRON || !hasSettingsQuery
+    !IS_ELECTRON
   );
   const readSettings = useEffectEvent(() => transport.client.settings.get({}));
   useEffect(() => {
-    if (!IS_ELECTRON || !hasSettingsQuery) return;
+    if (!IS_ELECTRON || !hasSettingsReader) return;
     let active = true;
     void readSettings()
       .then((settings) => {
@@ -30,9 +31,9 @@ export const useCreditsAccount = () => {
     return () => {
       active = false;
     };
-  }, [hasSettingsQuery]);
+  }, [hasSettingsReader]);
   const canQueryAccount =
-    !IS_ELECTRON || !hasSettingsQuery || desktopAccountAllowed;
+    !IS_ELECTRON || (hasSettingsReader && desktopAccountAllowed);
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const account = useAccount({ enabled: canQueryAccount });
