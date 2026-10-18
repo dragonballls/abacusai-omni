@@ -81,23 +81,21 @@ export const ModelsStep = ({
               <ConnectedMark>
                 {t("onboarding.pages.connectedLabel")}
               </ConnectedMark>
-            ) : row.id === "gemini" ? (
+            ) : row.id === "gemini" || row.id === "abacus" ? (
               <OnboardingProviderKey
                 transport={props.transport}
                 saved={refresh}
-                provider="gemini"
+                provider={row.id}
               />
             ) : (
               <StepButton
                 variant="small"
                 disabled={busy}
                 onClick={() =>
-                  row.id === "abacus"
-                    ? props.signIn("signin")
-                    : void perform(async () => {
-                        await props.transport.client.auth.openRouter.start({});
-                        await refresh();
-                      })
+                  void perform(async () => {
+                    await props.transport.client.auth.openRouter.start({});
+                    await refresh();
+                  })
                 }
               >
                 {t("onboarding.pages.connectLabel")}
