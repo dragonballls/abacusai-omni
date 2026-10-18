@@ -37,6 +37,7 @@ const findProfileTrigger = () =>
   screen.findByRole("button", { name: isProfileTrigger });
 const getProfileTrigger = () =>
   screen.getByRole("button", { name: isProfileTrigger });
+
 it("keeps Settings in the rail, changes the shared theme and deep-links Usage", async () => {
   const app = await renderApp("/sessions/new", {
     procedures: {

@@ -197,8 +197,8 @@ it.each([
       },
     },
   });
-  const hasAbacusKey =
-    "ABACUS_API_KEY" in apiKeys && apiKeys.ABACUS_API_KEY.trim().length > 0;
+  const abacusKey = apiKeys.ABACUS_API_KEY ?? "";
+  const hasAbacusKey = abacusKey.trim().length > 0;
   if (IS_ELECTRON && !hasAbacusKey) {
     await screen.findByRole("heading", { name: enUS.phase5.ownKeys });
     expect(screen.queryByText("ada@example.com")).toBeNull();
