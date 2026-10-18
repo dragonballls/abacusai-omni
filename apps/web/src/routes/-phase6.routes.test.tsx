@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { onboardingStore } from "#renderer/features/onboarding";
 import { firstBotStore } from "#renderer/features/onboarding/first-bot";
@@ -54,7 +54,9 @@ it("R6-T7 desktop welcome starts provider setup without attempting Abacus sign-u
     expect(harness!.router.state.location.pathname).toBe("/onboarding/models")
   );
   expect(authStart).not.toHaveBeenCalled();
-  expect(harness.calls.filter(([name]) => name === "auth.abacus.start")).toHaveLength(0);
+  expect(
+    harness.calls.filter(([name]) => name === "auth.abacus.start")
+  ).toHaveLength(0);
 });
 it.each([false, true])(
   "R6-T8 authenticated completion creates one sponsored Chief of Staff after onboarding, channel lane=%s",
@@ -332,7 +334,9 @@ it("the shell gate re-reads credentials but does not block an onboarded BYOK ses
   await act(() => harness!.router.navigate({ to: "/bots/new" }));
   expect(host.reads).toBe(first);
   host.signedIn = false;
-  await act(async () => notify({ type: "credentials-changed", provider: "abacus" }));
+  await act(async () =>
+    notify({ type: "credentials-changed", provider: "abacus" })
+  );
   await act(() => harness!.router.navigate({ to: "/routines" }));
   await waitFor(() =>
     expect(harness!.router.state.location.pathname).toBe("/routines")

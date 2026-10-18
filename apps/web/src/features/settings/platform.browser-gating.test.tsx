@@ -56,7 +56,9 @@ it("legacy Abacus credit exhaustion shows no paywall or hidden local-model surfa
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy();
     expect(screen.queryByText(enUS.phase5.creditsExhausted)).toBeNull();
     expect(screen.queryByText("Use a local model")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })
+    ).toBeNull();
   } finally {
     app.view.unmount();
     await app.cleanup();

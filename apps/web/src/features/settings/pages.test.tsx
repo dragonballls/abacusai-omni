@@ -61,7 +61,9 @@ it.each(["free", "basic", "go", "pro", "max", "enterprise", "unknown"])(
     await screen.findByText("billing@example.com");
     expect(document.querySelector('[data-setting-id="plan"]')).toBeNull();
     expect(document.querySelector('[data-setting-id="credits"]')).toBeNull();
-    expect(screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })
+    ).toBeNull();
     expect(upgradeUrl).not.toHaveBeenCalled();
     expect(openExternal).not.toHaveBeenCalled();
   }
@@ -131,7 +133,9 @@ it("legacy exhausted-credit markers do not display a credit wall in Models", asy
   });
   await screen.findByRole("heading", { name: "Models" });
   expect(screen.queryByText(enUS.phase5.creditsExhausted)).toBeNull();
-  expect(screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })
+  ).toBeNull();
   expect(app.collections.prefs.get("app")?.creditsExhaustedAt).toBe(mark);
 });
 it("R5-T27 critical countdown installs exactly at five minutes", async () => {
@@ -192,10 +196,14 @@ it.each([
   });
   await screen.findByText("ada@example.com");
   if ("ABACUS_API_KEY" in apiKeys) {
-    expect(await screen.findByRole("button", { name: enUS.phase5.signOut })).not.toBeNull();
+    expect(
+      await screen.findByRole("button", { name: enUS.phase5.signOut })
+    ).not.toBeNull();
     expect(screen.queryByRole("checkbox")).not.toBeNull();
   } else {
-    expect(screen.queryByRole("button", { name: enUS.phase5.signOut })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: enUS.phase5.signOut })
+    ).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
   }
   expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();

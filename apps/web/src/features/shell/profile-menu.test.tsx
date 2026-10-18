@@ -149,10 +149,18 @@ it("does not expose referral rewards or query referral credits in the desktop pr
     const trigger = await screen.findByRole("button", { name: account.name });
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
-    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
-    expect(within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })).toBeNull();
-    expect(within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })).toBeNull();
-    expect(screen.queryByRole("dialog", { name: en.referrals.title })).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.referrals.title })
+    ).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })
+    ).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("dialog", { name: en.referrals.title })
+    ).toBeNull();
     expect(referralSummary).not.toHaveBeenCalled();
   } finally {
     app.view.unmount();
@@ -167,7 +175,9 @@ it("keeps the account-agent link tied to account access without inserting a cred
     procedures: {
       account: { abacus: os.account.abacus.handler(() => current) },
       system: {
-        openExternal: os.system.openExternal.handler(({ input }) => open(input)),
+        openExternal: os.system.openExternal.handler(({ input }) =>
+          open(input)
+        ),
       },
     },
   });
@@ -182,13 +192,22 @@ it("keeps the account-agent link tied to account access without inserting a cred
     expect(link.getAttribute("href")).toBe(ABACUS_AGENT_URL);
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     fireEvent.click(link);
-    await waitFor(() => expect(open).toHaveBeenCalledWith({ url: ABACUS_AGENT_URL }));
-    current = { ...account, plan: "Free", subscription_tier: "free", credits_used: 100 };
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith({ url: ABACUS_AGENT_URL })
+    );
+    current = {
+      ...account,
+      plan: "Free",
+      subscription_tier: "free",
+      credits_used: 100,
+    };
     await refresh();
     await waitFor(() =>
       expect(screen.queryByRole("link", { name: en.profile.agent })).toBeNull()
     );
-    expect(screen.queryByRole("button", { name: en.creditsCard.cta })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: en.creditsCard.cta })
+    ).toBeNull();
     expect(document.querySelector('[data-slot="upgrade-promo"]')).toBeNull();
     current = account;
     await refresh();
@@ -197,9 +216,15 @@ it("keeps the account-agent link tied to account access without inserting a cred
     const trigger = screen.getByRole("button", { name: account.name });
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
-    expect(within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })).toBeNull();
-    expect(within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })).toBeNull();
-    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })
+    ).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })
+    ).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.referrals.title })
+    ).toBeNull();
   } finally {
     app.view.unmount();
     await app.cleanup();
@@ -354,7 +379,9 @@ it("does not load referral-credit progress in the desktop profile menu", async (
   try {
     fireEvent.click(await screen.findByRole("button", { name: account.name }));
     const menu = await screen.findByRole("menu");
-    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
+    expect(
+      within(menu).queryByRole("menuitem", { name: en.referrals.title })
+    ).toBeNull();
     expect(referralSummary).not.toHaveBeenCalled();
   } finally {
     app.view.unmount();
@@ -378,7 +405,9 @@ it("supports menu typeahead, arrows and Escape with focus return", async () => {
     );
     fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
     await waitFor(() =>
-      expect(document.activeElement?.textContent).toBe(en.settings.pages.appearance)
+      expect(document.activeElement?.textContent).toBe(
+        en.settings.pages.appearance
+      )
     );
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     await waitFor(() => expect(document.activeElement).toBe(trigger));

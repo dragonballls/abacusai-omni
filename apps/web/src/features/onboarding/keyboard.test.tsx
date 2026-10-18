@@ -61,14 +61,18 @@ describe("onboarding keys", () => {
       signedIn: false,
       authStart,
     });
-    expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Sign up for free" })
+    ).toBeNull();
     await screen.findByRole("button", { name: "Continue" });
     await press("Enter");
     await waitFor(() =>
       expect(app!.router.state.location.pathname).toBe("/onboarding/models")
     );
     expect(authStart).not.toHaveBeenCalled();
-    expect(app!.calls.filter(([name]) => name === "auth.abacus.start")).toHaveLength(0);
+    expect(
+      app!.calls.filter(([name]) => name === "auth.abacus.start")
+    ).toHaveLength(0);
   });
 
   it("Enter on models continues, Escape on connectors goes back; a focused control keeps its own Enter", async () => {

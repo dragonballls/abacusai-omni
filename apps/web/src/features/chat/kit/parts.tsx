@@ -9,8 +9,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "#renderer/lib/cn";
-import { IS_ELECTRON } from "#renderer/lib/platform";
 import { useVisibleContextualUpsell } from "#renderer/lib/contextual-upsell";
+import { IS_ELECTRON } from "#renderer/lib/platform";
 import {
   Attachment,
   AttachmentContent,

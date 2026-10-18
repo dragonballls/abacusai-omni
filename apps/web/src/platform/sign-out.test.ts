@@ -135,8 +135,12 @@ it.each(["settings", "profile"])(
         )
       );
       if (entry === "settings") {
-        expect(await screen.findByRole("button", { name: "Continue" })).toBeTruthy();
-        expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+        expect(
+          await screen.findByRole("button", { name: "Continue" })
+        ).toBeTruthy();
+        expect(
+          screen.queryByRole("button", { name: "Sign up for free" })
+        ).toBeNull();
       }
       expect(app.history.canGoBack()).toBe(false);
       expect(signedIn).toBe(false);
@@ -146,7 +150,9 @@ it.each(["settings", "profile"])(
       });
       await app.router.navigate({ to: "/bots/new" });
       expect(app.router.state.location.pathname).toBe("/bots/new");
-      expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Sign up for free" })
+      ).toBeNull();
     } finally {
       app.view.unmount();
       await app.cleanup();

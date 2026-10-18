@@ -63,7 +63,9 @@ describe("R2-T11 parts", () => {
   it("does not render legacy Abacus credit footers", async () => {
     await migrated("credits");
     expect(screen.queryByText(/Used \d+ credits?/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /Upgrade|Top up/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Upgrade|Top up/i })
+    ).toBeNull();
   });
 
   it("thinking, collapsible and feature limit", async () => {

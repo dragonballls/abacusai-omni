@@ -35,5 +35,7 @@ it("starts provider setup without an Abacus login when signed out", async () => 
     expect(app!.router.state.location.pathname).toBe("/onboarding/models")
   );
   expect(authStart).not.toHaveBeenCalled();
-  expect(app.calls.filter(([name]) => name === "auth.abacus.start")).toHaveLength(0);
+  expect(
+    app.calls.filter(([name]) => name === "auth.abacus.start")
+  ).toHaveLength(0);
 });
