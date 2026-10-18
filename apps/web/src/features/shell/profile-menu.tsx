@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { signOutAbacus } from "#platform/sign-out";
@@ -67,15 +67,10 @@ export const ProfileMenu = () => {
   const [inviteOpens, setInviteOpens] = useState(0);
   const reduced = useMotionPreference() === "reduced";
   const trigger = useRef<HTMLButtonElement>(null);
-  const settings = useQuery({
-    ...transport.orpc.settings.get.queryOptions({ input: {} }),
-    enabled: false,
-    staleTime: 0,
-  });
-  // Desktop sign-in is optional. Never trust a cached key when deciding
-  // whether to contact the Abacus account endpoint; recheck on menu open.
+  // Desktop sign-in is optional. Read current settings directly instead
+  // of coalescing with a cached query that may still contain a removed key.
   const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
-  const { refetch: refetchSettings } = settings;
+  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
   const updateOpen = (nextOpen: boolean) => {
     if (IS_ELECTRON) setCanUseAbacusAccount(false);
     setOpen(nextOpen);
@@ -83,12 +78,10 @@ export const ProfileMenu = () => {
   useEffect(() => {
     if (!IS_ELECTRON || !open) return;
     let active = true;
-    void refetchSettings({ cancelRefetch: false })
+    void readSettings()
       .then((result) => {
         if (active)
-          setCanUseAbacusAccount(
-            !result.isError && canSignOutOfAbacus(result.data ?? null)
-          );
+          setCanUseAbacusAccount(canSignOutOfAbacus(result ?? null));
       })
       .catch(() => {
         if (active) setCanUseAbacusAccount(false);
@@ -96,7 +89,7 @@ export const ProfileMenu = () => {
     return () => {
       active = false;
     };
-  }, [open, refetchSettings]);
+  }, [open]);
   const account = useAccount({ enabled: canUseAbacusAccount });
   const identity = accountIdentity(account.data);
   const policy = sidebarAccount(account.data);
