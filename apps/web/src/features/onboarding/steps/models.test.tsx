@@ -89,9 +89,11 @@ describe("ModelsStep", () => {
       "true",
       null,
     ]);
-    // Signed out: Abacus's Connect starts a sign-in attempt from this row.
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    expect(context.props.signIn).toHaveBeenCalledWith("signin");
+    // Signed out: Abacus is just another optional API-key provider.
+    fireEvent.click(screen.getByRole("button", { name: "Add API key" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toMatch(/Abacus\.AI/);
+    expect(context.props.signIn).not.toHaveBeenCalled();
   });
 
   it("opens the Gemini key dialog directly and the picker from Paste a key", async () => {
