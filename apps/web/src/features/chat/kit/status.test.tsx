@@ -318,7 +318,7 @@ it("resumes a failed turn after connecting a fallback provider", async () => {
     }),
   ]);
   const onResumeOnFreePool = vi.fn(async () => {});
-  const configuredFreeSources = vi.fn(async () => ({}));
+  const configuredFreeSources = vi.fn(async () => ({ gemini: true }));
   const connectFreeSource = vi.fn(async () => true);
   const host = {
     ...inertHostActions,
@@ -334,24 +334,15 @@ it("resumes a failed turn after connecting a fallback provider", async () => {
   );
   await waitFor(() => expect(configuredFreeSources).toHaveBeenCalled());
   const connect = document.querySelector<HTMLButtonElement>(
-    '[data-source="gemini"] button'
+    '[data-source="openrouter"] button'
   );
   expect(connect).not.toBeNull();
   fireEvent.click(connect!);
-  const keyInput = await waitFor(() => {
-    const element = document.querySelector<HTMLInputElement>(
-      "#credit-source-key"
-    );
-    expect(element).not.toBeNull();
-    return element!;
-  });
-  const key = "fixture-value-00000000000000000000";
-  fireEvent.change(keyInput, { target: { value: key } });
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", { name: "Save" })
-  );
   await waitFor(() =>
-    expect(connectFreeSource).toHaveBeenCalledWith("gemini", key)
+    expect(connectFreeSource).toHaveBeenCalledExactlyOnceWith(
+      "openrouter",
+      undefined
+    )
   );
   await waitFor(() => expect(onResumeOnFreePool).toHaveBeenCalledOnce());
   await waitFor(() => expect(relay.stats.send).toHaveLength(1));
