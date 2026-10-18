@@ -2197,7 +2197,7 @@ export class AbacusBotSession {
               : OPENLLM_POOL_EMPTY_MESSAGE,
             code: "model_unavailable",
             actions: shut
-              ? [{ type: "free-pool-out" }, ...this.freeModelSwitches()]
+              ? [{ type: "free-pool-out" }]
               : [{ type: "switch-model" }],
           },
         },
@@ -3564,12 +3564,13 @@ export function classifyProviderFailure(raw: string): {
   const status = Number(raw.match(/^\s*(\d{3})\b/)?.[1] ?? Number.NaN);
   const text = raw.toLowerCase();
 
-  // Before the rate-limit branch: an out-of-credits account answers 429 too,
-  // and "try again in a moment" is exactly the wrong advice for it.
+  // Providers use different quota/billing systems. Never direct a user to
+  // an Abacus purchase page for an error that may come from another provider.
   if (isOutOfCredits(raw)) {
     return {
-      summary: "You're out of credits",
-      remedy: `Upgrade your plan at ${ABACUS_PLAN_URL}, or switch to a model with its own key.`,
+      summary: "The provider's usage allowance is exhausted",
+      remedy:
+        "Choose a different model or connect another provider API key. The provider controls its own limits and billing.",
     };
   }
 
