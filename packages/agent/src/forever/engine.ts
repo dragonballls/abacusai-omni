@@ -1184,16 +1184,16 @@ export class ForeverEngine {
   }
 
   /**
-   * What the app can offer about a failed turn: the upgrade card when out of
-   * credits, the free-source card when the pool is shut, a model switch when
-   * a pinned model timed out or is overloaded.
+   * What the app can offer about a failed turn: direct-provider choices when
+   * a provider quota is exhausted, the provider card when the pool is shut,
+   * or a model switch when a pinned model is overloaded.
    */
   private errorActionsFor(
     raw: string
   ):
     | { actions: Array<{ type: string; link?: string }> }
     | Record<string, never> {
-    const actions = [...(this.upgradeActionsFor(raw).actions ?? [])];
+    const actions = [...(this.providerFallbackActionsFor(raw).actions ?? [])];
     if (actions.some((action) => action.type === "free-pool-out"))
       return { actions };
     if (
@@ -1287,20 +1287,18 @@ export class ForeverEngine {
    * Included credits ran out on an Abacus-served turn: the app renders the
    * upgrade card, not a red line.
    */
-  private upgradeActionsFor(
+  private providerFallbackActionsFor(
     raw: string
   ):
     | { actions: Array<{ type: string; link?: string }> }
     | Record<string, never> {
     const provider = this.session?.model?.provider;
-    const abacusServed = provider === "abacus" || this.openLlmActive;
     const actions: Array<{ type: string; link?: string }> = [];
 
-    if (abacusServed && isOutOfCredits(raw)) {
-      actions.push({
-        type: "upgrade-abacus",
-        link: "https://apps.abacus.ai/chatllm/choose-plan/",
-      });
+    if (isOutOfCredits(raw)) {
+      if (provider === "abacus") actions.push({ type: "free-pool-out" });
+      else if (provider != null && !this.openLlmActive)
+        actions.push({ type: "switch-model" });
     }
     // The router with every source used up: the card that connects another
     // free source is the way out, whichever provider spoke last.
@@ -1309,7 +1307,7 @@ export class ForeverEngine {
       this.openLlmActive &&
       registry != null &&
       this.router.poolShut(registry) &&
-      !actions.some((action) => action.type === "upgrade-abacus")
+      !actions.some((action) => action.type === "free-pool-out")
     ) {
       actions.push({ type: "free-pool-out" });
     }
