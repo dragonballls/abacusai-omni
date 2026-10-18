@@ -179,22 +179,22 @@ describe("RouteLLM - Open across direct API sources", () => {
     const chat = new Chat();
     await chat.session.start();
 
-    // An Abacus API key and catalog are not a free pool source. No API provider
-    // key is connected yet, so the router reports that a model must be added.
-    let turn = await chat.turn("first task");
-    expect(turn.models).toEqual([]);
-    expect(turn.error?.message).toBe(OPENLLM_POOL_SHUT_MESSAGE);
-    expect(turn.error?.actions?.map((action) => action.type)).not.toContain(
-      "upgrade-abacus"
-    );
+    // An Abacus API key and catalog are not a free pool source. With no
+    // direct API source configured, startup must not fall back to Abacus.
+    expect(
+      chat.agent("error").some(
+        (event) => event.error.message === "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly."
+      )
+    ).toBe(true);
     expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
       false
     );
 
-    // 1. Google AI Studio connected: it works, tools included.
+    // 1. Google AI Studio connected: opt into auto routing, then it works.
     connect("gemini");
     await chat.session.refreshProviders();
-    turn = await chat.turn("second task");
+    await chat.session.setModel("openllm/auto");
+    let turn = await chat.turn("first task");
     expect(turn.models.filter((model) => model !== ABACUS_MODEL)).toEqual([
       "gemini-3.6-flash",
       "gemini-3.6-flash",
@@ -206,7 +206,7 @@ describe("RouteLLM - Open across direct API sources", () => {
     turn = await chat.turn("third task");
     expect(turn.models).toEqual(["gemini-3.6-flash", "gemini-3.6-flash"]);
 
-    // 4. The Studio quota runs out too: shut, and saying so.
+    // 3. The Studio quota runs out too: shut, and saying so.
     behaviour.set("gemini-3.6-flash", GEMINI_QUOTA_SPENT);
     turn = await chat.turn("fourth task");
     expect(turn.models).toEqual(["gemini-3.6-flash"]);
@@ -304,16 +304,22 @@ describe("the same chain in a bot's chat", () => {
     };
 
     await bot.start();
-    let result = await turn("check my inbox");
-    expect(result.models).toEqual([]);
-    expect(result.failed).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "event" &&
+          event.event.type === "error" &&
+          event.event.error.message === "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly."
+      )
+    ).toBe(true);
     expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
       false
     );
 
     connect("gemini");
     await bot.refreshProviders();
-    result = await turn("again");
+    await bot.setModel("openllm/auto");
+    let result = await turn("again");
     expect(result.reply).toContain("answered on gemini-3.6-flash");
     expect(result.failed).toBe(false);
 
