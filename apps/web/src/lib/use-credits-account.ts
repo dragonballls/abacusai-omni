@@ -13,9 +13,8 @@ export const useCreditsAccount = () => {
   // than trusting a cached query that can still contain a removed Abacus key.
   const hasSettingsReader =
     typeof transport.client.settings?.get === "function";
-  const [desktopAccountAllowed, setDesktopAccountAllowed] = useState(
-    !IS_ELECTRON
-  );
+  const [desktopAccountAllowed, setDesktopAccountAllowed] =
+    useState(!IS_ELECTRON);
   const readSettings = useEffectEvent(() => transport.client.settings.get({}));
   useEffect(() => {
     if (!IS_ELECTRON || !hasSettingsReader) return;
