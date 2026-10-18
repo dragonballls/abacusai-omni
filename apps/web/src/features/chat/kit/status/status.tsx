@@ -253,6 +253,24 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
       >
         <CreditsCard
           host={runtime.host}
+          onResume={
+            latest && canReply
+              ? async () => {
+                  await composer.onResumeOnFreePool?.();
+                  await session.retry(
+                    {
+                      model: "abacus/openllm",
+                      ...(composer.fixedMode
+                        ? { mode: composer.fixedMode }
+                        : {}),
+                    },
+                    skin === "bot"
+                      ? t("workspace.retryMessage")
+                      : undefined
+                  );
+                }
+              : undefined
+          }
           alternatives={
             canReply ? (
               <>
