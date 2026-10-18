@@ -6,6 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import enUS from "#locales/en-US.json";
 import { updateStatusQuery } from "#renderer/features/settings/updates";
+import { IS_ELECTRON } from "#renderer/lib/platform";
 import { defaultSeed, renderApp } from "#renderer/test-support/app-harness";
 const os = implement(contract);
 /** `update.events` as main serves it: the current status first, then held open. */
@@ -184,18 +185,29 @@ it.each([
   { OPENAI_API_KEY: "stored-other-key" },
   { ABACUS_API_KEY: "stored-abacus-key" },
 ])("Abacus sign-out control requires an Abacus key: %j", async (apiKeys) => {
+  const fetchAccount = vi.fn(() => ({
+    name: "Ada",
+    email: "ada@example.com",
+  }));
   app = await renderApp("/settings/account", {
     procedures: {
       settings: { get: os.settings.get.handler(() => ({ apiKeys }) as never) },
       account: {
-        abacus: os.account.abacus.handler(
-          () => ({ name: "Ada", email: "ada@example.com" }) as never
-        ),
+        abacus: os.account.abacus.handler(fetchAccount as never),
       },
     },
   });
-  await screen.findByText("ada@example.com");
-  if ("ABACUS_API_KEY" in apiKeys) {
+  const abacusKey = apiKeys.ABACUS_API_KEY ?? "";
+  const hasAbacusKey = abacusKey.trim().length > 0;
+  if (IS_ELECTRON && !hasAbacusKey) {
+    await screen.findByRole("heading", { name: enUS.phase5.ownKeys });
+    expect(screen.queryByText("ada@example.com")).toBeNull();
+    expect(fetchAccount).not.toHaveBeenCalled();
+  } else {
+    await screen.findByText("ada@example.com");
+  }
+  const canSignOut = !IS_ELECTRON || hasAbacusKey;
+  if (canSignOut) {
     expect(
       await screen.findByRole("button", { name: enUS.phase5.signOut })
     ).not.toBeNull();

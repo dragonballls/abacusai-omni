@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { signOutAbacus } from "#platform/sign-out";
@@ -67,16 +67,29 @@ export const ProfileMenu = () => {
   const [inviteOpens, setInviteOpens] = useState(0);
   const reduced = useMotionPreference() === "reduced";
   const trigger = useRef<HTMLButtonElement>(null);
-  const settings = useQuery({
-    ...transport.orpc.settings.get.queryOptions({ input: {} }),
-    enabled: IS_ELECTRON && open,
-    staleTime: 60_000,
-  });
-  // Desktop sign-in is optional: don't make an Abacus account request just
-  // to render the profile menu when the user is using provider API keys.
-  const account = useAccount({
-    enabled: !IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null),
-  });
+  // Desktop sign-in is optional. Read current settings directly instead
+  // of coalescing with a cached query that may still contain a removed key.
+  const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
+  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
+  const updateOpen = (nextOpen: boolean) => {
+    if (IS_ELECTRON) setCanUseAbacusAccount(false);
+    setOpen(nextOpen);
+  };
+  useEffect(() => {
+    if (!IS_ELECTRON || !open) return;
+    let active = true;
+    void readSettings()
+      .then((result) => {
+        if (active) setCanUseAbacusAccount(canSignOutOfAbacus(result ?? null));
+      })
+      .catch(() => {
+        if (active) setCanUseAbacusAccount(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
+  const account = useAccount({ enabled: canUseAbacusAccount });
   const identity = accountIdentity(account.data);
   const policy = sidebarAccount(account.data);
   const summary = useQuery({
@@ -111,7 +124,7 @@ export const ProfileMenu = () => {
   ) => void navigate({ to, transition: "settings-in" });
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={open} onOpenChange={updateOpen}>
         <Tooltip>
           <TooltipTrigger render={<DropdownMenuTrigger render={button} />} />
           <TooltipContent side="right">{label}</TooltipContent>
@@ -128,7 +141,7 @@ export const ProfileMenu = () => {
               // menu primitive can restore focus, so explicitly return focus
               // after React removes the portal.
               event.stopPropagation();
-              setOpen(false);
+              updateOpen(false);
               requestAnimationFrame(() => trigger.current?.focus());
               return;
             }
@@ -258,7 +271,7 @@ export const ProfileMenu = () => {
               <span className="truncate">{t("referrals.title")}</span>
             </DropdownMenuItem>
           )}
-          {(!IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null)) && (
+          {canUseAbacusAccount && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
