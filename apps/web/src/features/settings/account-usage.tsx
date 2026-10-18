@@ -23,11 +23,7 @@ import { useAppContext, errorText } from "#renderer/lib/use-app-context";
 import { Button } from "#renderer/ui/button";
 import { Checkbox } from "#renderer/ui/checkbox";
 export const AccountPage = () => {
-  const { t, i18n } = useTranslation();
-  const number = (value: unknown) =>
-    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(
-      Number(value) || 0
-    );
+  const { t } = useTranslation();
   const context = useAppContext();
   const { transport, credentialsChanged } = context;
   const navigate = useAppNavigate();
@@ -78,13 +74,23 @@ export const AccountPage = () => {
   if (!account.data)
     return (
       <AreaPage title={t("settings.pages.account")}>
-        <h2 className="font-medium">{t("phase5.signedOut")}</h2>
+        <h2 className="font-medium">{t("phase5.ownKeys")}</h2>
         <p className="text-muted-foreground text-sm">
-          {t("phase5.signInDetail")}
+          {t("phase5.settings.modelsDetail")}
         </p>
-        <div className="flex gap-2">
-          <Button disabled={pending} onClick={() => void signIn()}>
-            {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => void navigate({ to: "/settings/models" })}
+          >
+            {t("phase5.ownKeys")}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={pending}
+            onClick={() => void signIn()}
+          >
+            {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")} (optional)
           </Button>
           {!IS_ELECTRON && (
             <ConfirmAction
@@ -118,12 +124,6 @@ export const AccountPage = () => {
               )}
             </>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => void navigate({ to: "/settings/models" })}
-          >
-            {t("phase5.ownKeys")}
-          </Button>
         </div>
         {error && <p role="alert">{error}</p>}
         <LocalDataReset />
