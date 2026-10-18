@@ -20,7 +20,7 @@ export const WelcomeStep = ({
   heading,
 }: {
   ctx: StepContext;
-  profiles: readonly BrowserProfile[] | undefined;
+  profiles?: readonly BrowserProfile[];
   heading: Ref<HTMLHeadingElement>;
 }) => {
   const { t, busy, props, advance } = ctx;
