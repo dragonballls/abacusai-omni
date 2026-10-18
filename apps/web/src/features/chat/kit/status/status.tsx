@@ -316,7 +316,7 @@ export const ErrorCard = ({
                   await composer.onResumeOnFreePool?.();
                   await session.retry(
                     {
-                      model: "abacus/openllm",
+                      model: "openllm/auto",
                       ...(composer.fixedMode
                         ? { mode: composer.fixedMode }
                         : {}),
@@ -346,7 +346,7 @@ export const ErrorCard = ({
                   await composer.onResumeOnFreePool?.();
                   await session.retry(
                     {
-                      model: "abacus/openllm",
+                      model: "openllm/auto",
                       ...(composer.fixedMode
                         ? { mode: composer.fixedMode }
                         : {}),

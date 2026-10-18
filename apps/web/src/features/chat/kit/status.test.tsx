@@ -345,7 +345,7 @@ it("resumes a failed turn after connecting a fallback provider", async () => {
     expect(element).not.toBeNull();
     return element!;
   });
-  const key = "fixture-not-a-real-provider-token-for-ci-test";
+  const key = "fixture-value-00000000000000000000";
   fireEvent.change(keyInput, { target: { value: key } });
   fireEvent.click(
     within(screen.getByRole("dialog")).getByRole("button", { name: "Save" })
@@ -355,4 +355,5 @@ it("resumes a failed turn after connecting a fallback provider", async () => {
   );
   await waitFor(() => expect(onResumeOnFreePool).toHaveBeenCalledOnce());
   await waitFor(() => expect(relay.stats.send).toHaveLength(1));
+  expect(relay.stats.send[0]).toMatchObject({ model: "openllm/auto" });
 });
