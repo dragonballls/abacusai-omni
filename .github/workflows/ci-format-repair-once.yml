@@ -15,6 +15,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           persist-credentials: false
+          fetch-depth: 0
       - name: Set up pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
