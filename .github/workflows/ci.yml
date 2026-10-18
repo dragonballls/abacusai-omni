@@ -74,10 +74,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: TEMP formatting diagnostic (revert before completion)
-        run: |
-          pnpm exec oxfmt packages/agent/src/forever/engine.ts packages/agent/src/openllm-chain.integration.test.ts packages/agent/src/session.ts
-          git diff -- packages/agent/src/forever/engine.ts packages/agent/src/openllm-chain.integration.test.ts packages/agent/src/session.ts
+      - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
       # import) belong to no workspace package, so `pnpm run typecheck` never
