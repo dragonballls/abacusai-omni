@@ -10,8 +10,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { GroupCard } from "#renderer/components/form-kit/page";
-import { ABACUS_BUY_CREDITS_URL } from "#renderer/lib/abacus-links";
-import { useVisibleContextualUpsell } from "#renderer/lib/contextual-upsell";
 import { IS_ELECTRON } from "#renderer/lib/platform";
 import { Button } from "#renderer/ui/button";
 import {
@@ -53,8 +51,6 @@ const SOURCE_KEYS: Record<FreePoolProvider, string> = {
 /** Main's credit boundary, shared by the transcript and the sidebar. */
 export const CreditsCard = ({
   host,
-  tier,
-  scope = "abacus",
   onResume,
   alternatives,
   title,
@@ -69,7 +65,6 @@ export const CreditsCard = ({
   note?: string;
 }) => {
   const { t } = useTranslation();
-  const promotionRef = useVisibleContextualUpsell(tier === "free");
   const [configured, setConfigured] = useState<Record<string, boolean> | null>(
     null
   );
@@ -77,15 +72,8 @@ export const CreditsCard = ({
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [canTopUp, setCanTopUp] = useState(false);
   useEffect(() => {
     let live = true;
-    void host
-      .canTopUpCredits?.()
-      .then((value) => {
-        if (live) setCanTopUp(value);
-      })
-      .catch(() => {});
     void host
       .configuredFreeSources?.()
       .then((sources) => {
@@ -96,9 +84,7 @@ export const CreditsCard = ({
       live = false;
     };
   }, [host]);
-  const paying = tier === "paid" || tier === "basic";
-  const missing =
-    paying || configured == null ? [] : missingFreeSources(configured);
+  const missing = configured == null ? [] : missingFreeSources(configured);
   const connect = async (source: FreePoolProvider, value?: string) => {
     if (busy || !host.connectFreeSource) return;
     setBusy(true);
@@ -117,57 +103,15 @@ export const CreditsCard = ({
   const field = PROVIDER_KEY_FIELDS.find((entry) => entry.provider === asking);
   return (
     <>
-      <div data-slot="credits-card" ref={promotionRef}>
+      <div data-slot="provider-fallback">
         <GroupCard
-          title={
-            title ??
-            t(
-              paying
-                ? "creditsCard.paidTitle"
-                : scope === "pool"
-                  ? "workspace.premiumUpgrade.poolOutTitle"
-                  : "workspace.premiumUpgrade.exhaustedTitle"
-            )
-          }
+          title={title ?? t("phase5.providers")}
         >
           <p className="text-muted-foreground p-3 text-sm">
-            {note ??
-              t(
-                paying
-                  ? canTopUp
-                    ? "creditsCard.paidBody"
-                    : "workspace.premiumUpgrade.switchNote"
-                  : missing.length
-                    ? "workspace.premiumUpgrade.connectNote"
-                    : "workspace.premiumUpgrade.switchNote"
-              )}
+            {note ?? t("phase5.settings.modelsDetail")}
           </p>
           <div className="flex flex-col gap-3 p-3">
-            {tier === "free" && (
-              <Button size="sm" onClick={() => void host.openUpgrade()}>
-                {t("creditsCard.cta")}
-              </Button>
-            )}
-            {paying && canTopUp ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <p>{t("creditsCard.topUpCta")}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {t("workspace.premiumUpgrade.topUpMeta")}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    void (tier === "paid"
-                      ? host.openExternal(ABACUS_BUY_CREDITS_URL)
-                      : host.openUpgrade())
-                  }
-                >
-                  {t("creditsCard.topUpCta")}
-                </Button>
-              </div>
-            ) : !paying ? (
+            {
               missing.map((source, index) => (
                 <div key={source}>
                   {index > 0 && <Separator className="mb-3" />}
@@ -206,7 +150,7 @@ export const CreditsCard = ({
                   </div>
                 </div>
               ))
-            ) : null}
+            }
             {alternatives && (
               <>
                 <Separator />
