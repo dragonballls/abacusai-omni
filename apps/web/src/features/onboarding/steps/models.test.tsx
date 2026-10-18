@@ -58,12 +58,12 @@ describe("ModelsStep", () => {
     );
     const rows = [...container.querySelectorAll(".onboarding-row")];
     expect(rows.map((row) => row.getAttribute("data-connected"))).toEqual([
+      "false",
+      "false",
       "true",
-      "false",
-      "false",
       null,
     ]);
-    expect(rows[0]!.textContent).toContain("Connected");
+    expect(rows[2]!.textContent).toContain("Connected");
     expect(rows[3]!.getAttribute("data-slot")).toBe("local-model-row");
     expect(screen.getByRole("heading").textContent).toBe("Hook up your AI");
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -84,13 +84,13 @@ describe("ModelsStep", () => {
     );
     const rows = [...container.querySelectorAll(".onboarding-row")];
     expect(rows.map((row) => row.getAttribute("data-connected"))).toEqual([
+      "true",
+      "true",
       "false",
-      "true",
-      "true",
       null,
     ]);
     // Signed out: Abacus is just another optional API-key provider.
-    fireEvent.click(screen.getByRole("button", { name: "Add API key" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Add API key" })[1]!);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toMatch(/Abacus\.AI/);
     expect(context.props.signIn).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ describe("ModelsStep", () => {
         heading={createRef()}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add API key" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Add API key" })[0]!);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toMatch(
       /Go to Google Gemini.*and get your API key/
