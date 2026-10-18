@@ -48,7 +48,7 @@ const SOURCE_KEYS: Record<FreePoolProvider, string> = {
   groq: "Groq",
 };
 
-/** Main's credit boundary, shared by the transcript and the sidebar. */
+/** Provider choices shown when the current model or free-pool route is unavailable. */
 export const CreditsCard = ({
   host,
   onResume,
@@ -110,42 +110,42 @@ export const CreditsCard = ({
           </p>
           <div className="flex flex-col gap-3 p-3">
             {missing.map((source, index) => (
-                <div key={source}>
-                  {index > 0 && <Separator className="mb-3" />}
-                  <div
-                    className="flex flex-wrap items-center gap-3"
-                    data-source={source}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p>
-                        {t(
-                          `workspace.premiumUpgrade.source${SOURCE_KEYS[source]}`
-                        )}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {t(
-                          `workspace.premiumUpgrade.source${SOURCE_KEYS[source]}Meta`
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        if (IS_ELECTRON && source === "openrouter")
-                          void connect(source);
-                        else {
-                          setAsking(source);
-                          setKey("");
-                          setError(null);
-                        }
-                      }}
-                    >
-                      {t("workspace.premiumUpgrade.connectCta")}
-                    </Button>
+              <div key={source}>
+                {index > 0 && <Separator className="mb-3" />}
+                <div
+                  className="flex flex-wrap items-center gap-3"
+                  data-source={source}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p>
+                      {t(
+                        `workspace.premiumUpgrade.source${SOURCE_KEYS[source]}`
+                      )}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {t(
+                        `workspace.premiumUpgrade.source${SOURCE_KEYS[source]}Meta`
+                      )}
+                    </p>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      if (IS_ELECTRON && source === "openrouter")
+                        void connect(source);
+                      else {
+                        setAsking(source);
+                        setKey("");
+                        setError(null);
+                      }
+                    }}
+                  >
+                    {t("workspace.premiumUpgrade.connectCta")}
+                  </Button>
                 </div>
+              </div>
             ))}
             {alternatives && (
               <>
