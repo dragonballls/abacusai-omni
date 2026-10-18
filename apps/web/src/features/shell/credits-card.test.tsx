@@ -62,7 +62,14 @@ vi.mock("#renderer/lib/use-app-context", () => ({
           },
         },
       },
-      client: { system: { openExternal: state.open } },
+      client: {
+        system: { openExternal: state.open },
+        settings: {
+          get: vi.fn(async () => ({
+            apiKeys: { ABACUS_API_KEY: "test-key" },
+          })),
+        },
+      },
     },
   }),
 }));
