@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent } from "react";
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
 import { creditMarkState } from "#renderer/lib/credits";
 import { useAccount } from "#renderer/lib/use-account";
+import { IS_ELECTRON } from "#renderer/lib/platform";
 import { useAppContext } from "#renderer/lib/use-app-context";
 
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
@@ -13,9 +14,12 @@ export const useCreditsAccount = () => {
     transport.orpc.settings.get.queryOptions({ input: {} })
   );
   const hasAbacusApiKey = Boolean(settings.data?.apiKeys?.ABACUS_API_KEY);
+  // Browser sessions authenticate through their signed-in session rather than
+  // a persisted desktop API key; only gate the optional account on Electron.
+  const canQueryAccount = !IS_ELECTRON || hasAbacusApiKey;
   const prefs = usePrefs();
   const update = useUpdatePrefs();
-  const account = useAccount({ enabled: hasAbacusApiKey });
+  const account = useAccount({ enabled: canQueryAccount });
   const clearFreshMark = useEffectEvent(
     (mark: number, data: typeof account.data) => {
       if (
@@ -28,7 +32,7 @@ export const useCreditsAccount = () => {
   const { refetch } = account;
   useEffect(() => {
     const mark = prefs.creditsExhaustedAt;
-    if (mark === null || !hasAbacusApiKey) return;
+    if (mark === null || !canQueryAccount) return;
     let active = true;
     void refetch({ cancelRefetch: false }).then((result) => {
       if (active && !result.isError) clearFreshMark(mark, result.data);
@@ -36,6 +40,6 @@ export const useCreditsAccount = () => {
     return () => {
       active = false;
     };
-  }, [prefs.creditsExhaustedAt, refetch, hasAbacusApiKey]);
+  }, [prefs.creditsExhaustedAt, refetch, canQueryAccount]);
   return account;
 };
