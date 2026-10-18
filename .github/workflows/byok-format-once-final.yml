@@ -80,4 +80,4 @@ jobs:
           NODE
           git commit -m "fix: format BYOK changes and gate desktop billing [ci-format-repair]"
           AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-          LEFTHOOK=0 git -c "http.extraheader=AUTHORIZATION: basic $AUTH" push origin "HEAD:refs/heads/fix/byok-ci-format-final3-clean-20261018"
+          LEFTHOOK=0 git -c "http.extraheader=AUTHORIZATION: basic $AUTH" push origin "HEAD:refs/heads/fix/byok-ci-format-final4-clean-20261018"
