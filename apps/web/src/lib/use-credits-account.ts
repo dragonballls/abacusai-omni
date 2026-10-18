@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
 import { creditMarkState } from "#renderer/lib/credits";
@@ -16,22 +16,39 @@ export const useCreditsAccount = () => {
   const settingsOptions = transport.orpc.settings?.get?.queryOptions?.({
     input: {},
   });
+  const hasSettingsQuery = Boolean(settingsOptions);
   const settings = useQuery({
     ...(settingsOptions ?? {
       queryKey: ["credits-account-settings-unavailable"] as const,
       queryFn: async () => undefined,
     }),
-    enabled: IS_ELECTRON && Boolean(settingsOptions),
+    enabled: false,
     staleTime: 0,
-    refetchOnMount: "always",
   });
-  const hasAbacusApiKey = Boolean(settings.data?.apiKeys?.ABACUS_API_KEY);
-  // Browser sessions authenticate through their signed-in session rather than
-  // a persisted desktop API key; only gate the optional account on Electron.
-  const canQueryAccount =
-    !IS_ELECTRON ||
-    !settingsOptions ||
-    (settings.isFetchedAfterMount && hasAbacusApiKey);
+  // Require the result of a settings request started by this hook. Cached
+  // settings can still contain an Abacus key that has since been removed.
+  const [canQueryAccount, setCanQueryAccount] = useState(
+    !IS_ELECTRON || !hasSettingsQuery
+  );
+  useEffect(() => {
+    if (!IS_ELECTRON || !hasSettingsQuery) return;
+    let active = true;
+    setCanQueryAccount(false);
+    void settings
+      .refetch({ cancelRefetch: false })
+      .then((result) => {
+        if (active)
+          setCanQueryAccount(
+            !result.isError && Boolean(result.data?.apiKeys?.ABACUS_API_KEY)
+          );
+      })
+      .catch(() => {
+        if (active) setCanQueryAccount(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [hasSettingsQuery, settings.refetch]);
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const account = useAccount({ enabled: canQueryAccount });
