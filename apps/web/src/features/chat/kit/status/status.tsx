@@ -4,8 +4,8 @@
  */
 import type { UIMessage } from "@tanstack/ai-client";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { CreditsCard } from "#renderer/components/credits-card";
 import { cn } from "#renderer/lib/cn";
@@ -220,6 +220,11 @@ const wantsUpgradeCard = (actions?: ErrorAction[]): boolean =>
       action.type === "upgrade-abacus" || action.type === "free-pool-out"
   ) === true;
 
+const exhaustedScope = (actions?: ErrorAction[]): "abacus" | "pool" =>
+  actions?.some((action) => action.type === "upgrade-abacus") === true
+    ? "abacus"
+    : "pool";
+
 export interface ErrorCardProps {
   outcome: RunOutcomeRecord;
   /** The latest terminal while the thread is idle (Retry is offered then). */
@@ -316,7 +321,7 @@ export const ErrorCard = ({
                   await composer.onResumeOnFreePool?.();
                   await session.retry(
                     {
-                      model: "abacus/openllm",
+                      model: "openllm/auto",
                       ...(composer.fixedMode
                         ? { mode: composer.fixedMode }
                         : {}),
@@ -346,14 +351,12 @@ export const ErrorCard = ({
                   await composer.onResumeOnFreePool?.();
                   await session.retry(
                     {
-                      model: "abacus/openllm",
+                      model: "openllm/auto",
                       ...(composer.fixedMode
                         ? { mode: composer.fixedMode }
                         : {}),
                     },
-                    skin === "bot"
-                      ? t("workspace.retryMessage")
-                      : undefined
+                    skin === "bot" ? t("workspace.retryMessage") : undefined
                   );
                 }
               : undefined
