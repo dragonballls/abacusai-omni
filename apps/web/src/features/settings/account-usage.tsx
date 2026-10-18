@@ -13,15 +13,11 @@ import {
   GroupCard,
   SettingRow,
 } from "#renderer/components/form-kit/page";
-import { ABACUS_BUY_CREDITS_URL } from "#renderer/lib/abacus-links";
 import { accountIdentity } from "#renderer/lib/account-identity";
-import { accountTier } from "#renderer/lib/credits";
 import { useAppNavigate } from "#renderer/lib/navigation/use-app-navigate";
 import { IS_ELECTRON } from "#renderer/lib/platform";
 import { platformSystem } from "#renderer/lib/platform-system";
-import { sidebarAccount } from "#renderer/lib/sidebar-account";
 import { showInfo } from "#renderer/lib/toast";
-import { openUpgrade } from "#renderer/lib/upgrade";
 import { useAccount } from "#renderer/lib/use-account";
 import { useAppContext, errorText } from "#renderer/lib/use-app-context";
 import { Button } from "#renderer/ui/button";
@@ -36,7 +32,6 @@ export const AccountPage = () => {
   const { transport, credentialsChanged } = context;
   const navigate = useAppNavigate();
   const account = useAccount();
-  const billing = sidebarAccount(account.data).billing;
   const local = useQuery(
     transport.orpc.account.state.queryOptions({ input: {} })
   );
@@ -171,49 +166,6 @@ export const AccountPage = () => {
             {t("phase5.removeOtherKeys")}
           </label>
         )}
-        <SettingRow
-          id="plan"
-          title={account.data.plan ?? t("phase5.unknownPlan")}
-        >
-          {billing && (
-            <Button
-              size="sm"
-              onClick={() => void openUpgrade(transport.client)}
-            >
-              {t(
-                billing === "upgrade" ? "creditsCard.cta" : "phase5.managePlan"
-              )}
-            </Button>
-          )}
-        </SettingRow>
-        <SettingRow
-          id="credits"
-          title={t("phase5.credits")}
-          detail={
-            account.data.credits_granted
-              ? t("phase5.creditUsage", {
-                  used: number(account.data.credits_used),
-                  granted: number(account.data.credits_granted),
-                })
-              : undefined
-          }
-        >
-          {billing === "manage" && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                void (accountTier(account.data) === "basic"
-                  ? openUpgrade(transport.client)
-                  : platformSystem(transport.client).openExternal({
-                      url: ABACUS_BUY_CREDITS_URL,
-                    }))
-              }
-            >
-              {t("phase5.topUp")}
-            </Button>
-          )}
-        </SettingRow>
         {vaultUrl && (
           <SettingRow
             id="vault"
@@ -339,7 +291,6 @@ export const UsagePage = () => {
     staleTime: 0,
     refetchOnMount: "always",
   });
-  const account = useAccount();
   const snapshot = query.data;
   const days = Array.from({ length: 14 }, (_, i) => {
     const date = new Date();
@@ -368,7 +319,6 @@ export const UsagePage = () => {
           size="sm"
           onClick={() => {
             void query.refetch();
-            void account.refetch();
           }}
         >
           {t("phase5.refresh")}
@@ -383,17 +333,6 @@ export const UsagePage = () => {
         <>
           {snapshot.totals.requests === 0 && <p>{t("usage.empty")}</p>}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <GroupCard>
-              <SettingRow
-                id="abacusCredits"
-                title={t("phase5.credits")}
-                detail={
-                  account.data
-                    ? number(account.data.credits_used)
-                    : t("phase5.unavailable")
-                }
-              />
-            </GroupCard>
             <GroupCard>
               <SettingRow
                 id="openrouterUsage"
