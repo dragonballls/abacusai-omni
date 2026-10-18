@@ -44,7 +44,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(probe).toContain("destination.origin === OMNIROUTE_ORIGIN");
   });
 
-  it("provisions a real OmniRoute client key and persists it with restrictive permissions", () => {
+  it("provisions and securely persists an OmniRoute client key", () => {
     const provisioning = source.slice(
       source.indexOf("async function createOmniRouteClientKey("),
       source.indexOf("function readInitialManagementPassword(")
@@ -75,13 +75,29 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).not.toContain('apiKey: "local-omniroute"');
   });
 
+  it("uses the bundled Windows runtime before system Node/npm", () => {
+    expect(source).toContain(
+      'join(process.resourcesPath, "omniroute-runtime")'
+    );
+    expect(source).toContain(
+      'const omniRouteBundleNode = join(omniRouteBundleRoot, "node.exe")'
+    );
+    expect(source).toContain("function bundledNodeExecutable()");
+    expect(source).toContain("const bundledNode = bundledNodeExecutable()");
+    expect(source).toContain(
+      'cpSync(omniRouteBundleModules, join(omniRouteDataDir, "node_modules"), {'
+    );
+    expect(source).toContain("if (npmArgs.length === 0)");
+    expect(source).toContain("The bundled OmniRoute runtime is missing");
+  });
+
   it("rejects Node.js versions outside OmniRoute's supported engine range", () => {
     expect(source).toContain('spawnSync(node, ["--version"]');
     expect(source).toContain("22.22.2");
     expect(source).toContain("major >= 24 && major < 27");
   });
 
-  it("omits the optional dependency closure and restores the required esbuild platform binary", () => {
+  it("restores the required platform-matched esbuild binary", () => {
     expect(source).toContain('"--legacy-peer-deps"');
     expect(source).toContain('"--ignore-scripts"');
     expect(source).toContain('"--omit=optional"');
@@ -114,7 +130,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(source).toContain("was left untouched");
   });
 
-  it("shuts down the app-owned Windows gateway tree rather than just its supervisor", () => {
+  it("shuts down the app-owned Windows gateway process tree", () => {
     expect(source).toContain('"/PID", String(child.pid), "/T", "/F"');
     expect(source).toContain("taskkill.exe");
     expect(source).toContain('child.kill("SIGTERM")');

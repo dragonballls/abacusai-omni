@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 /**
  * Real OmniRoute 3.8.50 smoke test with a disposable data directory.
  *
@@ -21,7 +21,8 @@ import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const VERSION = "3.8.50";
 const INSTALL_TIMEOUT_MS = 25 * 60_000;
@@ -230,7 +231,8 @@ async function waitForSecureGateway(child, gatewayOrigin) {
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(
-        `OmniRoute exited before secure readiness (code ${child.exitCode}, signal ${child.signalCode}).`
+        `OmniRoute exited before secure readiness ` +
+          `(code ${child.exitCode}, signal ${child.signalCode}).`
       );
     }
     const ready = await getDashboardAndModels(gatewayOrigin);
@@ -488,7 +490,8 @@ async function assertRoutedChatCompletion(
   const connectionId = connectionPayload?.connection?.id;
   assert(
     connectionResponse.status === 201 && typeof connectionId === "string",
-    `Could not create the disposable OpenAI-compatible provider connection (HTTP ${connectionResponse.status}): ${JSON.stringify(connectionPayload)}`
+    `Could not create the disposable OpenAI-compatible provider connection ` +
+      `(HTTP ${connectionResponse.status}): ${JSON.stringify(connectionPayload)}`
   );
 
   const syncResponse = await fetch(
@@ -540,7 +543,8 @@ async function assertRoutedChatCompletion(
   );
   assert(
     completion?.choices?.[0]?.message?.content === "omniroute-smoke-ok",
-    `Auto returned an unexpected response instead of the mocked upstream completion: ${JSON.stringify(completion)}`
+    `Auto returned an unexpected response instead of the mocked upstream ` +
+      `completion: ${JSON.stringify(completion)}`
   );
   assert(
     mock.chats.length > 0 &&
@@ -586,64 +590,19 @@ async function main() {
       mode: 0o600,
     });
 
-    // On Windows, spawn("npm") may resolve to npm.cmd, which cannot be run
-    // directly without a shell. Invoke npm's JavaScript CLI through this exact
-    // Node executable instead, matching the desktop app's production launcher.
-    const npmCli = join(
-      dirname(process.execPath),
-      "node_modules",
-      "npm",
-      "bin",
-      "npm-cli.js"
-    );
-    const npmCommand = process.platform === "win32" ? process.execPath : "npm";
-    const npmArgs = process.platform === "win32" ? [npmCli] : [];
-    assert(
-      process.platform !== "win32" || existsSync(npmCli),
-      `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
-    );
-    console.info(
-      `[omniroute-smoke] installing pinned OmniRoute ${VERSION} with npm on ${process.platform}/${process.arch}`
-    );
-    const install = await runCommand(
-      npmCommand,
-      [
-        ...npmArgs,
-        "install",
-        "--loglevel=verbose",
-        "--no-progress",
-        "--prefix",
-        dataDir,
-        "--no-fund",
-        "--no-audit",
-        "--maxsockets=50",
-        "--fetch-retries=1",
-        "--fetch-timeout=120000",
-        "--legacy-peer-deps",
-        "--ignore-scripts",
-        "--omit=dev",
-        "--omit=optional",
-        `omniroute@${VERSION}`,
-      ],
-      {
-        cwd: dataDir,
-        env: {
-          ...process.env,
-          OMNIROUTE_SKIP_POSTINSTALL: "1",
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-          PUPPETEER_SKIP_DOWNLOAD: "1",
-        },
-      },
-      INSTALL_TIMEOUT_MS
-    );
-    assert(
-      install.code === 0,
-      `Could not install pinned OmniRoute ${VERSION}. Last output:\n${install.output}`
-    );
-    console.info(
-      `[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`
-    );
-
+    const useBundledRuntime = process.argv.includes("--bundled-runtime");
+    const runtimeFlag = process.argv.indexOf("--runtime-dir");
+    const bundleRoot =
+      runtimeFlag >= 0 && process.argv[runtimeFlag + 1]
+        ? resolve(process.argv[runtimeFlag + 1])
+        : join(
+            dirname(fileURLToPath(import.meta.url)),
+            "..",
+            "apps",
+            "desktop",
+            "resources",
+            "omniroute-runtime"
+          );
     const entry = join(
       dataDir,
       "node_modules",
@@ -651,6 +610,217 @@ async function main() {
       "bin",
       "omniroute.mjs"
     );
+    let runtimeNode = process.execPath;
+
+    if (useBundledRuntime) {
+      assert(
+        process.platform === "win32",
+        "The bundled OmniRoute runtime smoke is Windows-only."
+      );
+      const bundledNode = join(bundleRoot, "node.exe");
+      const bundledModules = join(bundleRoot, "node_modules");
+      const bundledEntry = join(
+        bundledModules,
+        "omniroute",
+        "bin",
+        "omniroute.mjs"
+      );
+      const bundledManifest = join(bundledModules, "omniroute", "package.json");
+      assert(
+        existsSync(bundledNode),
+        `Bundled node.exe is missing: ${bundledNode}`
+      );
+      assert(
+        existsSync(bundledEntry),
+        `Bundled OmniRoute entry is missing: ${bundledEntry}`
+      );
+      assert(
+        existsSync(bundledManifest),
+        "Bundled OmniRoute package.json is missing."
+      );
+      const metadata = JSON.parse(readFileSync(bundledManifest, "utf8"));
+      assert(
+        metadata.name === "omniroute" && metadata.version === VERSION,
+        `Expected bundled omniroute@${VERSION}, ` +
+          `got ${metadata.name}@${metadata.version}.`
+      );
+      const nodeVersion = spawnSync(bundledNode, ["--version"], {
+        cwd: bundleRoot,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10_000,
+      });
+      assert(
+        !nodeVersion.error && nodeVersion.status === 0,
+        "The Node.js executable shipped with the app did not start."
+      );
+      const versionMatch = /^v?(\d+)\.(\d+)\.(\d+)/.exec(
+        nodeVersion.stdout.trim()
+      );
+      const major = Number(versionMatch?.[1]);
+      const minor = Number(versionMatch?.[2]);
+      const patch = Number(versionMatch?.[3]);
+      assert(
+        (major === 22 && (minor > 22 || (minor === 22 && patch >= 2))) ||
+          (major >= 24 && major < 27),
+        `Unsupported bundled Node.js version ${nodeVersion.stdout.trim()}.`
+      );
+      cpSync(bundledModules, join(dataDir, "node_modules"), {
+        recursive: true,
+        force: true,
+      });
+      runtimeNode = bundledNode;
+      console.info(
+        `[omniroute-smoke] using staged omniroute@${VERSION} and ` +
+          `self-contained Node.js ${nodeVersion.stdout.trim()}`
+      );
+    } else {
+      // On Windows, spawn("npm") may resolve to npm.cmd, which cannot be run
+      // directly without a shell. Invoke npm's JavaScript CLI through this exact
+      // Node executable instead, matching the desktop app's production launcher.
+      const npmCli = join(
+        dirname(process.execPath),
+        "node_modules",
+        "npm",
+        "bin",
+        "npm-cli.js"
+      );
+      const npmCommand =
+        process.platform === "win32" ? process.execPath : "npm";
+      const npmArgs = process.platform === "win32" ? [npmCli] : [];
+      assert(
+        process.platform !== "win32" || existsSync(npmCli),
+        `Could not find npm's JavaScript CLI beside Node.js: ${npmCli}`
+      );
+      console.info(
+        `[omniroute-smoke] installing pinned OmniRoute ${VERSION} with npm ` +
+          `on ${process.platform}/${process.arch}`
+      );
+      const install = await runCommand(
+        npmCommand,
+        [
+          ...npmArgs,
+          "install",
+          "--loglevel=verbose",
+          "--no-progress",
+          "--prefix",
+          dataDir,
+          "--no-fund",
+          "--no-audit",
+          "--maxsockets=50",
+          "--fetch-retries=1",
+          "--fetch-timeout=120000",
+          "--legacy-peer-deps",
+          "--ignore-scripts",
+          "--omit=dev",
+          "--omit=optional",
+          `omniroute@${VERSION}`,
+        ],
+        {
+          cwd: dataDir,
+          env: {
+            ...process.env,
+            OMNIROUTE_SKIP_POSTINSTALL: "1",
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+            PUPPETEER_SKIP_DOWNLOAD: "1",
+          },
+        },
+        INSTALL_TIMEOUT_MS
+      );
+      assert(
+        install.code === 0,
+        `Could not install pinned OmniRoute ${VERSION}. Last output:\n${install.output}`
+      );
+      console.info(
+        `[omniroute-smoke] pinned OmniRoute ${VERSION} dependency install completed`
+      );
+
+      // Upstream normally does this in postinstall.mjs. Skip its expensive native
+      // builds/downloads for this API-key smoke, then restore the small set of
+      // JavaScript support packages and the exact platform binary esbuild needs.
+      const modulesRoot = join(dataDir, "node_modules");
+      const standaloneRoot = join(
+        modulesRoot,
+        "omniroute",
+        "dist",
+        "node_modules"
+      );
+      for (const packageName of ["@swc/helpers", "sql.js", "node-machine-id"]) {
+        const source = join(modulesRoot, packageName);
+        assert(
+          existsSync(source),
+          `The install is missing required runtime package ${packageName}.`
+        );
+        const destination = join(standaloneRoot, packageName);
+        mkdirSync(dirname(destination), { recursive: true });
+        cpSync(source, destination, { recursive: true, force: true });
+      }
+
+      const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
+      assert(
+        existsSync(esbuildManifest),
+        "The install is missing esbuild's runtime package."
+      );
+      const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8"));
+      const platformPackage = `@esbuild/${process.platform}-${process.arch}`;
+      const platformVersion = esbuild.optionalDependencies?.[platformPackage];
+      assert(
+        typeof platformVersion === "string",
+        `esbuild ${esbuild.version} does not declare ${platformPackage}.`
+      );
+      const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
+      try {
+        const binaryInstall = await runCommand(
+          npmCommand,
+          [
+            ...npmArgs,
+            "install",
+            "--prefix",
+            tempDir,
+            "--no-fund",
+            "--no-audit",
+            "--legacy-peer-deps",
+            "--ignore-scripts",
+            "--no-save",
+            `${platformPackage}@${platformVersion}`,
+          ],
+          {
+            cwd: tempDir,
+            env: {
+              ...process.env,
+              PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
+              PUPPETEER_SKIP_DOWNLOAD: "1",
+            },
+          },
+          120_000
+        );
+        assert(
+          binaryInstall.code === 0,
+          `Could not install ${platformPackage}@${platformVersion}. ` +
+            `Last output:\n${binaryInstall.output}`
+        );
+        const [scope, packageName] = platformPackage.split("/");
+        const binarySource = join(tempDir, "node_modules", scope, packageName);
+        assert(
+          existsSync(join(binarySource, "package.json")),
+          `npm did not install the required package ${platformPackage}.`
+        );
+        const binaryDestination = join(modulesRoot, scope, packageName);
+        mkdirSync(dirname(binaryDestination), { recursive: true });
+        cpSync(binarySource, binaryDestination, {
+          recursive: true,
+          force: true,
+        });
+      } finally {
+        rmSync(tempDir, {
+          recursive: true,
+          force: true,
+          maxRetries: 8,
+          retryDelay: 100,
+        });
+      }
+    }
+
     const metadata = JSON.parse(
       readFileSync(
         join(dataDir, "node_modules", "omniroute", "package.json"),
@@ -661,87 +831,6 @@ async function main() {
       metadata.version === VERSION,
       `Expected OmniRoute ${VERSION}, got ${metadata.version}.`
     );
-
-    // Upstream normally does this in postinstall.mjs. Skip its expensive native
-    // builds/downloads for this API-key smoke, then restore the small set of
-    // JavaScript support packages and the exact platform binary esbuild needs.
-    const modulesRoot = join(dataDir, "node_modules");
-    const standaloneRoot = join(
-      modulesRoot,
-      "omniroute",
-      "dist",
-      "node_modules"
-    );
-    for (const packageName of ["@swc/helpers", "sql.js", "node-machine-id"]) {
-      const source = join(modulesRoot, packageName);
-      assert(
-        existsSync(source),
-        `The install is missing required runtime package ${packageName}.`
-      );
-      const destination = join(standaloneRoot, packageName);
-      mkdirSync(dirname(destination), { recursive: true });
-      cpSync(source, destination, { recursive: true, force: true });
-    }
-
-    const esbuildManifest = join(modulesRoot, "esbuild", "package.json");
-    assert(
-      existsSync(esbuildManifest),
-      "The install is missing esbuild's runtime package."
-    );
-    const esbuild = JSON.parse(readFileSync(esbuildManifest, "utf8"));
-    const platformPackage = `@esbuild/${process.platform}-${process.arch}`;
-    const platformVersion = esbuild.optionalDependencies?.[platformPackage];
-    assert(
-      typeof platformVersion === "string",
-      `esbuild ${esbuild.version} does not declare ${platformPackage}.`
-    );
-    const tempDir = mkdtempSync(join(tmpdir(), "abacus-omniroute-esbuild-"));
-    try {
-      const binaryInstall = await runCommand(
-        npmCommand,
-        [
-          ...npmArgs,
-          "install",
-          "--prefix",
-          tempDir,
-          "--no-fund",
-          "--no-audit",
-          "--legacy-peer-deps",
-          "--ignore-scripts",
-          "--no-save",
-          `${platformPackage}@${platformVersion}`,
-        ],
-        {
-          cwd: tempDir,
-          env: {
-            ...process.env,
-            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1",
-            PUPPETEER_SKIP_DOWNLOAD: "1",
-          },
-        },
-        120_000
-      );
-      assert(
-        binaryInstall.code === 0,
-        `Could not install ${platformPackage}@${platformVersion}. Last output:\n${binaryInstall.output}`
-      );
-      const [scope, packageName] = platformPackage.split("/");
-      const binarySource = join(tempDir, "node_modules", scope, packageName);
-      assert(
-        existsSync(join(binarySource, "package.json")),
-        `npm did not install the required package ${platformPackage}.`
-      );
-      const binaryDestination = join(modulesRoot, scope, packageName);
-      mkdirSync(dirname(binaryDestination), { recursive: true });
-      cpSync(binarySource, binaryDestination, { recursive: true, force: true });
-    } finally {
-      rmSync(tempDir, {
-        recursive: true,
-        force: true,
-        maxRetries: 8,
-        retryDelay: 100,
-      });
-    }
 
     // Mirror the app-owned wrapper: use one shared dashboard/API port and
     // clear inherited split-port variables before starting the pinned runtime.
@@ -763,7 +852,7 @@ async function main() {
       INITIAL_PASSWORD: password,
     });
     gateway = spawn(
-      process.execPath,
+      runtimeNode,
       [entry, "--no-open", "--no-recovery", "--port", String(port)],
       {
         cwd: dataDir,
@@ -800,8 +889,9 @@ async function main() {
       mockUpstream
     );
     console.log(
-      `[omniroute-smoke] v${VERSION}: secure loopback startup, real dashboard/CLI API-key ` +
-        "provisioning, authenticated model listing, and end-to-end Auto chat completion " +
+      `[omniroute-smoke] v${VERSION}: secure loopback startup, real ` +
+        `dashboard/CLI API-key provisioning, authenticated model listing, ` +
+        "and end-to-end Auto chat completion " +
         "through a disposable mocked OpenAI-compatible provider passed."
     );
   } catch (error) {

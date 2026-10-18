@@ -8,6 +8,21 @@ import { EventEmitter } from "node:events";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { rpcContexts } = vi.hoisted(() => ({
+  rpcContexts: [] as Array<Record<string, unknown>>,
+}));
+
+vi.mock("@orpc/server/message-port", () => ({
+  RPCHandler: class {
+    upgrade(
+      _transport: unknown,
+      options: { context: Record<string, unknown> }
+    ) {
+      rpcContexts.push(options.context);
+    }
+  },
+}));
+
 import { createRouter } from "../router";
 import { fakeDeps } from "../testing";
 import {
@@ -96,6 +111,7 @@ const install = (): MessagePortTransport =>
 
 beforeEach(() => {
   connectListener = null;
+  rpcContexts.splice(0);
   forget.mockClear();
   discard.mockClear();
   transport = install();
@@ -111,6 +127,19 @@ describe("connecting a renderer (A-T3)", () => {
     expect(port.close).not.toHaveBeenCalled();
     expect(port.start).toHaveBeenCalledTimes(1);
     expect(transport.livePorts()).toBe(1);
+  });
+
+  it("marks the trusted native message-port context as Electron", () => {
+    const contents = new FakeContents();
+    transport.registerRendererContents(contents as never, "main");
+
+    connect(contents);
+
+    expect(rpcContexts.at(-1)).toMatchObject({
+      transport: "message-port",
+      platform: "electron",
+      windowKind: "main",
+    });
   });
 
   it("refuses a subframe, an unregistered and a destroyed webContents", () => {

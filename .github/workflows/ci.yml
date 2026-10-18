@@ -375,6 +375,17 @@ jobs:
       # electron-builder walks dist/ and extraResources. Calling package:dir on
       # its own does neither and produces an asar with no main entry.
       - run: pnpm run build
+      # The electron-builder config has an explicit source-root rule for
+      # resources/omniroute-runtime/node_modules. Create that source root on
+      # every OS; Windows replaces it with the real bundled runtime below.
+      - name: Prepare OmniRoute resource root for platform packaging
+        run: >-
+          node -e 'require("node:fs").mkdirSync("apps/desktop/resources/omniroute-runtime/node_modules/omniroute/dist/node_modules", { recursive: true })'
+      - name: Bundle pinned OmniRoute and Node.js in the Windows portable app
+        if: runner.os == 'Windows'
+        env:
+          npm_config_cache: ${{ runner.temp }}/omniroute-package-npm-cache
+        run: node scripts/prepare-omniroute-runtime.mjs
       - name: Reject React Compiler bailouts
         run: pnpm --filter @abacus-ai/desktop run check:react-compiler
 
@@ -392,6 +403,10 @@ jobs:
       # Nothing before this step looks inside the packaged app.
       - name: Check the packaged app has what it spawns
         run: pnpm --filter @abacus-ai/desktop run check:packaged
+
+      - name: Smoke test OmniRoute from the packaged Windows resources
+        if: runner.os == 'Windows'
+        run: node scripts/omniroute-gateway-smoke.mjs --bundled-runtime --runtime-dir apps/desktop/release/win-unpacked/resources/omniroute-runtime
 
       # Nothing else starts the app. Typecheck and the unit suites never load
       # main/index.ts, so the failures this shape produces (a named import from

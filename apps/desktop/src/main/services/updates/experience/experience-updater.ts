@@ -18,7 +18,10 @@ import { resourcePath } from "#main/resources";
 
 import type { ExperienceStore } from "./experience-store";
 import { checkAgentBundle } from "./health-check";
-import { verifyExperience } from "./integrity";
+import {
+  incompatibleExperienceFoundation,
+  verifyExperience,
+} from "./integrity";
 import { RefusedTargets } from "./refused-targets";
 
 const TARGET = "experience/latest.zip";
@@ -234,8 +237,23 @@ export class ExperienceUpdater {
           }
         },
       });
-      // TUF verified the archive; this re-verifies the extracted tree against
-      // the manifest, whose protocol/foundationApi literals gate compatibility.
+      // TUF verified the archive bytes. A separately published experience can
+      // lag behind a newer foundation shell. Skip a signed target with an
+      // explicit version mismatch, while preserving strict checks before activation.
+      const rawManifest = JSON.parse(
+        await fs.readFile(path.join(temporary, "manifest.json"), "utf8")
+      ) as unknown;
+      const incompatibleFoundation = incompatibleExperienceFoundation(
+        rawManifest,
+        app.getVersion()
+      );
+      if (incompatibleFoundation !== null) {
+        console.warn(
+          `[experience] ignoring target for foundation ${incompatibleFoundation}; ` +
+            `current foundation is ${app.getVersion()}`
+        );
+        return targetHash;
+      }
       const manifest = await this.#refused.verify(targetHash, () =>
         verifyExperience(temporary, app.getVersion())
       );

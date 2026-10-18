@@ -34,8 +34,37 @@ extraResources:
   # directory on first run, and the third-party binaries under vendor/.
   # resolvePath() in main/resources.ts joins these same subpaths in
   # development, so there is one layout to keep in step rather than two.
+  #
+  # Exclude the bundled OmniRoute runtime here. It has dedicated entries below:
+  # copying it both through this broad resource tree and as an explicit runtime
+  # tree made electron-builder copy the same files concurrently on Windows
+  # (EBUSY while copying node_modules/omniglyph/dist/node.js).
   - from: resources/
     to: ./
+    filter:
+      - "**/*"
+      - "!omniroute-runtime/**"
+
+  # Copy OmniRoute's root runtime files separately from dependencies. Keeping
+  # node_modules out of this entry avoids overlapping ownership with the
+  # explicit dependency-tree entry below.
+  - from: resources/omniroute-runtime/
+    to: omniroute-runtime/
+    filter:
+      - "**/*"
+      - "!node_modules/**"
+
+  # electron-builder can skip a nested node_modules directory while walking a
+  # broader resources/ copy. Use node_modules as the source root explicitly so
+  # the packaged Windows runtime includes its full production dependency tree.
+  - from: resources/omniroute-runtime/node_modules/
+    to: omniroute-runtime/node_modules/
+
+  # OmniRoute's postinstall normally copies a few runtime fallbacks into this
+  # nested node_modules tree. electron-builder skips nested node_modules while
+  # walking broad resource roots, so ship this specific tree explicitly too.
+  - from: resources/omniroute-runtime/node_modules/omniroute/dist/node_modules/
+    to: omniroute-runtime/node_modules/omniroute/dist/node_modules/
   # The agent, one process per session: spawned, so it cannot live in the asar.
   # Its build metadata is not: source maps are 24 MB of the 39 MB here and
   # nothing reads them, because the agent is never spawned with

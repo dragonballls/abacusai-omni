@@ -32,6 +32,22 @@ export interface ExperienceManifest {
 
 const DIGEST = /^[\da-f]{64}$/u;
 
+/**
+ * Signed experience targets can lag behind the installed desktop foundation.
+ * Detect only a well-formed, explicit version mismatch; the strict verifier
+ * still rejects any incompatible tree before activation.
+ */
+export const incompatibleExperienceFoundation = (
+  raw: unknown,
+  expectedFoundation: string
+): string | null => {
+  if (typeof raw !== "object" || raw === null) return null;
+  const foundation = (raw as Record<string, unknown>).foundation;
+  return typeof foundation === "string" && foundation !== expectedFoundation
+    ? foundation
+    : null;
+};
+
 const parseManifest = (
   raw: unknown,
   expectedFoundation: string
@@ -55,7 +71,8 @@ const parseManifest = (
   // wants a main process this shell does not have.
   if (value.foundation !== expectedFoundation) {
     throw new Error(
-      `Experience manifest was built for foundation ${String(value.foundation)}, not ${expectedFoundation}`
+      `Experience manifest was built for foundation ${String(value.foundation)}, ` +
+        `not ${expectedFoundation}`
     );
   }
 
