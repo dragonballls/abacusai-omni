@@ -977,7 +977,7 @@ export class ForeverEngine {
           error: {
             message: compactFailure(rotation.failure),
             code: "turn_failed",
-            ...this.upgradeActionsFor(rotation.failure),
+            ...this.providerFallbackActionsFor(rotation.failure),
           },
         },
         { origin: "turn" }
@@ -1284,8 +1284,8 @@ export class ForeverEngine {
   }
 
   /**
-   * Included credits ran out on an Abacus-served turn: the app renders the
-   * upgrade card, not a red line.
+   * An Abacus-hosted or provider API allowance ran out: point toward another
+   * provider/model, not an account upgrade.
    */
   private providerFallbackActionsFor(
     raw: string
