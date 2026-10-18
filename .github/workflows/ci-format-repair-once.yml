@@ -1,0 +1,61 @@
+name: Temporary canonical formatter for BYOK repair
+on:
+  push:
+    branches:
+      - fix/byok-ci-format-pass-20261017
+permissions:
+  contents: write
+jobs:
+  format:
+    if: "${{ !contains(github.event.head_commit.message, '[ci-format-repair]') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 12.6.0
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply the narrowly scoped test fix and canonical formatting
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from "node:fs";
+          const path = "apps/web/src/routes/-phase6.routes.test.tsx";
+          let content = readFileSync(path, "utf8");
+          const missing = 'import { afterEach, beforeEach, expect, it } from "vitest";';
+          const fixed = 'import { afterEach, beforeEach, expect, it, vi } from "vitest";';
+          if (content.includes(missing)) {
+            content = content.replace(missing, fixed);
+            writeFileSync(path, content);
+          } else if (!/import \{[^}]*\bvi\b[^}]*\} from "vitest"/.test(content)) {
+            throw new Error("Could not safely locate the Vitest import to add vi.");
+          }
+          NODE
+          pnpm exec oxfmt apps/web/src/features/chat/kit/parts.test.tsx apps/web/src/features/chat/kit/parts.tsx apps/web/src/features/onboarding/auth-recovery.test.tsx apps/web/src/features/onboarding/keyboard.test.tsx apps/web/src/features/settings/pages.test.tsx apps/web/src/features/settings/platform.browser-gating.test.tsx apps/web/src/features/shell/profile-menu.test.tsx apps/web/src/platform/sign-out.test.ts apps/web/src/routes/-phase6.routes.test.tsx
+          pnpm exec oxfmt --check apps/web/src/features/chat/kit/parts.test.tsx apps/web/src/features/chat/kit/parts.tsx apps/web/src/features/onboarding/auth-recovery.test.tsx apps/web/src/features/onboarding/keyboard.test.tsx apps/web/src/features/settings/pages.test.tsx apps/web/src/features/settings/platform.browser-gating.test.tsx apps/web/src/features/shell/profile-menu.test.tsx apps/web/src/platform/sign-out.test.ts apps/web/src/routes/-phase6.routes.test.tsx
+      - name: Commit the formatted files and remove this temporary workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          git rm .github/workflows/ci-format-repair-once.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: format BYOK changes and import vi [ci-format-repair]"
+            AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            git -c "http.extraheader=AUTHORIZATION: basic $AUTH" push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "No source changes were produced; temporary workflow removed from index."
+          fi
