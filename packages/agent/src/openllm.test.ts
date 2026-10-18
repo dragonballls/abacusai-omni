@@ -2,8 +2,7 @@
  * OpenLLM's contract: given the live model list, it always has a next-best
  * free model to hand: direct provider API free quotas (Gemini, OpenRouter, and
  * other listed sources), skipping whatever failed in the last few minutes,
- * and never
- * inventing a model that is not part of the free pool.
+ * and never inventing a model that is not part of the free pool.
  *
  * The rotation state is the part worth pinning hardest. The failure mode it
  * exists for is a shared upstream quota: when one free model 429s, the next
