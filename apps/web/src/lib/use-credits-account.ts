@@ -13,8 +13,9 @@ export const useCreditsAccount = () => {
   // Some isolated component tests intentionally omit the settings RPC. Keep
   // those contexts usable, but don't treat cached settings as authoritative for
   // a desktop BYOK decision until this mount has received a fresh result.
-  const settingsOptions =
-    transport.orpc.settings?.get?.queryOptions?.({ input: {} });
+  const settingsOptions = transport.orpc.settings?.get?.queryOptions?.({
+    input: {},
+  });
   const settings = useQuery({
     ...(settingsOptions ?? {
       queryKey: ["credits-account-settings-unavailable"] as const,
