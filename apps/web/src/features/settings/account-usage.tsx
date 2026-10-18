@@ -31,9 +31,10 @@ export const AccountPage = () => {
   const local = useQuery(
     transport.orpc.account.state.queryOptions({ input: {} })
   );
-  const referrals = useQuery(
-    transport.orpc.referrals.summary.queryOptions({ input: {} })
-  );
+  const referrals = useQuery({
+    ...transport.orpc.referrals.summary.queryOptions({ input: {} }),
+    enabled: !IS_ELECTRON,
+  });
   const settings = useQuery(
     transport.orpc.settings.get.queryOptions({ input: {} })
   );
