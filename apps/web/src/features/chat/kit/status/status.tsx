@@ -220,6 +220,11 @@ const wantsUpgradeCard = (actions?: ErrorAction[]): boolean =>
       action.type === "upgrade-abacus" || action.type === "free-pool-out"
   ) === true;
 
+const exhaustedScope = (actions?: ErrorAction[]): "abacus" | "pool" =>
+  actions?.some((action) => action.type === "upgrade-abacus") === true
+    ? "abacus"
+    : "pool";
+
 export interface ErrorCardProps {
   outcome: RunOutcomeRecord;
   /** The latest terminal while the thread is idle (Retry is offered then). */

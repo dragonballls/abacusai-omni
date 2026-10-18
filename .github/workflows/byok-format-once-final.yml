@@ -57,18 +57,26 @@ jobs:
             process.exit(0);
           }
           const items = JSON.parse(readFileSync(report, "utf8"));
-          console.log(JSON.stringify(items.map((item) => ({
-            rule: item.RuleID,
-            description: item.Description,
-            file: item.File,
-            startLine: item.StartLine,
-            endLine: item.EndLine,
-            matchLength: String(item.Match ?? "").length,
-            secretLength: String(item.Secret ?? "").length,
-            knownBenignUtility: String(item.Match ?? "").includes("text-muted-foreground")
-              ? "The match contains a standard CSS utility class; review as a likely false positive."
-              : undefined,
-          })), null, 2));
+          console.log(JSON.stringify(items.map((item) => {
+            const secret = String(item.Secret ?? "");
+            const file = String(item.File ?? "");
+            const lines = existsSync(file) ? readFileSync(file, "utf8").split(/\\r?\\n/) : [];
+            const occurrences = secret.length === 0 ? [] : lines.flatMap((line, index) =>
+              line.includes(secret)
+                ? [{ line: index + 1, context: line.split(secret).join("[REDACTED]") }]
+                : []
+            );
+            return {
+              rule: item.RuleID,
+              description: item.Description,
+              file: item.File,
+              startLine: item.StartLine,
+              endLine: item.EndLine,
+              matchLength: String(item.Match ?? "").length,
+              secretLength: secret.length,
+              sourceOccurrences: occurrences,
+            };
+          }), null, 2));
           NODE
           git commit -m "fix: format BYOK changes and gate desktop billing [ci-format-repair]"
           AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
