@@ -10,13 +10,27 @@ import { useAppContext } from "#renderer/lib/use-app-context";
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
 export const useCreditsAccount = () => {
   const { transport } = useAppContext();
-  const settings = useQuery(
-    transport.orpc.settings.get.queryOptions({ input: {} })
-  );
+  // Some isolated component tests intentionally omit the settings RPC. Keep
+  // those contexts usable, but don't treat cached settings as authoritative for
+  // a desktop BYOK decision until this mount has received a fresh result.
+  const settingsOptions =
+    transport.orpc.settings?.get?.queryOptions?.({ input: {} });
+  const settings = useQuery({
+    ...(settingsOptions ?? {
+      queryKey: ["credits-account-settings-unavailable"] as const,
+      queryFn: async () => undefined,
+    }),
+    enabled: IS_ELECTRON && Boolean(settingsOptions),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const hasAbacusApiKey = Boolean(settings.data?.apiKeys?.ABACUS_API_KEY);
   // Browser sessions authenticate through their signed-in session rather than
   // a persisted desktop API key; only gate the optional account on Electron.
-  const canQueryAccount = !IS_ELECTRON || hasAbacusApiKey;
+  const canQueryAccount =
+    !IS_ELECTRON ||
+    !settingsOptions ||
+    (settings.isFetchedAfterMount && hasAbacusApiKey);
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const account = useAccount({ enabled: canQueryAccount });
