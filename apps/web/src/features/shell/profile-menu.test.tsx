@@ -30,6 +30,7 @@ const account = {
   credits_granted: 100,
   credits_used: 0,
 };
+
 const isProfileTrigger = (_name: string, element: Element | null) =>
   element?.getAttribute("data-slot") === "profile-button";
 const findProfileTrigger = () =>

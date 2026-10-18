@@ -5,8 +5,8 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import enUS from "#locales/en-US.json";
-import { IS_ELECTRON } from "#renderer/lib/platform";
 import { updateStatusQuery } from "#renderer/features/settings/updates";
+import { IS_ELECTRON } from "#renderer/lib/platform";
 import { defaultSeed, renderApp } from "#renderer/test-support/app-harness";
 const os = implement(contract);
 /** `update.events` as main serves it: the current status first, then held open. */
@@ -197,13 +197,16 @@ it.each([
       },
     },
   });
-  if (IS_ELECTRON && !apiKeys.ABACUS_API_KEY?.trim()) {
+  const hasAbacusKey =
+    "ABACUS_API_KEY" in apiKeys && apiKeys.ABACUS_API_KEY.trim().length > 0;
+  if (IS_ELECTRON && !hasAbacusKey) {
+    await screen.findByRole("heading", { name: enUS.phase5.ownKeys });
     expect(screen.queryByText("ada@example.com")).toBeNull();
     expect(fetchAccount).not.toHaveBeenCalled();
   } else {
     await screen.findByText("ada@example.com");
   }
-  const canSignOut = !IS_ELECTRON || Boolean(apiKeys.ABACUS_API_KEY?.trim());
+  const canSignOut = !IS_ELECTRON || hasAbacusKey;
   if (canSignOut) {
     expect(
       await screen.findByRole("button", { name: enUS.phase5.signOut })
