@@ -231,6 +231,8 @@ it("keeps one account cache when an exhaustion notice is cleared", () => {
   expect(state.refetch).toHaveBeenCalledOnce();
   state.exhaustedAt = null;
   view.rerender(<UpgradePromo />);
-  for (const [options] of state.query.mock.calls)
-    expect(options.queryKey).toEqual(["account"]);
+  const accountQueries = state.query.mock.calls.filter(
+    ([options]) => JSON.stringify(options.queryKey) === JSON.stringify(["account"])
+  );
+  expect(accountQueries).toHaveLength(1);
 });
