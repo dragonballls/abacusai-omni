@@ -134,7 +134,7 @@ class Chat {
 beforeAll(async () => {
   provider = await FakeProvider.start();
   fake.baseUrl = provider.baseUrl;
-  // Abacus's catalog is present, but the API-only automatic router must ignore it.
+  // Abacus's catalog is present, but the API-only route must ignore it.
   provider.serveModels([
     { id: "route-llm-open", pool: [ABACUS_MODEL] },
     {
