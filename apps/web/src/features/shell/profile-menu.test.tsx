@@ -345,9 +345,7 @@ it.each(["free", "enterprise", "trial", "unknown"] as const)(
       },
     });
     try {
-      fireEvent.click(
-        await findProfileTrigger()
-      );
+      fireEvent.click(await findProfileTrigger());
       const menu = await screen.findByRole("menu");
       expect(
         within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })
