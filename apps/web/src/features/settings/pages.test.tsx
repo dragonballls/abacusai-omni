@@ -221,6 +221,13 @@ it("legacy credit-exhaustion preferences no longer trigger provider/account refr
   app = await renderApp("/settings/models", {
     seed,
     procedures: {
+      // This regression covers a BYOK-only desktop. The harness otherwise
+      // defaults to an Abacus key, which correctly enables the profile account query.
+      settings: {
+        get: os.settings.get.handler(
+          () => ({ apiKeys: { OPENAI_API_KEY: "stored-other-key" } }) as never
+        ),
+      },
       account: { abacus: os.account.abacus.handler(fetchAccount as never) },
     },
   });
