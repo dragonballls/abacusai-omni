@@ -70,7 +70,9 @@ export const ProfileMenu = () => {
   // Desktop sign-in is optional. Read current settings directly instead
   // of coalescing with a cached query that may still contain a removed key.
   const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
-  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
+  const readSettings = useEffectEvent(
+    () => transport.client.settings.get({})
+  );
   const updateOpen = (nextOpen: boolean) => {
     if (IS_ELECTRON) setCanUseAbacusAccount(false);
     setOpen(nextOpen);
