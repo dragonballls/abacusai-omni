@@ -68,6 +68,10 @@ export const AccountPage = () => {
     },
     [pending, transport]
   );
+  const signedOutTitle = () => {
+    if (IS_ELECTRON) return t("phase5.ownKeys");
+    return t("phase5.signedOut");
+  };
   const signIn = async () => {
     const id = ++attempt.current;
     setPending(true);
@@ -84,12 +88,14 @@ export const AccountPage = () => {
   if (!account.data)
     return (
       <AreaPage title={t("settings.pages.account")}>
-        <h2 className="font-medium">{t(IS_ELECTRON ? "phase5.ownKeys" : "phase5.signedOut")}</h2>
+        <h2 className="font-medium">{signedOutTitle()}</h2>
         <p className="text-muted-foreground text-sm">
-          {t(IS_ELECTRON ? "phase5.settings.modelsDetail" : "phase5.signInDetail")}
+          {t(
+            IS_ELECTRON ? "phase5.settings.modelsDetail" : "phase5.signInDetail"
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
-{IS_ELECTRON ? (
+          {IS_ELECTRON ? (
             <>
               <Button
                 variant="secondary"
@@ -102,7 +108,8 @@ export const AccountPage = () => {
                 disabled={pending}
                 onClick={() => void signIn()}
               >
-                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")} (optional)
+                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}{" "}
+                (optional)
               </Button>
             </>
           ) : (
@@ -365,6 +372,7 @@ export const UsagePage = () => {
       Number(value) || 0
     );
   const { transport } = useAppContext();
+  const account = useAccount();
   const query = useQuery({
     ...transport.orpc.account.usage.queryOptions({ input: {} }),
     staleTime: 0,
@@ -398,6 +406,7 @@ export const UsagePage = () => {
           size="sm"
           onClick={() => {
             void query.refetch();
+            void account.refetch();
           }}
         >
           {t("phase5.refresh")}
@@ -412,6 +421,19 @@ export const UsagePage = () => {
         <>
           {snapshot.totals.requests === 0 && <p>{t("usage.empty")}</p>}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {!IS_ELECTRON && (
+              <GroupCard>
+                <SettingRow
+                  id="abacusCredits"
+                  title={t("phase5.credits")}
+                  detail={
+                    account.data
+                      ? number(account.data.credits_used)
+                      : t("phase5.unavailable")
+                  }
+                />
+              </GroupCard>
+            )}
             <GroupCard>
               <SettingRow
                 id="openrouterUsage"
