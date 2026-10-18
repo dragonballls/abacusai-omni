@@ -3,14 +3,6 @@ import type { Ref } from "react";
 
 import { Spinner } from "#renderer/components/spinner";
 import { IS_ELECTRON } from "#renderer/lib/platform";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "#renderer/ui/dropdown-menu";
-
 import { websiteSignInStarted } from "../first-run";
 import type { StepContext } from "./context";
 import { StepBody, StepButton, StepTitle } from "./kit";
@@ -32,13 +24,7 @@ export const WelcomeStep = ({
   profiles: readonly BrowserProfile[] | undefined;
   heading: Ref<HTMLHeadingElement>;
 }) => {
-  const { t, busy, props } = ctx;
-  const defaultProfile = profiles?.find((profile) => profile.isDefault);
-  const quickProfile = profiles?.find(
-    (profile) => profile.isDefault && profile.hasAbacusSession === true
-  );
-  const sessionProfiles =
-    profiles?.filter((profile) => profile.hasAbacusSession !== false) ?? [];
+  const { t, busy, props, advance } = ctx;
   if (!IS_ELECTRON)
     return (
       <>
@@ -90,60 +76,10 @@ export const WelcomeStep = ({
         ))}
       </ul>
       <div className="onboarding-actions mt-9">
-        <StepButton disabled={busy} onClick={() => props.signIn("signup")}>
-          {t("onboarding.connectCta")}
+        <StepButton disabled={busy} onClick={advance}>
+          {t("onboarding.setupDoneCta")}
         </StepButton>
-        {quickProfile ? (
-          <StepButton
-            variant="secondary"
-            disabled={busy}
-            onClick={() => props.signIn("signin", quickProfile.id)}
-          >
-            {t("onboarding.haveAccountCta")}
-          </StepButton>
-        ) : sessionProfiles.length ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<StepButton variant="secondary" disabled={busy} />}
-            >
-              {t("onboarding.haveAccountCta")}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuGroup>
-                {sessionProfiles.map((profile) => (
-                  <DropdownMenuItem
-                    key={profile.id}
-                    onClick={() => props.signIn("signin", profile.id)}
-                  >
-                    {t("onboarding.continueWithBrowser", {
-                      browser: profile.browserName,
-                      profile: profile.profileName,
-                    })}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuItem onClick={() => props.signIn("signin")}>
-                  {t("onboarding.signInAnotherWay")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <StepButton
-            variant="secondary"
-            disabled={busy}
-            onClick={() => props.signIn("signin")}
-          >
-            {t("onboarding.haveAccountCta")}
-          </StepButton>
-        )}
       </div>
-      {defaultProfile && (
-        <StepBody className="onboarding-quiet mt-3">
-          {t("onboarding.usesBrowserSessions", {
-            browser: defaultProfile.browserName,
-          })}
-        </StepBody>
-      )}
     </>
   );
 };
