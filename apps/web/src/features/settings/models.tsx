@@ -42,7 +42,6 @@ import {
 import { Field, FieldLabel, FieldError } from "#renderer/ui/field";
 import { Input } from "#renderer/ui/input";
 
-
 export const ModelsPage = ({
   adoptModel,
 }: {
