@@ -1014,9 +1014,10 @@ export class AbacusBotSession {
       this.openLlmActive = false;
       // `openllm/auto` is a free/API-source router, not permission to
       // silently fall back to an arbitrary paid or Abacus-hosted model.
-      const fallback = isOpenLlmReference(requested)
-        ? undefined
-        : registry.getAvailable()[0];
+      const fallback =
+        requested == null || isOpenLlmReference(requested)
+          ? undefined
+          : registry.getAvailable().find((candidate) => candidate.provider !== "abacus");
 
       if (fallback != null) {
         // The requested model cannot run (no key, or an empty free pool), so
