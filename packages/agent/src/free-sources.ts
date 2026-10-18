@@ -21,8 +21,7 @@ export interface FreeSource {
   provider: string;
   /**
    * The models pooled, best first. Absent: membership is decided by a rule
-   * in openllm.ts (Abacus's catalog flag, OpenRouter's `:free` suffix, every
-   * Gemini or local model).
+   * in openllm.ts (OpenRouter's `:free` suffix, every Gemini or local model).
    */
   models?: readonly string[];
   limits?: WindowLimits;
