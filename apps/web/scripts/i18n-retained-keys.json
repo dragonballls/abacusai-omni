@@ -899,6 +899,15 @@
     "workspace.worktree.currentCheckout",
     "workspace.worktree.description",
     "workspace.worktree.error",
-    "workspace.worktree.select"
+    "workspace.worktree.select",
+    "creditsCard.paidBody",
+    "creditsCard.paidTitle",
+    "creditsCard.topUpCta",
+    "onboarding.connectCta",
+    "onboarding.haveAccountCta",
+    "onboarding.usesBrowserSessions",
+    "workspace.premiumUpgrade.exhaustedTitle",
+    "workspace.premiumUpgrade.poolOutTitle",
+    "workspace.premiumUpgrade.switchNote"
   ]
 }
