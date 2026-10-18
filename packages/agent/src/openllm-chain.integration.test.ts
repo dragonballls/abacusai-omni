@@ -1,13 +1,11 @@
 /**
- * RouteLLM - Open across its whole life on a free account, in one chat:
- * the Abacus credits run out, the user connects Google AI Studio, its quota
- * runs out, they connect OpenRouter, its daily allowance runs out, and they
- * connect the rest. At every step the pool must spend sources in order, say
- * "connect another source" once nothing is left, and take up a source the
- * moment it is connected, all on tool-calling turns.
+ * RouteLLM - Open across its whole life with API keys only. The app has an
+ * Abacus key and model in its catalog, but automatic routing must not spend
+ * Abacus account credits. Once the user connects Google AI Studio, OpenRouter
+ * and other APIs, the pool tries those sources in order, handles their quotas,
+ * and takes up a new source as soon as it is connected.
  *
- * Every source is the loopback fake, told apart by the model a request
- * names; Abacus reads its catalog from it too.
+ * Every source is the loopback fake, told apart by the model a request names.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -66,12 +64,6 @@ const connect = (...ids: Array<keyof typeof SOURCES>): void => {
   fs.writeFileSync(path.join(home, "config.json"), JSON.stringify(config));
 };
 
-const OUT_OF_ABACUS_CREDITS: Reply = {
-  fail: {
-    status: 429,
-    message: "You have no remaining credits to use the LLM apis.",
-  },
-};
 const GEMINI_QUOTA_SPENT: Reply = {
   fail: {
     status: 429,
@@ -139,7 +131,7 @@ class Chat {
 beforeAll(async () => {
   provider = await FakeProvider.start();
   fake.baseUrl = provider.baseUrl;
-  // Abacus's live catalog: one model, declared the Abacus slice of the pool.
+  // Abacus's catalog is present, but the API-only automatic router must ignore it.
   provider.serveModels([
     { id: "route-llm-open", pool: [ABACUS_MODEL] },
     {
@@ -182,29 +174,27 @@ afterAll(async () => {
   delete process.env.ABACUS_API_KEY;
 });
 
-describe("RouteLLM - Open from first credit to last source", () => {
-  it("spends Abacus, then Gemini, then OpenRouter, then the rest, taking each up as it is connected", async () => {
+describe("RouteLLM - Open across direct API sources", () => {
+  it("never spends Abacus credits and falls through direct APIs as they are connected", async () => {
     const chat = new Chat();
     await chat.session.start();
 
-    // 1. Abacus credits: the only source, and it works, tools included.
+    // An Abacus API key and catalog are not a free pool source. No API provider
+    // key is connected yet, so the router reports that a model must be added.
     let turn = await chat.turn("first task");
-    expect(turn.models).toEqual([ABACUS_MODEL, ABACUS_MODEL]);
-    expect(turn.reply).toContain(`answered on ${ABACUS_MODEL}`);
-    expect(turn.error).toBeUndefined();
-
-    // 2. They run out with nothing else connected: the card, not a crash.
-    behaviour.set(ABACUS_MODEL, OUT_OF_ABACUS_CREDITS);
-    turn = await chat.turn("second task");
-    expect(turn.models).toEqual([ABACUS_MODEL]);
-    expect(turn.error?.actions?.map((action) => action.type)).toContain(
+    expect(turn.models).toEqual([]);
+    expect(turn.error?.message).toBe(OPENLLM_POOL_SHUT_MESSAGE);
+    expect(turn.error?.actions?.map((action) => action.type)).not.toContain(
       "upgrade-abacus"
     );
+    expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
+      false
+    );
 
-    // 3. Google AI Studio connected: the next turn runs on Gemini.
+    // 1. Google AI Studio connected: it works, tools included.
     connect("gemini");
     await chat.session.refreshProviders();
-    turn = await chat.turn("third task");
+    turn = await chat.turn("second task");
     expect(turn.models.filter((model) => model !== ABACUS_MODEL)).toEqual([
       "gemini-3.6-flash",
       "gemini-3.6-flash",
@@ -212,20 +202,20 @@ describe("RouteLLM - Open from first credit to last source", () => {
     expect(turn.reply).toContain("answered on gemini-3.6-flash");
     expect(turn.error).toBeUndefined();
 
-    // Abacus stays shut for the turns after: no wasted call on it.
-    turn = await chat.turn("fourth task");
+    // There are no automatic Abacus calls, even though the key is present.
+    turn = await chat.turn("third task");
     expect(turn.models).toEqual(["gemini-3.6-flash", "gemini-3.6-flash"]);
 
     // 4. The Studio quota runs out too: shut, and saying so.
     behaviour.set("gemini-3.6-flash", GEMINI_QUOTA_SPENT);
-    turn = await chat.turn("fifth task");
+    turn = await chat.turn("fourth task");
     expect(turn.models).toEqual(["gemini-3.6-flash"]);
     expect(turn.error?.message).toBe(OPENLLM_POOL_SHUT_MESSAGE);
 
     // 5. OpenRouter connected: its free models take over.
     connect("openrouter");
     await chat.session.refreshProviders();
-    turn = await chat.turn("sixth task");
+    turn = await chat.turn("fifth task");
     expect(turn.models.at(-1)).toBe("big:free");
     expect(turn.models.filter((model) => model === "big:free")).toHaveLength(2);
     expect(turn.reply).toContain("answered on big:free");
@@ -233,13 +223,13 @@ describe("RouteLLM - Open from first credit to last source", () => {
 
     // 6. Its daily free allowance runs out.
     behaviour.set("big:free", OPENROUTER_DAY_SPENT);
-    turn = await chat.turn("seventh task");
+    turn = await chat.turn("sixth task");
     expect(turn.error?.message).toBe(OPENLLM_POOL_SHUT_MESSAGE);
 
     // 7. The rest connected at once: Mistral first.
     connect("mistral", "nvidia", "cerebras", "groq");
     await chat.session.refreshProviders();
-    turn = await chat.turn("eighth task");
+    turn = await chat.turn("seventh task");
     expect(turn.models.slice(-2)).toEqual([
       "devstral-latest",
       "devstral-latest",
@@ -260,7 +250,7 @@ describe("RouteLLM - Open from first credit to last source", () => {
     behaviour.set("gpt-oss-120b", {
       fail: { status: 410, message: "Gone" },
     });
-    turn = await chat.turn("ninth task");
+    turn = await chat.turn("eighth task");
     expect(turn.models).toEqual([
       "devstral-latest",
       "moonshotai/kimi-k3",
@@ -274,7 +264,7 @@ describe("RouteLLM - Open from first credit to last source", () => {
 });
 
 describe("the same chain in a bot's chat", () => {
-  it("moves a bot from Abacus to each source as it is connected", async () => {
+  it("never auto-routes a bot through Abacus and starts on direct APIs when connected", async () => {
     const { BotSession } = await import("./bot/bot-session.js");
     behaviour.clear();
     fs.writeFileSync(
@@ -315,12 +305,11 @@ describe("the same chain in a bot's chat", () => {
 
     await bot.start();
     let result = await turn("check my inbox");
-    expect(result.models).toEqual([ABACUS_MODEL, ABACUS_MODEL]);
-    expect(result.failed).toBe(false);
-
-    behaviour.set(ABACUS_MODEL, OUT_OF_ABACUS_CREDITS);
-    result = await turn("again");
+    expect(result.models).toEqual([]);
     expect(result.failed).toBe(true);
+    expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
+      false
+    );
 
     connect("gemini");
     await bot.refreshProviders();
