@@ -157,6 +157,10 @@ export const installMessagePortTransport = ({
     handler.upgrade(withFlowAcks(tracked.peer, flows), {
       context: {
         transport: "message-port",
+        // This transport is created only by Electron's trusted main process.
+        // Set the capability explicitly: RPC procedures that open native
+        // windows must not rely on the middleware's fallback value.
+        platform: "electron",
         webContentsId: sender.id,
         windowKind: entry.kind,
         deps,
