@@ -1017,7 +1017,9 @@ export class AbacusBotSession {
       const fallback =
         requested == null || isOpenLlmReference(requested)
           ? undefined
-          : registry.getAvailable().find((candidate) => candidate.provider !== "abacus");
+          : registry.getAvailable().find(
+              (candidate) => candidate.provider !== "abacus"
+            );
 
       if (fallback != null) {
         // The requested model cannot run (no key, or an empty free pool), so
@@ -3345,7 +3347,8 @@ export class AbacusBotSession {
  * a first-time user can act on. Plain text, so it reads the same anywhere.
  */
 const NO_MODEL_CONFIGURED =
-  "No model provider is configured. Add a provider API key in Settings → Models, or choose an explicitly configured model.";
+  "No model provider is configured. Add a provider API key in " +
+  "Settings → Models, or choose an explicitly configured model.";
 
 /** What to say when one model's key is missing but others are configured. */
 const missingKeyMessage = (reference: string, provider: string): string => {
