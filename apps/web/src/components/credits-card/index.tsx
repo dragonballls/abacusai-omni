@@ -57,7 +57,7 @@ export const CreditsCard = ({
   note,
 }: {
   host: CreditActions;
-  tier: "free" | "basic" | "paid" | "unknown";
+  tier?: "free" | "basic" | "paid" | "unknown";
   scope?: "abacus" | "pool";
   onResume?(): Promise<unknown>;
   alternatives?: ReactNode;
