@@ -80,8 +80,8 @@ export const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 
 /**
  * What a session starts on when nothing was asked for. Null rather than a guess
- * when no provider is configured, so both front ends can say "configure a
- * model first" instead of failing on the first token.
+ * when no supported direct-provider default is configured. An Abacus account
+ * key alone does not select the free/API-only auto router.
  */
 export const defaultModelFor = (
   env: NodeJS.ProcessEnv = process.env
