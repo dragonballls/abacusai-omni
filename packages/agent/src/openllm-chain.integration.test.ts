@@ -312,7 +312,7 @@ describe("the same chain in a bot's chat", () => {
         (event) =>
           event.type === "event" &&
           event.event.type === "error" &&
-          event.event.error.message === "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly."
+          event.event.error.message === OPENLLM_POOL_EMPTY_MESSAGE
       )
     ).toBe(true);
     expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
