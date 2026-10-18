@@ -3,8 +3,8 @@ import { useEffect, useEffectEvent } from "react";
 
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
 import { creditMarkState } from "#renderer/lib/credits";
-import { useAccount } from "#renderer/lib/use-account";
 import { IS_ELECTRON } from "#renderer/lib/platform";
+import { useAccount } from "#renderer/lib/use-account";
 import { useAppContext } from "#renderer/lib/use-app-context";
 
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
