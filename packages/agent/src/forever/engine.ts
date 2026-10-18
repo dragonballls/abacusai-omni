@@ -108,6 +108,7 @@ import { MEDIA_CHECK_TOOL_NAME } from "../send-media.js";
 import { conversationSessionManager } from "../session-file.js";
 import type { TurnHandle } from "../session.js";
 import {
+  OPENLLM_POOL_EMPTY_MESSAGE,
   OPENLLM_POOL_EXHAUSTED_MESSAGE,
   OPENLLM_POOL_SHUT_MESSAGE,
   capRetriesWhileRouting,
@@ -573,20 +574,24 @@ export class ForeverEngine {
     };
 
     if (reference == null) {
-      const fallback = fallBack(registry.getAvailable()[0]);
-
-      return fallback != null
-        ? { model: fallback }
-        : {
-            error: NO_MODEL_CONFIGURED,
-          };
+      // No free/API candidate is not permission to fall back to Abacus credits
+      // or to an arbitrary paid model. Wait for an explicit model choice/key.
+      return {
+        error: this.openLlmActive
+          ? OPENLLM_POOL_EMPTY_MESSAGE
+          : NO_MODEL_CONFIGURED,
+      };
     }
 
     const resolved = resolveModel(runtime, reference, this.maxOutputTokens);
     const model =
       resolved.model != null && registry.hasConfiguredAuth(resolved.model)
         ? resolved.model
-        : fallBack(registry.getAvailable()[0]);
+        : this.openLlmActive
+          ? undefined
+          : fallBack(
+              registry.getAvailable().find((candidate) => candidate.provider !== "abacus")
+            );
 
     return model != null
       ? { model }
