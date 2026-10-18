@@ -369,6 +369,7 @@ export const UsagePage = () => {
       Number(value) || 0
     );
   const { transport } = useAppContext();
+  const account = useAccount();
   const query = useQuery({
     ...transport.orpc.account.usage.queryOptions({ input: {} }),
     staleTime: 0,
@@ -402,6 +403,7 @@ export const UsagePage = () => {
           size="sm"
           onClick={() => {
             void query.refetch();
+            void account.refetch();
           }}
         >
           {t("phase5.refresh")}
@@ -416,6 +418,19 @@ export const UsagePage = () => {
         <>
           {snapshot.totals.requests === 0 && <p>{t("usage.empty")}</p>}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {!IS_ELECTRON && (
+              <GroupCard>
+                <SettingRow
+                  id="abacusCredits"
+                  title={t("phase5.credits")}
+                  detail={
+                    account.data
+                      ? number(account.data.credits_used)
+                      : t("phase5.unavailable")
+                  }
+                />
+              </GroupCard>
+            )}
             <GroupCard>
               <SettingRow
                 id="openrouterUsage"
