@@ -48,7 +48,7 @@ jobs:
           git rm .github/workflows/byok-format-once-final.yml
           git reset --soft 17903a86e5462f141ae7ec52fd9bbec7909c85b5
           REPORT="$RUNNER_TEMP/gitleaks-report.json"
-          pnpm run gitleaks git --staged --redact --no-banner --report-format json --report-path "$REPORT" || true
+          pnpm run gitleaks git --staged --no-banner --report-format json --report-path "$REPORT" || true
           node --input-type=module <<'NODE'
           import { readFileSync, existsSync } from "node:fs";
           const report = process.env.RUNNER_TEMP + "/gitleaks-report.json";
@@ -57,13 +57,17 @@ jobs:
             process.exit(0);
           }
           const items = JSON.parse(readFileSync(report, "utf8"));
-          console.log(JSON.stringify(items.map(({ RuleID, Description, File, StartLine, EndLine, Commit }) => ({
-            rule: RuleID,
-            description: Description,
-            file: File,
-            startLine: StartLine,
-            endLine: EndLine,
-            commit: Commit,
+          console.log(JSON.stringify(items.map((item) => ({
+            rule: item.RuleID,
+            description: item.Description,
+            file: item.File,
+            startLine: item.StartLine,
+            endLine: item.EndLine,
+            matchLength: String(item.Match ?? "").length,
+            secretLength: String(item.Secret ?? "").length,
+            knownBenignUtility: String(item.Match ?? "").includes("text-muted-foreground")
+              ? "The match contains a standard CSS utility class; review as a likely false positive."
+              : undefined,
           })), null, 2));
           NODE
           git commit -m "fix: format BYOK changes and gate desktop billing [ci-format-repair]"
