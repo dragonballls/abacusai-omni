@@ -256,6 +256,22 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
           alternatives={
             canReply ? (
               <>
+                {composer.model && (
+                  <Button
+                    variant="secondary"
+                    data-action="switch-model"
+                    onClick={(event) =>
+                      event.currentTarget
+                        .closest('[data-slot="chat-view"]')
+                        ?.querySelector<HTMLButtonElement>(
+                          '[data-slot="chat-model-picker"]'
+                        )
+                        ?.click()
+                    }
+                  >
+                    {t("chat.error.switchModel")}
+                  </Button>
+                )}
                 {composer.model &&
                   actions
                     .filter(
