@@ -336,6 +336,12 @@ describe("the same chain in a bot's chat", () => {
     connect("gemini");
     await bot.refreshProviders();
     await bot.setModel("openllm/auto");
+    // This test checks provider selection/fallback. The session test above
+    // exercises tool round-trips; direct bot replies keep the fake provider
+    // from treating a fallback continuation as a fresh tool request.
+    behaviour.set("gemini-3.6-flash", {
+      say: "answered on gemini-3.6-flash",
+    });
     let result = await turn("again");
     expect(result.reply).toContain("answered on gemini-3.6-flash");
     expect(result.failed).toBe(false);
@@ -344,6 +350,7 @@ describe("the same chain in a bot's chat", () => {
     behaviour.set("gemini-3.6-flash", GEMINI_QUOTA_SPENT);
     connect("openrouter");
     await bot.refreshProviders();
+    behaviour.set("big:free", { say: "answered on big:free" });
     result = await turn("again");
     expect(result.reply).toContain("answered on big:free");
     expect(result.failed).toBe(false);
@@ -352,6 +359,9 @@ describe("the same chain in a bot's chat", () => {
     behaviour.set("big:free", OPENROUTER_DAY_SPENT);
     connect("mistral");
     await bot.refreshProviders();
+    behaviour.set("devstral-latest", {
+      say: "answered on devstral-latest",
+    });
     result = await turn("again");
     expect(result.reply).toContain("answered on devstral-latest");
     expect(result.failed).toBe(false);
