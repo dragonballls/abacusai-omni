@@ -24,15 +24,12 @@ import {
   SettingRow,
   StatePill,
 } from "#renderer/components/form-kit/page";
-import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
 import { followNotices } from "#renderer/data/queries/notices";
 import { useMutation } from "#renderer/data/query-client";
 import { useAppNavigate } from "#renderer/lib/navigation/use-app-navigate";
 import { IS_ELECTRON } from "#renderer/lib/platform";
 import { platformSystem } from "#renderer/lib/platform-system";
 import { useAppContext, errorText } from "#renderer/lib/use-app-context";
-import { useCreditsAccount } from "#renderer/lib/use-credits-account";
-import { useNow } from "#renderer/lib/use-now";
 import { Button } from "#renderer/ui/button";
 import {
   Dialog,
@@ -45,7 +42,6 @@ import {
 import { Field, FieldLabel, FieldError } from "#renderer/ui/field";
 import { Input } from "#renderer/ui/input";
 
-import { creditMarkState } from "./credits";
 export const ModelsPage = ({
   adoptModel,
 }: {
@@ -55,8 +51,6 @@ export const ModelsPage = ({
   const { transport } = useAppContext();
   const cache = useQueryClient();
   const navigate = useAppNavigate();
-  const prefs = usePrefs();
-  const update = useUpdatePrefs();
   const search = useSearch({ strict: false }) as {
     provider?: string;
     for?: string;
@@ -64,7 +58,6 @@ export const ModelsPage = ({
   const keys = useQuery(
     transport.orpc.settings.keys.listProviders.queryOptions({ input: {} })
   );
-  const account = useCreditsAccount();
   const state = useQuery(
     transport.orpc.localModels.state.queryOptions({
       input: {},
@@ -91,13 +84,6 @@ export const ModelsPage = ({
     }
     setOmniRouteBusy(false);
   };
-  const now = useNow();
-  const mark = creditMarkState(
-    account.data,
-    prefs.creditsExhaustedAt,
-    now,
-    false
-  );
   useEffect(() => {
     if (!IS_ELECTRON) return;
     const abort = new AbortController();
@@ -242,44 +228,6 @@ export const ModelsPage = ({
                   {omniRouteMessage}
                 </span>
               )}
-            </div>
-          </GroupCard>
-        )}
-        {mark === "show" && (
-          <GroupCard title={t("phase5.creditsExhausted")}>
-            <p className="p-3 text-sm">{t("phase5.creditsAlternatives")}</p>
-            <div className="flex gap-2 p-3">
-              <Button
-                onClick={() =>
-                  void navigate({
-                    to: "/settings/models",
-                    search: (old) => ({ ...old, provider: "openrouter" }),
-                    transition: "none",
-                  })
-                }
-              >
-                {t("phase5.connectFree")}
-              </Button>
-              {IS_ELECTRON && (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    void navigate({
-                      to: "/settings/models",
-                      search: (old) => ({ ...old, provider: "local" }),
-                      transition: "none",
-                    })
-                  }
-                >
-                  {t("phase5.useLocal")}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                onClick={() => void update({ creditsExhaustedAt: null })}
-              >
-                {t("phase5.dismiss")}
-              </Button>
             </div>
           </GroupCard>
         )}
