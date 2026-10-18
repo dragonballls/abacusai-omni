@@ -1,8 +1,8 @@
 /**
  * OpenLLM's contract: given the live model list, it always has a next-best
- * free model to hand: Abacus's drivers first, then Gemini's Studio quota,
- * then OpenRouter's free tier ranked toward the families that can drive an
- * agent loop, skipping whatever failed in the last few minutes, and never
+ * free model to hand: direct provider API free quotas (Gemini, OpenRouter, and
+ * other listed sources), skipping whatever failed in the last few minutes,
+ * and never
  * inventing a model that is not part of the free pool.
  *
  * The rotation state is the part worth pinning hardest. The failure mode it
@@ -101,42 +101,7 @@ describe("which models are in the pool", () => {
     ).toEqual([]);
   });
 
-  it("orders the Abacus slice as the platform ranked it, unranked last", () => {
-    // The catalog's `route-llm-open` entry carries the order (providers.ts
-    // turns it into poolRank), so a reorder, a new $0 model or a retired one
-    // never waits on a release. Neither family nor context window has a say.
-    const abacus = (modelId: string, poolRank?: number) =>
-      choice({
-        id: `abacus/${modelId}`,
-        free: false,
-        inputCost: 0.22,
-        poolEligible: true,
-        ...(poolRank == null ? {} : { poolRank }),
-      });
-    const candidates = openLlmCandidates([
-      abacus("deepseek-ai/DeepSeek-V4-Flash-0731", 4),
-      abacus("muse-spark-1.3", 2),
-      abacus("deepseek-ai/DeepSeek-V4.1-Flash", 3),
-      abacus("stealth/union-alpha", 1),
-      abacus("some/newcomer"),
-      abacus("deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", 0),
-    ]);
-
-    expect(candidates.map((c) => c.modelId)).toEqual([
-      "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
-      "stealth/union-alpha",
-      "muse-spark-1.3",
-      "deepseek-ai/DeepSeek-V4.1-Flash",
-      "deepseek-ai/DeepSeek-V4-Flash-0731",
-      "some/newcomer",
-    ]);
-  });
-
-  it("admits the Abacus models the provider flagged, and no others", () => {
-    // Membership is the provider's poolEligible flag, not a price line: a
-    // free-tier account's whole catalog is the pool by definition, and a
-    // hardcoded price ceiling is what emptied the pool when rates drifted
-    // past it. Unflagged models stay out however cheap they look.
+  it("never auto-routes through Abacus-hosted models, even if catalog-eligible", () => {
     const candidates = openLlmCandidates([
       choice({
         id: "abacus/route-llm-code-low",
@@ -153,13 +118,9 @@ describe("which models are in the pool", () => {
         poolRank: 1,
       }),
       choice({ id: "abacus/claude-sonnet-5", free: false, inputCost: 2 }),
-      choice({ id: "abacus/claude-opus-5", free: false, inputCost: 5 }),
     ]);
 
-    expect(candidates.map((c) => c.modelId)).toEqual([
-      "route-llm-code-low",
-      "deepseek-ai/DeepSeek-V4-Flash-0731",
-    ]);
+    expect(candidates).toEqual([]);
   });
 
   it("never admits Abacus's chat router, even flagged", () => {
@@ -230,7 +191,7 @@ describe("which models are in the pool", () => {
     expect(candidates).toEqual([]);
   });
 
-  it("orders the sources: cheap Abacus, Gemini, OpenRouter", () => {
+  it("orders direct API free sources without Abacus account credits", () => {
     const candidates = openLlmCandidates([
       choice({
         id: "abacus/route-llm-code-low",
@@ -242,11 +203,7 @@ describe("which models are in the pool", () => {
       choice({ id: "gemini/gemini-3.5-flash-lite", free: false }),
     ]);
 
-    expect(candidates.map((c) => c.provider)).toEqual([
-      "abacus",
-      "gemini",
-      "openrouter",
-    ]);
+    expect(candidates.map((c) => c.provider)).toEqual(["gemini", "openrouter"]);
   });
 
   it("ranks agent-capable families ahead of general chat, within OpenRouter", () => {
@@ -529,7 +486,7 @@ describe("a pool whose account has closed a tier", () => {
     expect(rotation.pick(freeOnly)).toBeUndefined();
   });
 
-  it("has nothing left on Abacus once the account is out of credits, $0 models included", () => {
+  it("does not auto-route Abacus models regardless of their account credit state", () => {
     const rotation = new OpenLlmRotation(() => 0);
     const abacus = openLlmCandidates([
       choice({
@@ -546,40 +503,36 @@ describe("a pool whose account has closed a tier", () => {
       }),
     ]);
 
-    rotation.markScopeFailed({ provider: "abacus" });
-
+    expect(abacus).toEqual([]);
     expect(rotation.pick(abacus)).toBeUndefined();
-    expect(rotation.poolShut(abacus)).toBe(true);
+    expect(rotation.poolShut(abacus)).toBe(false);
   });
 
-  it("remembers a refused class across sessions, and forgets it with the rest", () => {
-    // The one user who opened sixty sessions against an empty balance: each
-    // new chat has to learn the pool is shut from the store, not by failing.
+  it("remembers an exhausted provider quota across sessions", () => {
     const entries: Record<string, { until: number; failures: number }> = {};
     const store = {
       read: () => ({ ...entries }),
       write: (patch: Record<string, { until: number; failures: number }>) =>
         Object.assign(entries, patch),
     };
-    const abacus = openLlmCandidates([
+    const gemini = openLlmCandidates([
       choice({
-        id: "abacus/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+        id: "gemini/gemini-3.5-flash-lite",
         free: false,
-        poolEligible: true,
       }),
     ]);
 
-    new OpenLlmRotation(() => 0, store).markScopeFailed({ provider: "abacus" });
-    expect(entries["scope:abacus:all"]?.until).toBe(
+    new OpenLlmRotation(() => 0, store).markScopeFailed({ provider: "gemini" });
+    expect(entries["scope:gemini:all"]?.until).toBe(
       OPENLLM_ACCOUNT_COOLDOWN_MS
     );
 
     const next = new OpenLlmRotation(() => 1, store);
-    expect(next.poolShut(abacus)).toBe(true);
+    expect(next.poolShut(gemini)).toBe(true);
 
     next.clearCooldowns();
-    expect(entries["scope:abacus:all"]?.until).toBe(0);
-    expect(new OpenLlmRotation(() => 2, store).poolShut(abacus)).toBe(false);
+    expect(entries["scope:gemini:all"]?.until).toBe(0);
+    expect(new OpenLlmRotation(() => 2, store).poolShut(gemini)).toBe(false);
   });
 
   it("keeps the paid tier, which is a different allowance", () => {
