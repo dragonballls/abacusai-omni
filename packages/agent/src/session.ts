@@ -111,7 +111,6 @@ import {
 } from "./protocol.js";
 import {
   createModelRuntime,
-  listModels,
   registerAbacusProvider,
   registerCustomProviders,
   registerGeminiProvider,
@@ -1017,9 +1016,9 @@ export class AbacusBotSession {
       const fallback =
         requested == null || isOpenLlmReference(requested)
           ? undefined
-          : registry.getAvailable().find(
-              (candidate) => candidate.provider !== "abacus"
-            );
+          : registry
+              .getAvailable()
+              .find((candidate) => candidate.provider !== "abacus");
 
       if (fallback != null) {
         // The requested model cannot run (no key, or an empty free pool), so
