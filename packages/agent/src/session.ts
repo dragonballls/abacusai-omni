@@ -3531,7 +3531,7 @@ export const OPENLLM_POOL_EXHAUSTED_MESSAGE =
 export const OPENLLM_POOL_SHUT_MESSAGE =
   "Every free source is used up for now. Connect another free source, or pick a different model to keep going.";
 export const OPENLLM_POOL_EMPTY_MESSAGE =
-  "RouteLLM - Open has no model to run on yet. Pick a model, or connect Abacus.AI, Google AI Studio or OpenRouter from the model list.";
+  "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly.";
 
 /** The provider rejected the credential, rather than the account's balance. */
 function isAuthFailure(raw: string): boolean {
