@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
@@ -10,48 +9,30 @@ import { useAppContext } from "#renderer/lib/use-app-context";
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
 export const useCreditsAccount = () => {
   const { transport } = useAppContext();
-  // Some isolated component tests intentionally omit the settings RPC. Keep
-  // those contexts usable, but don't treat cached settings as authoritative for
-  // a desktop BYOK decision until this mount has received a fresh result.
-  const settingsOptions = transport.orpc.settings?.get?.queryOptions?.({
-    input: {},
-  });
-  const hasSettingsQuery = Boolean(settingsOptions);
-  const settings = useQuery({
-    ...(settingsOptions ?? {
-      queryKey: ["credits-account-settings-unavailable"] as const,
-      queryFn: async () => undefined,
-    }),
-    enabled: false,
-    staleTime: 0,
-  });
-  // Require the result of a settings request started by this hook. Cached
-  // settings can still contain an Abacus key that has since been removed.
-  const [verifiedSettingsAt, setVerifiedSettingsAt] = useState<number | null>(
-    null
+  // A desktop account endpoint is optional. Query settings directly rather
+  // than trusting a cached query that can still contain a removed Abacus key.
+  const hasSettingsQuery = typeof transport.client.settings?.get === "function";
+  const [desktopAccountAllowed, setDesktopAccountAllowed] = useState(
+    !IS_ELECTRON || !hasSettingsQuery
   );
-  const { refetch: refetchSettings } = settings;
+  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
   useEffect(() => {
     if (!IS_ELECTRON || !hasSettingsQuery) return;
     let active = true;
-    void refetchSettings({ cancelRefetch: false })
-      .then((result) => {
+    void readSettings()
+      .then((settings) => {
         if (active)
-          setVerifiedSettingsAt(!result.isError ? result.dataUpdatedAt : null);
+          setDesktopAccountAllowed(Boolean(settings?.apiKeys?.ABACUS_API_KEY));
       })
       .catch(() => {
-        if (active) setVerifiedSettingsAt(null);
+        if (active) setDesktopAccountAllowed(false);
       });
     return () => {
       active = false;
     };
-  }, [hasSettingsQuery, refetchSettings]);
+  }, [hasSettingsQuery]);
   const canQueryAccount =
-    !IS_ELECTRON ||
-    !hasSettingsQuery ||
-    (verifiedSettingsAt !== null &&
-      settings.dataUpdatedAt >= verifiedSettingsAt &&
-      Boolean(settings.data?.apiKeys?.ABACUS_API_KEY));
+    !IS_ELECTRON || !hasSettingsQuery || desktopAccountAllowed;
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const account = useAccount({ enabled: canQueryAccount });
