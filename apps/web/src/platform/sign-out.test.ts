@@ -15,6 +15,12 @@ import { renderApp } from "#renderer/test-support/app-harness";
 
 import { signOutAbacus } from "./sign-out.electron";
 
+const findProfileTrigger = () =>
+  screen.findByRole("button", {
+    name: (_name: string, element: Element | null) =>
+      element?.getAttribute("data-slot") === "profile-button",
+  });
+
 afterEach(() => {
   onboardingStore.setState(() => ({ signIn: null, createdBotId: null }));
   tourSignedOut();
@@ -114,7 +120,7 @@ it.each(["settings", "profile"])(
     try {
       startTour({ onboarded: true });
       if (entry === "profile") {
-        fireEvent.click(await screen.findByRole("button", { name: "Demo" }));
+        fireEvent.click(await findProfileTrigger());
         fireEvent.click(
           await screen.findByRole("menuitem", { name: enUS.profile.logOut })
         );

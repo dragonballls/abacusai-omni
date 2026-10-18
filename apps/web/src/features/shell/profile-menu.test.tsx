@@ -30,6 +30,12 @@ const account = {
   credits_granted: 100,
   credits_used: 0,
 };
+const isProfileTrigger = (_name: string, element: Element | null) =>
+  element?.getAttribute("data-slot") === "profile-button";
+const findProfileTrigger = () =>
+  screen.findByRole("button", { name: isProfileTrigger });
+const getProfileTrigger = () =>
+  screen.getByRole("button", { name: isProfileTrigger });
 it("keeps Settings in the rail, changes the shared theme and deep-links Usage", async () => {
   const app = await renderApp("/sessions/new", {
     procedures: {
@@ -37,13 +43,13 @@ it("keeps Settings in the rail, changes the shared theme and deep-links Usage", 
     },
   });
   try {
-    const trigger = await screen.findByRole("button", { name: account.name });
+    const trigger = await findProfileTrigger();
     expect(
       screen.getByRole("link", { name: en.shell.rail.settings })
     ).toBeTruthy();
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getByText(account.email)).toBeTruthy();
+    expect(await within(menu).findByText(account.email)).toBeTruthy();
     expect(
       within(menu).queryByRole("menuitem", { name: /Settings/ })
     ).toBeNull();
@@ -73,7 +79,7 @@ it("exposes one Theme radio group, keeps selection open, and supports roving foc
     },
   });
   try {
-    const trigger = await screen.findByRole("button", { name: account.name });
+    const trigger = await findProfileTrigger();
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
     const group = within(menu).getByRole("radiogroup", {
@@ -146,7 +152,7 @@ it("does not expose referral rewards or query referral credits in the desktop pr
     },
   });
   try {
-    const trigger = await screen.findByRole("button", { name: account.name });
+    const trigger = await findProfileTrigger();
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
     expect(
@@ -213,7 +219,7 @@ it("keeps the account-agent link tied to account access without inserting a cred
     await refresh();
     await screen.findByRole("link", { name: en.profile.agent });
     expect(document.querySelector('[data-slot="upgrade-promo"]')).toBeNull();
-    const trigger = screen.getByRole("button", { name: account.name });
+    const trigger = getProfileTrigger();
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
     expect(
@@ -271,7 +277,7 @@ it.each(["pinned", "collapsed", "strip", "floating", "phone"] as const)(
           .getByRole("link", { name: en.shell.rail.settings })
           .closest('[data-slot="rail"]')
       ).toBeTruthy();
-      const trigger = screen.getByRole("button", { name: account.name });
+      const trigger = getProfileTrigger();
       expect(trigger.closest('[data-slot="rail"]')).toBeTruthy();
       fireEvent.click(trigger);
       const menu = await screen.findByRole("menu");
@@ -284,9 +290,7 @@ it.each(["pinned", "collapsed", "strip", "floating", "phone"] as const)(
       await waitFor(() => {
         // The floating shell may remount the rail as it closes; focus must
         // return to the current profile trigger, not a detached old node.
-        const currentTrigger = screen.getByRole("button", {
-          name: account.name,
-        });
+        const currentTrigger = getProfileTrigger();
         expect(document.activeElement).toBe(currentTrigger);
       });
     } finally {
@@ -309,7 +313,7 @@ it.each([
     },
   });
   try {
-    fireEvent.click(await screen.findByRole("button", { name: account.name }));
+    fireEvent.click(await findProfileTrigger());
     const labels = {
       "settings.pages.account": en.settings.pages.account,
       "settings.pages.usage": en.settings.pages.usage,
@@ -340,7 +344,7 @@ it.each(["free", "enterprise", "trial", "unknown"] as const)(
     });
     try {
       fireEvent.click(
-        await screen.findByRole("button", { name: account.name })
+        await findProfileTrigger()
       );
       const menu = await screen.findByRole("menu");
       expect(
@@ -377,7 +381,7 @@ it("does not load referral-credit progress in the desktop profile menu", async (
     },
   });
   try {
-    fireEvent.click(await screen.findByRole("button", { name: account.name }));
+    fireEvent.click(await findProfileTrigger());
     const menu = await screen.findByRole("menu");
     expect(
       within(menu).queryByRole("menuitem", { name: en.referrals.title })
@@ -396,7 +400,7 @@ it("supports menu typeahead, arrows and Escape with focus return", async () => {
     },
   });
   try {
-    const trigger = await screen.findByRole("button", { name: account.name });
+    const trigger = await findProfileTrigger();
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
     fireEvent.keyDown(menu, { key: "u" });
