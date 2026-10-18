@@ -33,7 +33,7 @@ it("browser search hides native pages, native controls and local model shortcuts
     settingsIndexFor(true, "linux").some((entry) => entry.id === "localModels")
   ).toBe(true);
 });
-it("exhausted browser credits never offer the hidden local-model surface", async () => {
+it("legacy Abacus credit exhaustion shows no paywall or hidden local-model surface", async () => {
   const seed = defaultSeed();
   seed.prefs!.creditsExhaustedAt = Date.now();
   const impl = implement(contract);
@@ -53,8 +53,10 @@ it("exhausted browser credits never offer the hidden local-model surface", async
     },
   });
   try {
-    expect(await screen.findByText(enUS.phase5.creditsExhausted)).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy();
+    expect(screen.queryByText(enUS.phase5.creditsExhausted)).toBeNull();
     expect(screen.queryByText("Use a local model")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upgrade|Manage plan|Top up/i })).toBeNull();
   } finally {
     app.view.unmount();
     await app.cleanup();

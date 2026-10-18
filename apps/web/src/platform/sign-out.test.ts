@@ -66,7 +66,7 @@ it("does not clear the desktop account when removing its key fails", async () =>
 });
 
 it.each(["settings", "profile"])(
-  "signs out from %s into onboarding and keeps the completed setup flag",
+  "signs out from %s without blocking direct-provider use and keeps completed setup",
   async (entry) => {
     const os = implement(contract);
     let signedIn = true;
@@ -130,11 +130,14 @@ it.each(["settings", "profile"])(
         })
       );
       await waitFor(() =>
-        expect(app.router.state.location.pathname).toBe("/onboarding/welcome")
+        expect(app.router.state.location.pathname).toBe(
+          entry === "settings" ? "/onboarding/welcome" : "/sessions/new"
+        )
       );
-      expect(
-        await screen.findByRole("button", { name: "Sign up for free" })
-      ).toBeTruthy();
+      if (entry === "settings") {
+        expect(await screen.findByRole("button", { name: "Continue" })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+      }
       expect(app.history.canGoBack()).toBe(false);
       expect(signedIn).toBe(false);
       expect(tourStore.state.active).toBeNull();
@@ -142,82 +145,11 @@ it.each(["settings", "profile"])(
         onboarded: true,
       });
       await app.router.navigate({ to: "/bots/new" });
-      expect(app.router.state.location.pathname).toBe("/onboarding/welcome");
-      fireEvent.click(
-        await screen.findByRole("button", {
-          name: enUS.onboarding.haveAccountCta,
-        })
-      );
-      await waitFor(() =>
-        expect(app.router.state.location.pathname).toBe("/bots/new")
-      );
-      expect(signedIn).toBe(true);
+      expect(app.router.state.location.pathname).toBe("/bots/new");
+      expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
     } finally {
       app.view.unmount();
       await app.cleanup();
     }
   }
 );
-
-it("forgets local setup without signing out or deleting conversations", async () => {
-  const os = implement(contract);
-  let onboarded = true;
-  const app = await renderApp("/settings/account", {
-    onboarded: true,
-    signedIn: true,
-    procedures: {
-      account: {
-        state: os.account.state.handler(() => ({
-          account: null,
-          apps: [],
-          onboarded,
-        })),
-        abacus: os.account.abacus.handler(
-          () => ({ name: "Demo", email: "demo@example.test" }) as never
-        ),
-        forget: os.account.forget.handler(() => {
-          onboarded = false;
-          return { account: null, apps: [], onboarded };
-        }),
-      },
-    },
-  });
-  try {
-    await app.appDb.updatePrefs({
-      onboardingExit: { to: "bot-tour", botId: "old-bot" },
-      onboardingPairing: ["telegram"],
-      tour: { status: "done", at: 123 },
-    });
-    const sessionIds = [...app.collections.sessions.keys()];
-    startTour({ onboarded: true });
-    fireEvent.click(
-      await screen.findByRole("button", { name: enUS.phase5.forget })
-    );
-    const dialog = await screen.findByRole("alertdialog");
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: enUS.phase5.forget })
-    );
-    await waitFor(() =>
-      expect(app.router.state.location.pathname).toBe("/onboarding/connected")
-    );
-    expect(app.history.canGoBack()).toBe(false);
-    expect(
-      screen.queryByRole("button", { name: "Sign up for free" })
-    ).toBeNull();
-    expect(await app.transport.client.settings.get({})).toMatchObject({
-      apiKeys: { ABACUS_API_KEY: expect.any(String) },
-    });
-    expect([...app.collections.sessions.keys()]).toEqual(sessionIds);
-    expect(app.collections.prefs.get("app")).toMatchObject({
-      onboardingExit: null,
-      onboardingPairing: [],
-      tour: { status: "unseen", at: null },
-    });
-    expect(tourStore.state.active).toBeNull();
-    await app.router.navigate({ to: "/sessions/new" });
-    expect(app.router.state.location.pathname).toMatch(/^\/onboarding\//);
-  } finally {
-    app.view.unmount();
-    await app.cleanup();
-  }
-});

@@ -90,7 +90,9 @@ describe("ModelsStep", () => {
       null,
     ]);
     // Signed out: Abacus is just another optional API-key provider.
-    fireEvent.click(screen.getAllByRole("button", { name: "Add API key" })[1]!);
+    const abacusKeyButton = rows[2]!.querySelector<HTMLButtonElement>("button");
+    expect(abacusKeyButton).not.toBeNull();
+    fireEvent.click(abacusKeyButton!);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toMatch(/Abacus\.AI/);
     expect(context.props.signIn).not.toHaveBeenCalled();

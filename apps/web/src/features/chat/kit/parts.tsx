@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "#renderer/lib/cn";
+import { IS_ELECTRON } from "#renderer/lib/platform";
 import { useVisibleContextualUpsell } from "#renderer/lib/contextual-upsell";
 import {
   Attachment,
@@ -41,8 +42,11 @@ export const FeatureLimitNotice = ({
 }) => {
   const { t } = useTranslation();
   const [action, setAction] = useState<"upgrade" | "manage" | null>(null);
-  const promotionRef = useVisibleContextualUpsell(action === "upgrade");
+  const promotionRef = useVisibleContextualUpsell(
+    !IS_ELECTRON && action === "upgrade"
+  );
   useEffect(() => {
+    if (IS_ELECTRON) return;
     let live = true;
     void Promise.all([host.accountTier(), host.canTopUpCredits?.() ?? false])
       .then(([tier, eligible]) => {
@@ -64,10 +68,10 @@ export const FeatureLimitNotice = ({
     <div
       className="flex min-w-0 flex-col items-start gap-3 rounded-xl bg-[var(--chat-surface)] p-3 text-sm"
       data-slot="feature-limit"
-      ref={promotionRef}
+      ref={IS_ELECTRON ? undefined : promotionRef}
     >
       {t("chat.part.featureLimit", { feature })}
-      {action && (
+      {!IS_ELECTRON && action && (
         <Button
           variant="secondary"
           className="max-w-full whitespace-normal"

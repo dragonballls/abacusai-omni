@@ -30,17 +30,6 @@ const account = {
   credits_granted: 100,
   credits_used: 0,
 };
-const summary = {
-  inviteLink: "https://example.com/invite/dummy",
-  invitesSent: 2,
-  milestoneInvites: 5,
-  milestoneCredits: 100,
-  milestoneGranted: false,
-  friendsJoined: 1,
-  creditsPerFriend: 10,
-  gmailConnected: false,
-};
-
 it("keeps Settings in the rail, changes the shared theme and deep-links Usage", async () => {
   const app = await renderApp("/sessions/new", {
     procedures: {
@@ -139,69 +128,46 @@ it("exposes one Theme radio group, keeps selection open, and supports roving foc
   }
 });
 
-it("opens a referral dialog, copies the real link, selects it on clipboard failure, and returns focus", async () => {
-  const copy = vi.fn().mockResolvedValue(undefined);
-  const previousClipboard = Object.getOwnPropertyDescriptor(
-    navigator,
-    "clipboard"
-  );
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: { writeText: copy },
-  });
+it("does not expose referral rewards or query referral credits in the desktop profile menu", async () => {
+  const referralSummary = vi.fn(() => ({
+    inviteLink: "https://example.com/invite/dummy",
+    invitesSent: 2,
+    milestoneInvites: 5,
+    milestoneCredits: 100,
+    milestoneGranted: false,
+    friendsJoined: 1,
+    creditsPerFriend: 10,
+    gmailConnected: false,
+  }));
   const app = await renderApp("/sessions/new", {
     procedures: {
       account: { abacus: os.account.abacus.handler(() => account) },
-      referrals: { summary: os.referrals.summary.handler(() => summary) },
+      referrals: { summary: os.referrals.summary.handler(referralSummary) },
     },
   });
   try {
     const trigger = await screen.findByRole("button", { name: account.name });
     fireEvent.click(trigger);
-    fireEvent.click(
-      await screen.findByRole("menuitem", { name: en.referrals.title })
-    );
-    const dialog = await screen.findByRole("dialog", {
-      name: en.referrals.title,
-    });
-    expect(await within(dialog).findByText("2 of 5 invites sent")).toBeTruthy();
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: en.phase5.copyInvite })
-    );
-    await waitFor(() => expect(copy).toHaveBeenCalledWith(summary.inviteLink));
-    await screen.findByRole("button", { name: en.phase5.copied });
-    copy.mockRejectedValueOnce(new Error("Clipboard denied"));
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: en.phase5.copied })
-    );
-    const field = within(dialog).getByRole("textbox", {
-      name: en.phase5.inviteLink,
-    }) as HTMLInputElement;
-    await waitFor(() => expect(document.activeElement).toBe(field));
-    expect(field.selectionEnd).toBe(summary.inviteLink.length);
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: en.profile.close })
-    );
-    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: en.referrals.title })).toBeNull();
+    expect(referralSummary).not.toHaveBeenCalled();
   } finally {
     app.view.unmount();
     await app.cleanup();
-    if (previousClipboard)
-      Object.defineProperty(navigator, "clipboard", previousClipboard);
-    else Reflect.deleteProperty(navigator, "clipboard");
   }
 });
 
-it("swaps the paid link and free promo from the shared account cache without a paid mascot", async () => {
+it("keeps the account-agent link tied to account access without inserting a credit-upgrade promo", async () => {
   let current = account;
   const open = vi.fn();
   const app = await renderApp("/sessions/new", {
     procedures: {
       account: { abacus: os.account.abacus.handler(() => current) },
       system: {
-        openExternal: os.system.openExternal.handler(({ input }) =>
-          open(input)
-        ),
+        openExternal: os.system.openExternal.handler(({ input }) => open(input)),
       },
     },
   });
@@ -216,22 +182,24 @@ it("swaps the paid link and free promo from the shared account cache without a p
     expect(link.getAttribute("href")).toBe(ABACUS_AGENT_URL);
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     fireEvent.click(link);
-    await waitFor(() =>
-      expect(open).toHaveBeenCalledWith({ url: ABACUS_AGENT_URL })
-    );
-    current = {
-      ...account,
-      plan: "Free",
-      subscription_tier: "free",
-      credits_used: 100,
-    };
+    await waitFor(() => expect(open).toHaveBeenCalledWith({ url: ABACUS_AGENT_URL }));
+    current = { ...account, plan: "Free", subscription_tier: "free", credits_used: 100 };
     await refresh();
-    await screen.findByRole("button", { name: en.creditsCard.cta });
-    expect(screen.queryByRole("link", { name: en.profile.agent })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: en.profile.agent })).toBeNull()
+    );
+    expect(screen.queryByRole("button", { name: en.creditsCard.cta })).toBeNull();
+    expect(document.querySelector('[data-slot="upgrade-promo"]')).toBeNull();
     current = account;
     await refresh();
     await screen.findByRole("link", { name: en.profile.agent });
     expect(document.querySelector('[data-slot="upgrade-promo"]')).toBeNull();
+    const trigger = screen.getByRole("button", { name: account.name });
+    fireEvent.click(trigger);
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
   } finally {
     app.view.unmount();
     await app.cleanup();
@@ -307,7 +275,6 @@ it.each(["pinned", "collapsed", "strip", "floating", "phone"] as const)(
 it.each([
   ["settings.pages.account", "/settings/account"],
   ["settings.pages.usage", "/settings/usage"],
-  ["phase5.managePlan", "/settings/account"],
   ["settings.pages.appearance", "/settings/appearance"],
   ["profile.help", "/settings/about"],
 ] as const)("routes %s into Settings", async (key, path) => {
@@ -321,7 +288,6 @@ it.each([
     const labels = {
       "settings.pages.account": en.settings.pages.account,
       "settings.pages.usage": en.settings.pages.usage,
-      "phase5.managePlan": en.phase5.managePlan,
       "settings.pages.appearance": en.settings.pages.appearance,
       "profile.help": en.profile.help,
     };
@@ -334,7 +300,7 @@ it.each([
 });
 
 it.each(["free", "enterprise", "trial", "unknown"] as const)(
-  "keeps the %s menu honest",
+  "never offers an Abacus credit or plan upgrade in the %s menu",
   async (tier) => {
     const app = await renderApp("/sessions/new", {
       procedures: {
@@ -356,10 +322,8 @@ it.each(["free", "enterprise", "trial", "unknown"] as const)(
         within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })
       ).toBeNull();
       expect(
-        Boolean(
-          within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })
-        )
-      ).toBe(tier === "free");
+        within(menu).queryByRole("menuitem", { name: en.creditsCard.cta })
+      ).toBeNull();
       expect(
         screen.queryByRole("link", { name: en.profile.agent }) !== null
       ).toBe(tier === "enterprise");
@@ -370,45 +334,28 @@ it.each(["free", "enterprise", "trial", "unknown"] as const)(
   }
 );
 
-it.each([
-  [0, 0],
-  [-2, 5],
-  [1_240_000, 5],
-])("shows actual referral progress for %s / %s", async (sent, total) => {
+it("does not load referral-credit progress in the desktop profile menu", async () => {
+  const referralSummary = vi.fn(() => ({
+    inviteLink: "https://example.com/invite/dummy",
+    invitesSent: 2,
+    milestoneInvites: 5,
+    milestoneCredits: 100,
+    milestoneGranted: false,
+    friendsJoined: 1,
+    creditsPerFriend: 10,
+    gmailConnected: false,
+  }));
   const app = await renderApp("/sessions/new", {
     procedures: {
       account: { abacus: os.account.abacus.handler(() => account) },
-      referrals: {
-        summary: os.referrals.summary.handler(() => ({
-          ...summary,
-          invitesSent: sent,
-          milestoneInvites: total,
-        })),
-      },
+      referrals: { summary: os.referrals.summary.handler(referralSummary) },
     },
   });
   try {
     fireEvent.click(await screen.findByRole("button", { name: account.name }));
-    fireEvent.click(
-      await screen.findByRole("menuitem", { name: en.referrals.title })
-    );
-    const dialog = await screen.findByRole("dialog", {
-      name: en.referrals.title,
-    });
-    if (total > 0) {
-      const text = en.referrals.progressTitle
-        .replace(
-          "{{sent}}",
-          new Intl.NumberFormat("en-US").format(Math.max(0, sent))
-        )
-        .replace("{{total}}", String(total));
-      expect(await within(dialog).findByText(text)).toBeTruthy();
-    } else {
-      await within(dialog).findByRole("textbox", {
-        name: en.phase5.inviteLink,
-      });
-      expect(within(dialog).queryByText(/invites sent/)).toBeNull();
-    }
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: en.referrals.title })).toBeNull();
+    expect(referralSummary).not.toHaveBeenCalled();
   } finally {
     app.view.unmount();
     await app.cleanup();
@@ -431,7 +378,7 @@ it("supports menu typeahead, arrows and Escape with focus return", async () => {
     );
     fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
     await waitFor(() =>
-      expect(document.activeElement?.textContent).toBe(en.phase5.managePlan)
+      expect(document.activeElement?.textContent).toBe(en.settings.pages.appearance)
     );
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     await waitFor(() => expect(document.activeElement).toBe(trigger));

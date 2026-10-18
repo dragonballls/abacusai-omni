@@ -37,10 +37,11 @@ describe("primaryAction", () => {
   };
   it("names each step's continue", () => {
     primaryAction("welcome", actions)!();
-    expect(actions.signIn).toHaveBeenCalledWith("signup");
+    expect(actions.advance).toHaveBeenCalledTimes(1);
+    expect(actions.signIn).not.toHaveBeenCalled();
     primaryAction("connected", actions)!();
     primaryAction("models", actions)!();
-    expect(actions.advance).toHaveBeenCalledTimes(2);
+    expect(actions.advance).toHaveBeenCalledTimes(3);
     primaryAction("connectors", actions)!();
     expect(actions.continueConnectors).toHaveBeenCalled();
     primaryAction("first-bot", actions)!();
@@ -53,29 +54,21 @@ describe("primaryAction", () => {
 });
 
 describe("onboarding keys", () => {
-  it("Enter on welcome starts the sign-up; Escape on connect cancels back to welcome", async () => {
-    let settle!: () => void;
+  it("Enter on welcome advances directly to provider setup without starting signup", async () => {
+    const authStart = vi.fn(async () => ({ ok: true as const }));
     app = await renderApp("/onboarding/welcome", {
       onboarded: false,
-      authStart: () =>
-        new Promise((resolve) => {
-          settle = () =>
-            resolve({ ok: false, error: "cancelled", cancelled: true });
-        }),
+      signedIn: false,
+      authStart,
     });
-    await screen.findByRole("button", { name: "Sign up for free" });
+    expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+    await screen.findByRole("button", { name: "Continue" });
     await press("Enter");
     await waitFor(() =>
-      expect(app!.router.state.location.pathname).toBe("/onboarding/connect")
+      expect(app!.router.state.location.pathname).toBe("/onboarding/models")
     );
-    expect(onboardingStore.state.signIn?.intent).toBe("signup");
-    await screen.findByRole("button", { name: "Cancel" });
-    await press("Escape");
-    await waitFor(() =>
-      expect(app!.router.state.location.pathname).toBe("/onboarding/welcome")
-    );
-    expect(onboardingStore.state.signIn).toBeNull();
-    settle();
+    expect(authStart).not.toHaveBeenCalled();
+    expect(app!.calls.filter(([name]) => name === "auth.abacus.start")).toHaveLength(0);
   });
 
   it("Enter on models continues, Escape on connectors goes back; a focused control keeps its own Enter", async () => {
