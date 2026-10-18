@@ -185,9 +185,9 @@ describe("RouteLLM - Open across direct API sources", () => {
     // An Abacus API key and catalog are not a free pool source. With no
     // direct API source configured, startup must not fall back to Abacus.
     expect(
-      chat.agent("error").some(
-        (event) => event.error.message === OPENLLM_POOL_EMPTY_MESSAGE
-      )
+      chat
+        .agent("error")
+        .some((event) => event.error.message === OPENLLM_POOL_EMPTY_MESSAGE)
     ).toBe(true);
     expect(provider.calls.some((call) => call.model === ABACUS_MODEL)).toBe(
       false
@@ -289,7 +289,21 @@ describe("the same chain in a bot's chat", () => {
     const turn = async (text: string) => {
       const before = provider.calls.length;
       const seen = events.length;
+      const completedBefore = events.filter(
+        (event) =>
+          event.type === "event" && event.event.type === "turn_complete"
+      ).length;
       await bot.send(text);
+      const deadline = Date.now() + 15_000;
+      while (
+        events.filter(
+          (event) =>
+            event.type === "event" && event.event.type === "turn_complete"
+        ).length === completedBefore
+      ) {
+        if (Date.now() > deadline) throw new Error("bot turn never completed");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
       const fresh = events
         .slice(seen)
         .filter(
