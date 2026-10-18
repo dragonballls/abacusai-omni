@@ -219,11 +219,6 @@ const wantsUpgradeCard = (actions?: ErrorAction[]): boolean =>
       action.type === "upgrade-abacus" || action.type === "free-pool-out"
   ) === true;
 
-const exhaustedScope = (actions?: ErrorAction[]): "abacus" | "pool" =>
-  actions?.some((action) => action.type === "upgrade-abacus") === true
-    ? "abacus"
-    : "pool";
-
 export interface ErrorCardProps {
   outcome: RunOutcomeRecord;
   /** The latest terminal while the thread is idle (Retry is offered then). */
@@ -258,7 +253,6 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
       >
         <CreditsCard
           host={runtime.host}
-          scope={exhaustedScope(actions)}
           alternatives={
             canReply ? (
               <>
@@ -354,9 +348,7 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
                           '[data-slot="chat-model-picker"]'
                         )
                         ?.click();
-                  } else if (action.type === "upgrade-abacus")
-                    void runtime.host.openUpgrade();
-                  else if (action.link != null)
+                  } else if (action.type !== "upgrade-abacus" && action.link != null)
                     void runtime.host.openExternal(action.link);
                 }}
               >
@@ -546,9 +538,7 @@ export const NoticeRow = ({
                       '[data-slot="chat-model-picker"]'
                     )
                     ?.click();
-              } else if (action.type === "upgrade-abacus")
-                void runtime.host.openUpgrade();
-              else if (action.link != null)
+              } else if (action.type !== "upgrade-abacus" && action.link != null)
                 void runtime.host.openExternal(action.link);
             }}
           >
