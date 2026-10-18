@@ -13,10 +13,10 @@ import { OnboardingProviderKey } from "./provider-key";
 
 const ROWS = [
   {
-    id: "abacus",
-    mark: "abacus",
-    lead: "onboarding.setupBlurbAbacusLead",
-    accent: "onboarding.setupBlurbAbacusAccent",
+    id: "gemini",
+    mark: "gemini",
+    lead: "onboarding.setupBlurbGeminiLead",
+    accent: "onboarding.setupBlurbGeminiAccent",
     tail: null,
   },
   {
@@ -27,10 +27,10 @@ const ROWS = [
     tail: "onboarding.setupBlurbOpenrouterTail",
   },
   {
-    id: "gemini",
-    mark: "gemini",
-    lead: "onboarding.setupBlurbGeminiLead",
-    accent: "onboarding.setupBlurbGeminiAccent",
+    id: "abacus",
+    mark: "abacus",
+    lead: "onboarding.setupBlurbAbacusLead",
+    accent: "onboarding.setupBlurbAbacusAccent",
     tail: null,
   },
 ] as const;
