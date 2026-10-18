@@ -58,10 +58,9 @@ export interface ModelChoice {
   reasoning: boolean;
   contextWindow: number;
   /**
-   * Abacus only: whether this model belongs in OpenLLM's free pool, and where
-   * in the Abacus slice it is tried. Both come from the catalog's
-   * `route-llm-open` entry (see abacusPool), so a stale openllm selection can
-   * never route onto premium models.
+   * Abacus catalog metadata retained for compatibility and explicit model
+   * selection. The API-only `openllm/auto` router ignores these flags and
+   * never auto-routes through Abacus account credits.
    */
   poolEligible?: boolean;
   poolRank?: number;
@@ -189,7 +188,7 @@ interface AbacusPiModel {
   id: string;
   name: string;
   reasoning: boolean;
-  /** OpenLLM pool membership and order; see ModelChoice.poolEligible. */
+  /** Legacy catalog metadata; automatic OpenLLM routing does not use it. */
   poolEligible?: boolean;
   poolRank?: number;
   /** The platform says it bills nothing; see AbacusCatalogEntry.free. */
@@ -220,7 +219,7 @@ interface AbacusCatalogEntry {
   thinking?: boolean;
   /** Priced $0/$0 by the platform: bills nothing, and keeps serving once the balance is gone. */
   free?: boolean;
-  /** `route-llm-open` only: the Abacus models the pool tries, in order. */
+  /** `route-llm-open` catalog descriptor retained for compatibility. */
   pool?: string[];
 }
 
@@ -261,15 +260,13 @@ const CHAT_ROUTER_ID = "route-llm";
 const CODE_ROUTER_ID = "route-llm-code";
 const CODE_ROUTER_LOW_ID = "route-llm-code-low";
 /**
- * Not a model: the catalog entry describing the Abacus slice of OpenLLM's
- * pool (which models, in which order), so that lives on the platform and
- * changes there without an app release.
+ * Not a model: a legacy catalog descriptor for the Abacus slice of OpenLLM.
+ * The current API-only automatic route does not consume this descriptor.
  */
 export const OPEN_POOL_ID = "route-llm-open";
 
 /**
- * The Abacus pool the catalog declares, in order; null when the server
- * predates the descriptor, in which case the caller infers it from the tier.
+ * Read the legacy Abacus-pool descriptor if the server provides it.
  */
 export const abacusPool = (
   entries: ReadonlyArray<{ id?: string; pool?: unknown }>
@@ -417,11 +414,8 @@ const fetchAbacusCatalog = async (apiKey: string): Promise<AbacusPiModel[]> => {
 
     const body = (await response.json()) as { data?: AbacusCatalogEntry[] };
 
-    // The pool is the catalog's `route-llm-open` list, in its order. A server
-    // predating the descriptor gets the old inference: a free-tier catalog
-    // never lists the standard code router, and there the CONCRETE models are
-    // the pool (not the low router, so OpenLLM does not route into a router
-    // that routes again); a paid catalog contributes only the low router.
+    // Retain the catalog's legacy pool metadata for users who manually choose
+    // Abacus models. The current openllm/auto path excludes Abacus entirely.
     const pool = abacusPool(body.data ?? []);
     const freeTierCatalog = !(body.data ?? []).some(
       (entry) => entry.id === CODE_ROUTER_ID
@@ -564,7 +558,7 @@ function toChoice(
     poolEligible?: boolean;
     poolRank?: number;
   };
-  // A provider that states free-ness (Abacus) is believed over the price line.
+  // Abacus catalog billing metadata remains intact; automatic routing ignores it.
   const free =
     flags.free ?? ((cost?.input ?? 0) === 0 && (cost?.output ?? 0) === 0);
 
