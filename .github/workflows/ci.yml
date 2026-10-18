@@ -74,6 +74,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Diagnostic formatter diff for profile menu
+        run: |
+          cp apps/web/src/features/shell/profile-menu.tsx /tmp/profile-menu.tsx.orig
+          trap 'cp /tmp/profile-menu.tsx.orig apps/web/src/features/shell/profile-menu.tsx' EXIT
+          pnpm exec oxfmt apps/web/src/features/shell/profile-menu.tsx
+          git diff --no-ext-diff -- apps/web/src/features/shell/profile-menu.tsx
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
