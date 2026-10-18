@@ -6,6 +6,7 @@ import {
   type OnboardingStepId,
 } from "#renderer/lib/navigation/areas";
 import { IS_ELECTRON } from "#renderer/lib/platform";
+
 export const ONBOARDING_FLOW = ONBOARDING_STEPS.filter(
   (step) => step !== "done"
 );
@@ -105,7 +106,12 @@ export const guardStep = (
   )
     return facts.signedIn ? "connected" : "welcome";
   // Provider-key users can complete desktop setup without platform auth.
-  if (!IS_ELECTRON && !facts.signedIn && step !== "welcome" && step !== "connect")
+  if (
+    !IS_ELECTRON &&
+    !facts.signedIn &&
+    step !== "welcome" &&
+    step !== "connect"
+  )
     return "welcome";
   if (step === "done") return "first-bot";
   return step;
