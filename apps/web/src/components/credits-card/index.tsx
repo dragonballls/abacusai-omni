@@ -102,7 +102,7 @@ export const CreditsCard = ({
     return () => {
       live = false;
     };
-  }, [host]);
+  }, [host, providerFallback]);
   const paying = tier === "paid" || tier === "basic";
   const missing =
     paying || configured == null ? [] : missingFreeSources(configured);
