@@ -66,6 +66,7 @@ it("does not show Abacus upgrades or top-ups for any plan tier", async () => {
   const openUpgrade = vi.fn(async () => {});
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="basic"
       host={{
         openExternal,
@@ -109,6 +110,7 @@ it("offers provider choices instead of an upgrade when the free pool is exhauste
   const openUpgrade = vi.fn(async () => {});
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="free"
       host={{
         openExternal: async () => {},
@@ -128,6 +130,7 @@ it("offers provider choices instead of an upgrade when the free pool is exhauste
 it("does not infer an upgrade offer for an unknown account", async () => {
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="unknown"
       host={{ openExternal: async () => {}, openUpgrade: async () => {} }}
     />

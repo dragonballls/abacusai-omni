@@ -344,6 +344,7 @@ export const ErrorCard = ({
         data-variant="provider-fallback"
       >
         <CreditsCard
+          providerFallback
           host={runtime.host}
           onResume={
             latest && canReply

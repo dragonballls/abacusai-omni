@@ -55,6 +55,7 @@ export const CreditsCard = ({
   host,
   tier = "unknown",
   scope = "abacus",
+  providerFallback = false,
   onResume,
   alternatives,
   title,
@@ -63,6 +64,8 @@ export const CreditsCard = ({
   host: CreditActions;
   tier?: "free" | "basic" | "paid" | "unknown";
   scope?: "abacus" | "pool";
+  /** Show direct-provider options instead of account-credit actions for an LLM failure. */
+  providerFallback?: boolean;
   onResume?(): Promise<unknown>;
   alternatives?: ReactNode;
   title?: string;
@@ -70,7 +73,7 @@ export const CreditsCard = ({
 }) => {
   const { t } = useTranslation();
   const promotionRef = useVisibleContextualUpsell(
-    !IS_ELECTRON && tier === "free"
+    !providerFallback && tier === "free"
   );
   const [configured, setConfigured] = useState<Record<string, boolean> | null>(
     null
@@ -82,7 +85,7 @@ export const CreditsCard = ({
   const [canTopUp, setCanTopUp] = useState(false);
   useEffect(() => {
     let live = true;
-    if (!IS_ELECTRON) {
+    if (!providerFallback) {
       void host
         .canTopUpCredits?.()
         .then((value) => {
@@ -100,7 +103,7 @@ export const CreditsCard = ({
       live = false;
     };
   }, [host]);
-  const paying = !IS_ELECTRON && (tier === "paid" || tier === "basic");
+  const paying = tier === "paid" || tier === "basic";
   const missing =
     paying || configured == null ? [] : missingFreeSources(configured);
   const providerMissing =
@@ -123,7 +126,7 @@ export const CreditsCard = ({
   const field = PROVIDER_KEY_FIELDS.find((entry) => entry.provider === asking);
   return (
     <>
-      {IS_ELECTRON ? (
+      {providerFallback ? (
         <div data-slot="provider-fallback">
           <GroupCard title={title ?? t("phase5.providers")}>
             <p className="text-muted-foreground p-3 text-sm">
@@ -154,7 +157,7 @@ export const CreditsCard = ({
                       variant="secondary"
                       disabled={busy}
                       onClick={() => {
-                        if (IS_ELECTRON && source === "openrouter")
+                        if (providerFallback && source === "openrouter")
                           void connect(source);
                         else {
                           setAsking(source);
