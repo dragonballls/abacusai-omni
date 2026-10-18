@@ -1,13 +1,21 @@
 # Models
 
-You can start AbacusAI Bot without an existing paid model subscription. A free
-Abacus.AI account starts with 2,000 credits and a selection of free models.
-OpenRouter and Google AI Studio add other free model options. Provider quotas,
-catalogs, and free-tier limits can change.
+AbacusAI Bot is a bring-your-own-provider app: on desktop, you can use
+supported model APIs by adding your own API keys in Settings → Models. An
+Abacus.AI account or Abacus credit balance is not required to use the app's
+direct Anthropic, OpenAI, Gemini, OpenRouter, DeepSeek, and other provider
+integrations. You may also use OmniRoute as a local API gateway to centralize
+the providers you have configured.
 
-You can also connect paid provider keys, subscriptions, cloud platforms, model
-gateways, or a local model. AbacusAI Bot does not proxy every request through an
-AbacusAI Bot service.
+Each upstream provider still controls model access, free quotas, rate limits,
+and billing. A provider's free tier can change or run out, and paid API usage
+is billed by that provider. The optional Abacus.AI integration may have its own
+credits and plan restrictions; the app does not remove those restrictions from
+Abacus-hosted requests.
+
+You can also connect provider subscriptions where supported, cloud platforms,
+OpenAI-compatible endpoints, or a local model. Direct provider requests are not
+automatically proxied through an AbacusAI Bot service.
 
 Open Settings, then Models, to paste a provider key or use a supported sign-in
 flow. The page lists the providers available in the installed version and links
