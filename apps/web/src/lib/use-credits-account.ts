@@ -16,9 +16,7 @@ export const useCreditsAccount = () => {
   const [desktopAccountAllowed, setDesktopAccountAllowed] = useState(
     !IS_ELECTRON
   );
-  const readSettings = useEffectEvent(() =>
-    transport.client.settings.get({})
-  );
+  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
   useEffect(() => {
     if (!IS_ELECTRON || !hasSettingsReader) return;
     let active = true;
