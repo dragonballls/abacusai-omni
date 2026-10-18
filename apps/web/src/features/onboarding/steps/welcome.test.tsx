@@ -18,7 +18,7 @@ it("lets desktop users proceed to provider setup without an Abacus sign-in", asy
     props: { signIn },
   } as unknown as StepContext;
 
-  render(<WelcomeStep ctx={ctx} profiles={[]} heading={createRef()} />);
+  render(<WelcomeStep ctx={ctx} heading={createRef()} />);
 
   expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
   expect(
