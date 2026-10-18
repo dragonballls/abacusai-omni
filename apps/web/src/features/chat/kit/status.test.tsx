@@ -345,7 +345,7 @@ it("resumes a failed turn after connecting a fallback provider", async () => {
     expect(element).not.toBeNull();
     return element!;
   });
-  const key = "AIzaSyA1234567890123456789012345678901234";
+  const key = "fixture-not-a-real-provider-token-for-ci-test";
   fireEvent.change(keyInput, { target: { value: key } });
   fireEvent.click(
     within(screen.getByRole("dialog")).getByRole("button", { name: "Save" })
