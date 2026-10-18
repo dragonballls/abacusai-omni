@@ -1352,62 +1352,36 @@ export class AbacusBotSession {
   }
 
   /**
-   * The one error the app can fix for the user: Abacus credits ran out, which
-   * renders as the upgrade card. Abacus-served turns only; an OpenRouter user
-   * out of credits would be sold the wrong thing.
+   * Turn exhausted provider access into a route away from that provider, never
+   * a prompt to buy an Abacus plan. Auto routing is handled by the pool itself.
    */
-  private upgradeActionsFor(
+  private providerFallbackActionsFor(
     raw: string
   ): { actions: NotificationAction[] } | Record<string, never> {
     const provider = this.session?.model?.provider;
-    const abacusServed = provider === "abacus" || this.openLlmActive;
     if (isOutOfCredits(raw) || isAuthFailure(raw)) this.providersStale = true;
-    if (!abacusServed || !isOutOfCredits(raw)) return {};
-    return {
-      actions: [
-        { type: "upgrade-abacus", link: ABACUS_PLAN_URL },
-        ...this.freeModelSwitches(),
-      ],
-    };
+    if (!isOutOfCredits(raw)) return {};
+    if (provider === "abacus") return { actions: [{ type: "free-pool-out" }] };
+    if (provider != null && !this.openLlmActive)
+      return { actions: [{ type: "switch-model" }] };
+    return {};
   }
 
   /**
-   * The models the platform still serves once the balance is gone, as
-   * switches the upgrade card can offer by name. Read off the catalog, so
-   * which they are is the platform's to change.
-   */
-  private freeModelSwitches(): Array<{
-    type: string;
-    model: string;
-    label: string;
-  }> {
-    const registry = this.registry;
-    if (registry == null) return [];
-
-    return listModels(registry)
-      .filter((choice) => choice.provider === "abacus" && choice.free)
-      .map((choice) => ({
-        type: "switch-model",
-        model: choice.id,
-        label: choice.label,
-      }));
-  }
-
-  /**
-   * What the app can offer about a failed turn: the upgrade card when out of
-   * credits, a model switch when a pinned model timed out or is overloaded.
+   * What the app can offer about a failed turn: direct provider/model choices
+   * when a provider quota is exhausted, or a switch when a model is overloaded.
    */
   private errorActionsFor(
     raw: string
   ): { actions: NotificationAction[] } | Record<string, never> {
     const actions: NotificationAction[] = [
-      ...(this.upgradeActionsFor(raw).actions ?? []),
+      ...(this.providerFallbackActionsFor(raw).actions ?? []),
     ];
-    // The router with every source used up: the card that connects another
-    // free source, rather than a switch button leading to the same empty pool.
+    // The router with every source used up: offer more direct API sources. The
+    // card never links to an Abacus plan or suggests Abacus fallback models.
     if (this.openLlmActive && this.isPoolShut()) {
-      if (!actions.some((action) => action.type === "upgrade-abacus")) {
-        actions.push({ type: "free-pool-out" }, ...this.freeModelSwitches());
+      if (!actions.some((action) => action.type === "free-pool-out")) {
+        actions.push({ type: "free-pool-out" });
       }
       return { actions };
     }
@@ -3524,8 +3498,6 @@ function compactProviderError(raw: string): string {
 function providerFailureSummary(raw: string): string {
   return classifyProviderFailure(raw).summary;
 }
-
-const ABACUS_PLAN_URL = "https://apps.abacus.ai/chatllm/choose-plan/";
 
 /**
  * What the chat says when the router has nothing left to try. Fixed lines:
