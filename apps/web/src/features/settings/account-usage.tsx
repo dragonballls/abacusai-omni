@@ -68,6 +68,10 @@ export const AccountPage = () => {
     },
     [pending, transport]
   );
+  const signedOutTitle = () => {
+    if (IS_ELECTRON) return t("phase5.ownKeys");
+    return t("phase5.signedOut");
+  };
   const signIn = async () => {
     const id = ++attempt.current;
     setPending(true);
@@ -84,7 +88,7 @@ export const AccountPage = () => {
   if (!account.data)
     return (
       <AreaPage title={t("settings.pages.account")}>
-        <h2 className="font-medium">{t(IS_ELECTRON ? "phase5.ownKeys" : "phase5.signedOut")}</h2>
+        <h2 className="font-medium">{signedOutTitle()}</h2>
         <p className="text-muted-foreground text-sm">
           {t(IS_ELECTRON ? "phase5.settings.modelsDetail" : "phase5.signInDetail")}
         </p>
