@@ -5,9 +5,9 @@
  * out) and the models already tried this turn, and answers every question
  * the chat loop and the bot loop ask about the pool. Neither loop touches
  * the rotation itself any more: the bot loop once picked a model and, when
- * it failed, ended the turn without recording anything, so an account with
- * its Abacus credits gone asked Abacus again on every turn and never reached
- * the Gemini key sitting next to it.
+ * it failed, ended the turn without recording anything, so a spent provider
+ * allowance could be retried forever instead of falling through to another
+ * configured API provider.
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
@@ -106,7 +106,7 @@ export class OpenLlmRouter {
 
   /**
    * The turn ended on a provider error from `current`. The model sits out;
-   * when the account, not the model, said no (credits gone, a key's quota
+   * when the provider account, not the model, said no (a key's free quota
    * spent), the whole class sits out with it, this chat and the next. The
    * answer is the next model to try, or null when none is left this turn.
    */
@@ -137,8 +137,8 @@ export class OpenLlmRouter {
   }
 
   /**
-   * Forget every cooldown: the account's credits, plan or keys changed under
-   * us, and the reason a model or a provider was sidelined may not hold.
+   * Forget every cooldown: a provider key or its quota changed under us, and
+   * the reason a model or provider was sidelined may no longer hold.
    */
   clearCooldowns(): void {
     this.rotation.clearCooldowns();
