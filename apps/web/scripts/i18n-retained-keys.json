@@ -917,6 +917,8 @@
     "phase5.useLocal",
     "phase5.signedOut",
     "phase5.signInDetail",
-    "phase5.unknownPlan"
+    "phase5.unknownPlan",
+    "phase5.creditUsage",
+    "phase5.topUp"
   ]
 }
