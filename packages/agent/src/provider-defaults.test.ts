@@ -26,21 +26,16 @@ describe("one default per provider", () => {
     expect(defaultModelFor(only("DEEPSEEK_API_KEY"))).toBe(
       "deepseek/deepseek-v4-flash"
     );
-    expect(defaultModelFor(only("ABACUS_API_KEY"))).toBe("openllm/auto");
     expect(defaultModelFor(only("OPENROUTER_API_KEY"))).toBe("openllm/auto");
     expect(defaultModelFor(only("GEMINI_API_KEY"))).toBe("openllm/auto");
   });
 
-  it("gives the free-pool keys OpenLLM, not any single model", () => {
-    // Every model on the free tier rate-limits; parking a session on one of
-    // them dies on the first busy day. The router starts on the best model in
-    // the pool and switches when it fails; see openllm.ts. An Abacus key
-    // lands there too: the pool holds its cheap drivers (route-llm-code-low
-    // leads that slice), and a free key added later widens the pool with no
-    // default change.
+  it("gives direct-provider free-tier keys OpenLLM, not any single model", () => {
+    // Free API sources rotate on provider quotas. Abacus-hosted models are not
+    // part of openllm/auto, so an Abacus key alone must not select an empty pool.
     expect(defaultModelFor(only("OPENROUTER_API_KEY"))).toBe(OPENLLM_ID);
     expect(defaultModelFor(only("GEMINI_API_KEY"))).toBe(OPENLLM_ID);
-    expect(defaultModelFor(only("ABACUS_API_KEY"))).toBe(OPENLLM_ID);
+    expect(defaultModelFor(only("ABACUS_API_KEY"))).toBeNull();
   });
 
   it("never names the Abacus chat router", () => {
@@ -103,10 +98,10 @@ describe("when several keys are set", () => {
     ).toBe("deepseek/deepseek-v4-flash");
   });
 
-  it("falls to the next provider when the first key is blank", () => {
+  it("does not select an automatic route when only the Abacus account key remains", () => {
     expect(
       defaultModelFor({ DEEPSEEK_API_KEY: "  ", ABACUS_API_KEY: "k" })
-    ).toBe(OPENLLM_ID);
+    ).toBeNull();
   });
 
   it("lets the majors outrank the long tail", () => {
