@@ -17,7 +17,6 @@ export interface BrowserProfile {
 
 export const WelcomeStep = ({
   ctx,
-  profiles,
   heading,
 }: {
   ctx: StepContext;
