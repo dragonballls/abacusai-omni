@@ -75,16 +75,15 @@ export const ProfileMenu = () => {
   // Desktop sign-in is optional. Never trust a cached key when deciding
   // whether to contact the Abacus account endpoint; recheck on menu open.
   const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
+  const { refetch: refetchSettings } = settings;
+  const updateOpen = (nextOpen: boolean) => {
+    if (IS_ELECTRON) setCanUseAbacusAccount(false);
+    setOpen(nextOpen);
+  };
   useEffect(() => {
-    if (!IS_ELECTRON) return;
-    if (!open) {
-      setCanUseAbacusAccount(false);
-      return;
-    }
+    if (!IS_ELECTRON || !open) return;
     let active = true;
-    setCanUseAbacusAccount(false);
-    void settings
-      .refetch({ cancelRefetch: false })
+    void refetchSettings({ cancelRefetch: false })
       .then((result) => {
         if (active)
           setCanUseAbacusAccount(
@@ -97,7 +96,7 @@ export const ProfileMenu = () => {
     return () => {
       active = false;
     };
-  }, [open, settings.refetch]);
+  }, [open, refetchSettings]);
   const account = useAccount({ enabled: canUseAbacusAccount });
   const identity = accountIdentity(account.data);
   const policy = sidebarAccount(account.data);
@@ -133,7 +132,7 @@ export const ProfileMenu = () => {
   ) => void navigate({ to, transition: "settings-in" });
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={open} onOpenChange={updateOpen}>
         <Tooltip>
           <TooltipTrigger render={<DropdownMenuTrigger render={button} />} />
           <TooltipContent side="right">{label}</TooltipContent>
@@ -150,7 +149,7 @@ export const ProfileMenu = () => {
               // menu primitive can restore focus, so explicitly return focus
               // after React removes the portal.
               event.stopPropagation();
-              setOpen(false);
+              updateOpen(false);
               requestAnimationFrame(() => trigger.current?.focus());
               return;
             }
