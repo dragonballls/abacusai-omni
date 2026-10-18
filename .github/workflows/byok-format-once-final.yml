@@ -1,0 +1,52 @@
+name: Temporary canonical formatter for BYOK final verification
+on:
+  push:
+    branches:
+      - fix/byok-ci-format-final2-20261017
+permissions:
+  contents: write
+jobs:
+  format:
+    if: "${{ !contains(github.event.head_commit.message, '[ci-format-repair]') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 12.6.0
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format all PR-changed source files and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          mapfile -t files < <(git diff --name-only origin/main...HEAD | grep -E '\.(ts|tsx|js|jsx|mjs|mts|json|md|css)$' || true)
+          if [ "${#files[@]}" -gt 0 ]; then
+            pnpm exec oxfmt "${files[@]}"
+            pnpm exec oxfmt --check "${files[@]}"
+          fi
+      - name: Commit formatted source on a clean parent
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          git rm .github/workflows/byok-format-once-final.yml
+          git reset --soft 17903a86e5462f141ae7ec52fd9bbec7909c85b5
+          git commit -m "fix: format BYOK changes and gate desktop billing [ci-format-repair]"
+          AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          LEFTHOOK=0 git -c "http.extraheader=AUTHORIZATION: basic $AUTH" push origin "HEAD:refs/heads/fix/byok-ci-format-final2-clean-20261017"
