@@ -74,10 +74,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Temporary formatter diagnostic for BYOK gate
-        run: |
-          pnpm exec oxfmt apps/web/src/features/shell/profile-menu.tsx apps/web/src/lib/use-credits-account.ts
-          git diff -- apps/web/src/features/shell/profile-menu.tsx apps/web/src/lib/use-credits-account.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
