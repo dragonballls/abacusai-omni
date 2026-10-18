@@ -1,14 +1,21 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useEffectEvent } from "react";
 
 import { usePrefs, useUpdatePrefs } from "#renderer/data/db/prefs";
+import { useAppContext } from "#renderer/lib/use-app-context";
 import { creditMarkState } from "#renderer/lib/credits";
 import { useAccount } from "#renderer/lib/use-account";
 
 /** Share counters and deduplicate refreshes without caching an exhaustion marker. */
 export const useCreditsAccount = () => {
+  const { transport } = useAppContext();
+  const settings = useQuery(
+    transport.orpc.settings.get.queryOptions({ input: {} })
+  );
+  const hasAbacusApiKey = Boolean(settings.data?.apiKeys?.ABACUS_API_KEY);
   const prefs = usePrefs();
   const update = useUpdatePrefs();
-  const account = useAccount();
+  const account = useAccount({ enabled: hasAbacusApiKey });
   const clearFreshMark = useEffectEvent(
     (mark: number, data: typeof account.data) => {
       if (
@@ -21,7 +28,7 @@ export const useCreditsAccount = () => {
   const { refetch } = account;
   useEffect(() => {
     const mark = prefs.creditsExhaustedAt;
-    if (mark === null) return;
+    if (mark === null || !hasAbacusApiKey) return;
     let active = true;
     void refetch({ cancelRefetch: false }).then((result) => {
       if (active && !result.isError) clearFreshMark(mark, result.data);
@@ -29,6 +36,6 @@ export const useCreditsAccount = () => {
     return () => {
       active = false;
     };
-  }, [prefs.creditsExhaustedAt, refetch]);
+  }, [prefs.creditsExhaustedAt, refetch, hasAbacusApiKey]);
   return account;
 };
