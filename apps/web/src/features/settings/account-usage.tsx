@@ -13,21 +13,30 @@ import {
   GroupCard,
   SettingRow,
 } from "#renderer/components/form-kit/page";
+import { ABACUS_BUY_CREDITS_URL } from "#renderer/lib/abacus-links";
 import { accountIdentity } from "#renderer/lib/account-identity";
+import { accountTier } from "#renderer/lib/credits";
 import { useAppNavigate } from "#renderer/lib/navigation/use-app-navigate";
 import { IS_ELECTRON } from "#renderer/lib/platform";
 import { platformSystem } from "#renderer/lib/platform-system";
+import { sidebarAccount } from "#renderer/lib/sidebar-account";
 import { showInfo } from "#renderer/lib/toast";
+import { openUpgrade } from "#renderer/lib/upgrade";
 import { useAccount } from "#renderer/lib/use-account";
 import { useAppContext, errorText } from "#renderer/lib/use-app-context";
 import { Button } from "#renderer/ui/button";
 import { Checkbox } from "#renderer/ui/checkbox";
 export const AccountPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const number = (value: unknown) =>
+    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(
+      Number(value) || 0
+    );
   const context = useAppContext();
   const { transport, credentialsChanged } = context;
   const navigate = useAppNavigate();
   const account = useAccount();
+  const billing = sidebarAccount(account.data).billing;
   const local = useQuery(
     transport.orpc.account.state.queryOptions({ input: {} })
   );
@@ -75,24 +84,40 @@ export const AccountPage = () => {
   if (!account.data)
     return (
       <AreaPage title={t("settings.pages.account")}>
-        <h2 className="font-medium">{t("phase5.ownKeys")}</h2>
+        <h2 className="font-medium">{t(IS_ELECTRON ? "phase5.ownKeys" : "phase5.signedOut")}</h2>
         <p className="text-muted-foreground text-sm">
-          {t("phase5.settings.modelsDetail")}
+          {t(IS_ELECTRON ? "phase5.settings.modelsDetail" : "phase5.signInDetail")}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => void navigate({ to: "/settings/models" })}
-          >
-            {t("phase5.ownKeys")}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={pending}
-            onClick={() => void signIn()}
-          >
-            {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")} (optional)
-          </Button>
+{IS_ELECTRON ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => void navigate({ to: "/settings/models" })}
+              >
+                {t("phase5.ownKeys")}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={pending}
+                onClick={() => void signIn()}
+              >
+                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")} (optional)
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button disabled={pending} onClick={() => void signIn()}>
+                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void navigate({ to: "/settings/models" })}
+              >
+                {t("phase5.ownKeys")}
+              </Button>
+            </>
+          )}
           {!IS_ELECTRON && (
             <ConfirmAction
               title={t("phase5.signOut")}
@@ -166,6 +191,55 @@ export const AccountPage = () => {
             />
             {t("phase5.removeOtherKeys")}
           </label>
+        )}
+        {!IS_ELECTRON && (
+          <>
+            <SettingRow
+              id="plan"
+              title={account.data.plan ?? t("phase5.unknownPlan")}
+            >
+              {billing && (
+                <Button
+                  size="sm"
+                  onClick={() => void openUpgrade(transport.client)}
+                >
+                  {t(
+                    billing === "upgrade"
+                      ? "creditsCard.cta"
+                      : "phase5.managePlan"
+                  )}
+                </Button>
+              )}
+            </SettingRow>
+            <SettingRow
+              id="credits"
+              title={t("phase5.credits")}
+              detail={
+                account.data.credits_granted
+                  ? t("phase5.creditUsage", {
+                      used: number(account.data.credits_used),
+                      granted: number(account.data.credits_granted),
+                    })
+                  : undefined
+              }
+            >
+              {billing === "manage" && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    void (accountTier(account.data) === "basic"
+                      ? openUpgrade(transport.client)
+                      : platformSystem(transport.client).openExternal({
+                          url: ABACUS_BUY_CREDITS_URL,
+                        }))
+                  }
+                >
+                  {t("phase5.topUp")}
+                </Button>
+              )}
+            </SettingRow>
+          </>
         )}
         {vaultUrl && (
           <SettingRow

@@ -5,6 +5,7 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 
 import { CreditsCard } from "#renderer/components/credits-card";
 import { cn } from "#renderer/lib/cn";
@@ -226,14 +227,38 @@ export interface ErrorCardProps {
   tier?: "free" | "basic" | "paid" | "unknown";
 }
 
-export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
+export const ErrorCard = ({
+  outcome,
+  latest,
+  tier: providedTier,
+}: ErrorCardProps) => {
   const { t } = useTranslation();
   const { session, composer, runtime, skin } = useChatView();
+  const [accountTier, setAccountTier] =
+    useState<NonNullable<ErrorCardProps["tier"]>>("unknown");
+  useEffect(() => {
+    if (IS_ELECTRON || providedTier != null) return;
+    let live = true;
+    runtime.host
+      .accountTier()
+      .then((value) => {
+        if (live) setAccountTier(value);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [providedTier, runtime]);
+  const tier = providedTier ?? accountTier;
   const error = outcome.error ?? { message: "" };
   const actions = ((error as { actions?: ErrorAction[] }).actions ??
     []) as ErrorAction[];
   const detail = (error as { detail?: string }).detail;
-  const providerFallback = wantsUpgradeCard(actions);
+  const upgrade = wantsUpgradeCard(actions);
+  useEffect(() => {
+    if (!IS_ELECTRON && upgrade)
+      void runtime.host.markCreditsExhausted?.().catch(() => {});
+  }, [upgrade, runtime]);
   const crashed = error.code === "agent_exit" || error.code === "agent_crashed";
   const canReply = composer.readOnly == null;
   const retry = () =>
@@ -243,7 +268,69 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
         skin === "bot" ? t("workspace.retryMessage") : undefined
       )
       .catch(() => {});
-  if (providerFallback) {
+  if (upgrade && !IS_ELECTRON) {
+    return (
+      <div
+        role="group"
+        aria-label={t("chat.error.label")}
+        data-slot="error-card"
+        data-variant="upgrade"
+      >
+        <CreditsCard
+          host={runtime.host}
+          tier={tier}
+          scope={exhaustedScope(actions)}
+          alternatives={
+            canReply ? (
+              <>
+                {composer.model &&
+                  actions
+                    .filter(
+                      (action) => action.type === "switch-model" && action.model
+                    )
+                    .map((action) => (
+                      <Button
+                        key={action.model}
+                        variant="secondary"
+                        onClick={() => composer.model?.onChange(action.model!)}
+                      >
+                        {t("workspace.premiumUpgrade.continueOn", {
+                          model: action.label ?? action.model,
+                        })}
+                      </Button>
+                    ))}
+                {composer.onUseLocalModel && (
+                  <Button
+                    variant="secondary"
+                    onClick={composer.onUseLocalModel}
+                  >
+                    {t("localModels.useLocal")}
+                  </Button>
+                )}
+              </>
+            ) : undefined
+          }
+          onResume={
+            latest && canReply
+              ? async () => {
+                  await composer.onResumeOnFreePool?.();
+                  await session.retry(
+                    {
+                      model: "abacus/openllm",
+                      ...(composer.fixedMode
+                        ? { mode: composer.fixedMode }
+                        : {}),
+                    },
+                    skin === "bot" ? t("workspace.retryMessage") : undefined
+                  );
+                }
+              : undefined
+          }
+        />
+      </div>
+    );
+  }
+  if (upgrade && IS_ELECTRON) {
     return (
       <div
         role="group"
@@ -382,12 +469,10 @@ export const ErrorCard = ({ outcome, latest }: ErrorCardProps) => {
                           '[data-slot="chat-model-picker"]'
                         )
                         ?.click();
-                  } else if (
-                    action.type !== "upgrade-abacus" &&
-                    action.link != null
-                  ) {
+                  } else if (action.type === "upgrade-abacus")
+                    void runtime.host.openUpgrade();
+                  else if (action.link != null)
                     void runtime.host.openExternal(action.link);
-                  }
                 }}
               >
                 {action.label ?? t("chat.error.open")}
