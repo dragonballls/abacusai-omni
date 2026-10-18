@@ -53,9 +53,7 @@ export const primaryAction = (
 ): (() => void) | null => {
   switch (step) {
     case "welcome":
-      return IS_ELECTRON
-        ? actions.advance
-        : () => actions.signIn("signup");
+      return IS_ELECTRON ? actions.advance : () => actions.signIn("signup");
     case "connect":
       return actions.retry;
     case "connected":
