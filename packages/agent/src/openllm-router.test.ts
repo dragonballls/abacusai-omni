@@ -1,7 +1,7 @@
 /**
- * The router as both loops drive it. The case that made it: an account
- * whose Abacus credits were gone, a Gemini key beside them, and a bot that
- * asked Abacus on every turn because nothing recorded the refusal.
+ * The router as both loops drive it: when a direct provider API's shared
+ * free quota runs out, the next configured API source should take over, and
+ * the exhausted source should stay out across chats.
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,7 +26,7 @@ const choice = (id: string, free = true): ModelChoice => ({
   inputCost: 0,
   reasoning: false,
   contextWindow: 128_000,
-  // An Abacus model is pooled only when the platform's catalog says so.
+  // Abacus models are never part of automatic API fallback.
   ...(id.startsWith("abacus/") ? { poolEligible: true, poolRank: 0 } : {}),
 });
 
@@ -42,50 +42,49 @@ const memoryStore = (): CooldownStore => {
 };
 
 const registry = {} as ModelRegistry;
-const OUT_OF_CREDITS =
-  '429: {"message":"You have no remaining credits to use the LLM apis.","type":"insufficient_quota"}';
+const QUOTA_EXHAUSTED =
+  '429: {"error":{"status":"RESOURCE_EXHAUSTED","message":"exceeded your current quota"}}';
 
 beforeEach(() => {
   pool.models = [
-    choice("abacus/muse-spark-1.3-contributor"),
     choice("gemini/gemini-3.6-flash"),
     choice("openrouter/big:free"),
   ];
 });
 
-describe("a provider that refuses the account", () => {
+describe("a provider whose free API quota is exhausted", () => {
   it("is put out as a whole, and the next source takes the turn", () => {
     const router = new OpenLlmRouter(
       () => 1_000,
       memoryStore(),
       memoryQuotaStore()
     );
-    expect(router.pick(registry)?.id).toBe("abacus/muse-spark-1.3-contributor");
+    expect(router.pick(registry)?.id).toBe("gemini/gemini-3.6-flash");
 
-    const next = router.failed(registry, OUT_OF_CREDITS, {
-      provider: "abacus",
-      id: "muse-spark-1.3-contributor",
+    const next = router.failed(registry, QUOTA_EXHAUSTED, {
+      provider: "gemini",
+      id: "gemini-3.6-flash",
     });
 
-    expect(next).toEqual({ nextId: "gemini/gemini-3.6-flash" });
+    expect(next).toEqual({ nextId: "openrouter/big:free" });
     expect(router.poolShut(registry)).toBe(false);
   });
 
   it("stays out for the next chat, which starts on the next source", () => {
     const store = memoryStore();
     const first = new OpenLlmRouter(() => 1_000, store, memoryQuotaStore());
-    first.failed(registry, OUT_OF_CREDITS, {
-      provider: "abacus",
-      id: "muse-spark-1.3-contributor",
+    first.failed(registry, QUOTA_EXHAUSTED, {
+      provider: "gemini",
+      id: "gemini-3.6-flash",
     });
 
     // A new chat is a new process with a new router on the same file.
     const second = new OpenLlmRouter(() => 2_000, store, memoryQuotaStore());
-    expect(second.pick(registry)?.id).toBe("gemini/gemini-3.6-flash");
+    expect(second.pick(registry)?.id).toBe("openrouter/big:free");
   });
 
   it("shuts the pool once every source has refused", () => {
-    pool.models = [choice("abacus/muse-spark-1.3-contributor")];
+    pool.models = [choice("gemini/gemini-3.6-flash")];
     const router = new OpenLlmRouter(
       () => 1_000,
       memoryStore(),
@@ -93,9 +92,9 @@ describe("a provider that refuses the account", () => {
     );
 
     expect(
-      router.failed(registry, OUT_OF_CREDITS, {
-        provider: "abacus",
-        id: "muse-spark-1.3-contributor",
+      router.failed(registry, QUOTA_EXHAUSTED, {
+        provider: "gemini",
+        id: "gemini-3.6-flash",
       })
     ).toBeNull();
     expect(router.poolShut(registry)).toBe(true);
