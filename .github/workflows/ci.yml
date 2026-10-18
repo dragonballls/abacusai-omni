@@ -74,6 +74,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Diagnostic formatter diff for credit account hook
+        run: |
+          cp apps/web/src/lib/use-credits-account.ts /tmp/use-credits-account.ts.orig
+          trap 'cp /tmp/use-credits-account.ts.orig apps/web/src/lib/use-credits-account.ts' EXIT
+          pnpm exec oxfmt apps/web/src/lib/use-credits-account.ts
+          git diff --no-ext-diff -- apps/web/src/lib/use-credits-account.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
