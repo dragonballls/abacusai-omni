@@ -26,9 +26,7 @@ export const useAccount = (options?: { enabled?: boolean }) => {
           return null;
         }
       }
-      return accountQuery.queryFn
-        ? accountQuery.queryFn(context)
-        : null;
+      return accountQuery.queryFn?.(context) ?? null;
     },
     enabled: options?.enabled ?? true,
     staleTime: 60_000,
