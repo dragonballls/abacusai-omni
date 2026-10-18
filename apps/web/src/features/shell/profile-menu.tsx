@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { signOutAbacus } from "#platform/sign-out";
@@ -69,14 +69,36 @@ export const ProfileMenu = () => {
   const trigger = useRef<HTMLButtonElement>(null);
   const settings = useQuery({
     ...transport.orpc.settings.get.queryOptions({ input: {} }),
-    enabled: IS_ELECTRON && open,
-    staleTime: 60_000,
+    enabled: false,
+    staleTime: 0,
   });
-  // Desktop sign-in is optional: don't make an Abacus account request just
-  // to render the profile menu when the user is using provider API keys.
-  const account = useAccount({
-    enabled: !IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null),
-  });
+  // Desktop sign-in is optional. Never trust a cached key when deciding
+  // whether to contact the Abacus account endpoint; recheck on menu open.
+  const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
+  useEffect(() => {
+    if (!IS_ELECTRON) return;
+    if (!open) {
+      setCanUseAbacusAccount(false);
+      return;
+    }
+    let active = true;
+    setCanUseAbacusAccount(false);
+    void settings
+      .refetch({ cancelRefetch: false })
+      .then((result) => {
+        if (active)
+          setCanUseAbacusAccount(
+            !result.isError && canSignOutOfAbacus(result.data ?? null)
+          );
+      })
+      .catch(() => {
+        if (active) setCanUseAbacusAccount(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, settings.refetch]);
+  const account = useAccount({ enabled: canUseAbacusAccount });
   const identity = accountIdentity(account.data);
   const policy = sidebarAccount(account.data);
   const summary = useQuery({
@@ -258,7 +280,7 @@ export const ProfileMenu = () => {
               <span className="truncate">{t("referrals.title")}</span>
             </DropdownMenuItem>
           )}
-          {(!IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null)) && (
+          {canUseAbacusAccount && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
