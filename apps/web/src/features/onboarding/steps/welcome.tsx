@@ -3,6 +3,7 @@ import type { Ref } from "react";
 
 import { Spinner } from "#renderer/components/spinner";
 import { IS_ELECTRON } from "#renderer/lib/platform";
+
 import { websiteSignInStarted } from "../first-run";
 import type { StepContext } from "./context";
 import { StepBody, StepButton, StepTitle } from "./kit";
