@@ -158,8 +158,17 @@ describe("RouteLLM - Open", () => {
     expect(pool?.configured).toBe(true);
   });
 
-  it("is not usable with no source at all", async () => {
+  it("is not usable with only a non-pool provider key", async () => {
     credentials.current = new Set(["ANTHROPIC_API_KEY"]);
+    const pool = (await listAvailableModels()).find(
+      (model) => model.provider === "openllm"
+    );
+
+    expect(pool?.configured).toBe(false);
+  });
+
+  it("is not usable with an Abacus key alone", async () => {
+    credentials.current = new Set(["ABACUS_API_KEY"]);
     const pool = (await listAvailableModels()).find(
       (model) => model.provider === "openllm"
     );
