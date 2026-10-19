@@ -26,7 +26,11 @@ import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";
 
 import { isSafeExternalUrl } from "../../external-links.js";
-import { readSettings, setDefaultModel, upsertCustomProvider } from "../config/settings.js";
+import {
+  readSettings,
+  setDefaultModel,
+  upsertCustomProvider,
+} from "../config/settings.js";
 
 const OMNIROUTE_VERSION = "3.8.50";
 const OMNIROUTE_PORT = 20128;
@@ -1145,8 +1149,8 @@ function ensureAbacusProvider(clientKey: string): void {
     id: PROVIDER_ID,
     name: "OmniRoute",
     baseUrl: OMNIROUTE_BASE_URL,
-    // GPT-6 Astra tool calls require OpenAI's Responses API. OmniRoute 3.8.50
-    // exposes /v1/responses and routes this request to the configured OpenAI key.
+    // GPT-6 Astra tool calls require OpenAI's Responses API.
+    // OmniRoute 3.8.50 routes /v1/responses through the configured OpenAI key.
     api: "openai-responses",
     // This is an API key generated and persisted by OmniRoute itself, not an
     // upstream provider credential or a hard-coded placeholder.
@@ -1161,7 +1165,7 @@ function ensureAbacusProvider(clientKey: string): void {
       },
       {
         id: "openai/gpt-6-astra",
-        name: "GPT-6 Astra · Deep Reasoning · Paid API ($10/$50 per 1M tokens)",
+        name: "GPT-6 Astra · Deep Reasoning (Paid API)",
         reasoning: true,
         input: ["text", "image"],
         // Model capacity and published standard short-context pricing; long
@@ -1184,7 +1188,9 @@ function ensureAbacusProvider(clientKey: string): void {
   upsertCustomProvider(provider);
   // Open the gateway settings without unexpectedly resetting a model the user
   // already selected for chats or bots.
-  if (!readSettings().defaultModel) setDefaultModel(DEFAULT_MODEL);
+  if (!readSettings().defaultModel) {
+    setDefaultModel(DEFAULT_MODEL);
+  }
 }
 
 function openExternalHttps(target: string): void {

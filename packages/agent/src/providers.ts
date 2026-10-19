@@ -516,7 +516,9 @@ function toProviderConfig(provider: CustomProviderConfig) {
       },
       contextWindow: model.contextWindow ?? 128_000,
       maxTokens: model.maxTokens ?? 8_192,
-      ...(model.thinkingLevelMap ? { thinkingLevelMap: model.thinkingLevelMap } : {}),
+      ...(model.thinkingLevelMap
+        ? { thinkingLevelMap: model.thinkingLevelMap }
+        : {}),
     })),
   };
 }

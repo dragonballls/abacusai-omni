@@ -24,7 +24,11 @@ import { ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { defaultModelFor, PROVIDER_DEFAULTS } from "./config.js";
-import { listModels, registerCustomProviders, resolveModel } from "./providers.js";
+import {
+  listModels,
+  registerCustomProviders,
+  resolveModel,
+} from "./providers.js";
 
 /**
  * Env var → provider id, as pi reads them. The long-tail providers the
@@ -177,7 +181,7 @@ describe("every session-start default", () => {
 });
 
 describe("custom Responses API gateways", () => {
-  it("keeps GPT-6 Astra runnable with reasoning metadata and nonzero pricing", () => {
+  it("registers Astra as a paid Responses API model", () => {
     const registry = new ModelRegistry(runtime);
     registerCustomProviders(registry, {
       customProviders: [
