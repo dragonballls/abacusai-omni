@@ -1144,6 +1144,294 @@ async function ensureOmniRoute(): Promise<string> {
   }
 }
 
+type BrahmaProviderKey = {
+  provider: string;
+  name: string;
+  key: string;
+};
+
+type OmniRouteProviderConnection = {
+  id?: string;
+  provider?: string;
+  name?: string;
+};
+
+type BrahmaKeySyncResult = {
+  sourceFound: boolean;
+  imported: number;
+  updated: number;
+  skipped: number;
+  openaiConfigured: boolean | null;
+};
+
+type OmniRouteCliRuntime = {
+  node: string;
+  entry: string;
+};
+
+const BRAHMA_API_KEY_FIELDS = [
+  { field: "openai_api_key", provider: "openai", label: "OpenAI" },
+  { field: "anthropic_api_key", provider: "anthropic", label: "Anthropic" },
+  { field: "gemini_api_key", provider: "gemini", label: "Gemini" },
+  { field: "openrouter_api_key", provider: "openrouter", label: "OpenRouter" },
+  { field: "groq_api_key", provider: "groq", label: "Groq" },
+  { field: "xai_api_key", provider: "xai", label: "xAI" },
+  { field: "cerebras_api_key", provider: "cerebras", label: "Cerebras" },
+  { field: "deepseek_api_key", provider: "deepseek", label: "DeepSeek" },
+  { field: "mistral_api_key", provider: "mistral", label: "Mistral" },
+  { field: "cohere_api_key", provider: "cohere", label: "Cohere" },
+] as const;
+
+let brahmaKeySyncPromise: Promise<BrahmaKeySyncResult> | null = null;
+
+function readBrahmaProviderKeys(): {
+  sourceFound: boolean;
+  keys: BrahmaProviderKey[];
+} {
+  // Brahma Evo owns this local file on Windows. Never fetch it from GitHub or
+  // copy its contents into Abacus settings, logs, telemetry, or process args.
+  if (process.platform !== "win32") return { sourceFound: false, keys: [] };
+
+  const localAppData =
+    process.env.LOCALAPPDATA ||
+    join(app.getPath("home"), "AppData", "Local");
+  const apiConfigPath = join(
+    localAppData,
+    "BrahmaAI",
+    "config",
+    "api_keys.json"
+  );
+  if (!existsSync(apiConfigPath)) return { sourceFound: false, keys: [] };
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(readFileSync(apiConfigPath, "utf8"));
+  } catch {
+    return { sourceFound: true, keys: [] };
+  }
+  if (
+    payload == null ||
+    typeof payload !== "object" ||
+    Array.isArray(payload)
+  ) {
+    return { sourceFound: true, keys: [] };
+  }
+
+  const source = payload as Record<string, unknown>;
+  const keys = BRAHMA_API_KEY_FIELDS.flatMap(({ field, provider, label }) => {
+    const raw = source[field];
+    if (typeof raw !== "string") return [];
+    const key = raw.trim();
+    // Accept only single-line values before forwarding them through stdin.
+    if (key.length < 8 || key.length > 4096 || /[\r\n]/.test(key)) return [];
+    return [{ provider, name: "Brahma Evo - " + label, key }];
+  });
+  return { sourceFound: true, keys };
+}
+
+async function resolveOmniRouteCliRuntime(): Promise<OmniRouteCliRuntime | null> {
+  const bundledNode = bundledNodeExecutable();
+  const bundledEntry = join(
+    omniRouteBundleModules,
+    "omniroute",
+    "bin",
+    "omniroute.mjs"
+  );
+  if (bundledNode && existsSync(bundledEntry)) {
+    return { node: bundledNode, entry: bundledEntry };
+  }
+
+  const node = findExecutable(
+    process.platform === "win32" ? ["node.exe", "node"] : ["node"]
+  );
+  if (!node || !existsSync(omniRouteEntry)) return null;
+  try {
+    if ((await installedVersion(node, omniRouteEntry)) !== OMNIROUTE_VERSION) {
+      return null;
+    }
+    return { node, entry: omniRouteEntry };
+  } catch {
+    return null;
+  }
+}
+
+async function listOmniRouteProviderConnections(
+  runtime: OmniRouteCliRuntime
+): Promise<OmniRouteProviderConnection[] | null> {
+  const result = await runCommand(
+    runtime.node,
+    [
+      runtime.entry,
+      "--base-url",
+      OMNIROUTE_ORIGIN,
+      "--non-interactive",
+      "providers",
+      "list",
+      "--json",
+    ],
+    15_000,
+    runtimeEnvironment()
+  );
+  if (result.code !== 0) return null;
+  try {
+    const parsed: unknown = JSON.parse(result.stdout.trim());
+    if (parsed == null || typeof parsed !== "object") return null;
+    const data = parsed as {
+      providers?: unknown;
+      connections?: unknown;
+    };
+    const rows = Array.isArray(data.providers)
+      ? data.providers
+      : Array.isArray(data.connections)
+        ? data.connections
+        : null;
+    if (!rows) return null;
+    return rows.filter(
+      (row): row is OmniRouteProviderConnection =>
+        row != null &&
+        typeof row === "object" &&
+        typeof (row as OmniRouteProviderConnection).id === "string" &&
+        typeof (row as OmniRouteProviderConnection).provider === "string" &&
+        typeof (row as OmniRouteProviderConnection).name === "string"
+    );
+  } catch {
+    return null;
+  }
+}
+
+function applyBrahmaProviderKey(
+  runtime: OmniRouteCliRuntime,
+  key: BrahmaProviderKey,
+  existing: OmniRouteProviderConnection | undefined
+): Promise<boolean> {
+  // Credentials are piped through stdin, never included in argv or env vars.
+  // Child output is discarded so it cannot echo a provider credential in logs.
+  const operation = existing?.id
+    ? ["edit", existing.id]
+    : ["add", key.provider, "--name", key.name];
+  return new Promise((resolve) => {
+    let child: ChildProcess;
+    try {
+      child = spawn(
+        runtime.node,
+        [
+          runtime.entry,
+          "--base-url",
+          OMNIROUTE_ORIGIN,
+          "--non-interactive",
+          "providers",
+          ...operation,
+          "--credential-stdin",
+        ],
+        {
+          cwd: omniRouteDataDir,
+          env: runtimeEnvironment(),
+          windowsHide: true,
+          stdio: ["pipe", "ignore", "ignore"],
+        }
+      );
+    } catch {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill();
+      finish(false);
+    }, 30_000);
+    child.once("error", () => finish(false));
+    child.once("close", (code) => finish(code === 0));
+    child.stdin?.end(key.key + "\n");
+  });
+}
+
+async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
+  const source = readBrahmaProviderKeys();
+  const runtime = await resolveOmniRouteCliRuntime();
+  const connections = runtime
+    ? await listOmniRouteProviderConnections(runtime)
+    : null;
+  const knownOpenAI =
+    connections?.some(
+      (connection) => connection.provider?.toLowerCase() === "openai"
+    ) ?? null;
+
+  if (!source.sourceFound) {
+    return {
+      sourceFound: false,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      openaiConfigured: knownOpenAI,
+    };
+  }
+  if (!runtime || !connections) {
+    return {
+      sourceFound: true,
+      imported: 0,
+      updated: 0,
+      skipped: source.keys.length,
+      openaiConfigured: knownOpenAI,
+    };
+  }
+
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+  let openaiCredentialApplied = false;
+  for (const key of source.keys) {
+    // Stable names make repeated syncs idempotent and key rotation update the
+    // connection owned by this bridge without modifying other provider entries.
+    const existing = connections.find(
+      (connection) =>
+        connection.provider?.toLowerCase() === key.provider &&
+        connection.name === key.name
+    );
+    const ok = await applyBrahmaProviderKey(runtime, key, existing);
+    if (ok) {
+      if (existing) updated += 1;
+      else imported += 1;
+      if (key.provider === "openai") openaiCredentialApplied = true;
+    } else {
+      skipped += 1;
+    }
+  }
+
+  return {
+    sourceFound: true,
+    imported,
+    updated,
+    skipped,
+    openaiConfigured: openaiCredentialApplied || knownOpenAI === true,
+  };
+}
+
+async function syncBrahmaProviderKeys(): Promise<BrahmaKeySyncResult> {
+  if (brahmaKeySyncPromise) return brahmaKeySyncPromise;
+  brahmaKeySyncPromise = performBrahmaProviderKeySync();
+  try {
+    return await brahmaKeySyncPromise;
+  } catch {
+    // Import is best-effort; an already-running gateway remains usable.
+    return {
+      sourceFound: false,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      openaiConfigured: null,
+    };
+  } finally {
+    brahmaKeySyncPromise = null;
+  }
+}
+
 function ensureAbacusProvider(clientKey: string): void {
   const provider: CustomProviderEntry = {
     id: PROVIDER_ID,
