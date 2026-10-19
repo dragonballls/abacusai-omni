@@ -152,32 +152,26 @@ describe("local OmniRoute gateway security contract", () => {
 });
 
 describe("OmniRoute startup reliability", () => {
-  it(
-    "uses the complete bundled runtime for a new gateway when it is present",
-    () => {
-      expect(source).toContain("async function resolveRuntimeForNewGateway()");
-      expect(source).toContain(
-        "const { node, entry } = await resolveRuntimeForNewGateway()"
-      );
-      expect(source).toContain("startOmniRoute(node, entry, true)");
-      expect(source).toContain("installedVersion(node, entry)");
-    }
-  );
+  it("uses the complete bundled runtime for a new gateway when it is present", () => {
+    expect(source).toContain("async function resolveRuntimeForNewGateway()");
+    expect(source).toContain(
+      "const { node, entry } = await resolveRuntimeForNewGateway()"
+    );
+    expect(source).toContain("startOmniRoute(node, entry, true)");
+    expect(source).toContain("installedVersion(node, entry)");
+  });
 
-  it(
-    "captures bounded gateway output on startup failure",
-    () => {
-      expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
-      expect(source).toContain('captureGatewayOutput("stdout", chunk)');
-      expect(source).toContain('captureGatewayOutput("stderr", chunk)');
-      expect(source).toContain("gatewayOutputForError()");
-      expect(source).toContain("Recent gateway output:");
-      expect(source).toContain("-12_000");
-    }
-  );
+  it("captures bounded gateway output on startup failure", () => {
+    expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
+    expect(source).toContain('captureGatewayOutput("stdout", chunk)');
+    expect(source).toContain('captureGatewayOutput("stderr", chunk)');
+    expect(source).toContain("gatewayOutputForError()");
+    expect(source).toContain("Recent gateway output:");
+    expect(source).toContain("-12_000");
+  });
 
   it("uses the selected runtime entry for loopback CLI-key derivation", () => {
     expect(source).toContain("deriveOmniRouteCliToken(runtimeEntry)");
-    expect(source).toContain('createRequire(runtimeEntry)');
+    expect(source).toContain("createRequire(runtimeEntry)");
   });
 });
