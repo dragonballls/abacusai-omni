@@ -162,6 +162,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # A full Windows run includes the cold pinned-gateway smoke test and the
+    # built-app integration suite. Bound runner leaks without cutting off the
+    # known ~50-minute clean Windows pass.
+    timeout-minutes: 90
     # Windows blocks like the other platforms. A job nobody has to look at is
     # a job nobody looks at.
     #
@@ -315,7 +319,7 @@ jobs:
     name: renderer screenshots (Linux)
     needs: [check]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0

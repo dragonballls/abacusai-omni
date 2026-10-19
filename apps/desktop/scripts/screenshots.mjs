@@ -333,6 +333,52 @@ const slug = (route) =>
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const waitForChildExit = (child, timeoutMs) =>
+  new Promise((resolve) => {
+    let settled = false;
+    let timer;
+    const finish = (exited) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.off("exit", onExit);
+      resolve(exited);
+    };
+    const onExit = () => finish(true);
+    child.once("exit", onExit);
+    timer = setTimeout(() => finish(false), timeoutMs);
+    if (child.exitCode !== null || child.signalCode !== null) finish(true);
+  });
+
+const signalChildTree = (child, signal) => {
+  if (process.platform !== "win32" && child.pid) {
+    // launch() starts Electron in its own process group on POSIX, so this
+    // reaches renderer and GPU children as well as the Electron parent.
+    try {
+      process.kill(-child.pid, signal);
+    } catch {
+      // The group may already be gone.
+    }
+    return;
+  }
+  if (child.exitCode === null && child.signalCode === null) {
+    try {
+      child.kill(signal);
+    } catch {
+      // The process may have exited between the check and the signal.
+    }
+  }
+};
+
+const terminateChildTree = async (child) => {
+  signalChildTree(child, "SIGTERM");
+  await waitForChildExit(child, 1500);
+  // Kill the process group even when Electron itself exited: Chromium helpers
+  // can outlive the parent and otherwise stall GitHub Actions' orphan cleanup.
+  signalChildTree(child, "SIGKILL");
+  await waitForChildExit(child, 2500);
+};
+
 /** A minimal CDP client over Node's WebSocket. */
 const connect = async (port) => {
   let page = null;
@@ -484,6 +530,7 @@ const launch = (width, scratch, home, tag = `${width}`, env = {}) => {
         ...env,
       },
       stdio: ["pipe", "pipe", "pipe"],
+      detached: process.platform !== "win32",
     }
   );
   const lines = [];
@@ -948,8 +995,7 @@ const main = async () => {
       }
       cdp.close();
     } finally {
-      child.kill("SIGKILL");
-      await sleep(800);
+      await terminateChildTree(child);
     }
   }
 
@@ -1016,8 +1062,7 @@ const main = async () => {
       }
       cdp.close();
     } finally {
-      child.kill("SIGKILL");
-      await sleep(800);
+      await terminateChildTree(child);
     }
   }
 
@@ -1089,8 +1134,7 @@ const main = async () => {
         probes.nativeFrame.push({ width, error: String(error) });
         failures.push(`${name}: native-frame probe failed: ${error}`);
       } finally {
-        child.kill("SIGKILL");
-        await sleep(800);
+        await terminateChildTree(child);
       }
     }
   }

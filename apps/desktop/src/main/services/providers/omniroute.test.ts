@@ -18,7 +18,7 @@ describe("local OmniRoute gateway security contract", () => {
     expect(environment).toContain("delete environment.DASHBOARD_PORT");
     expect(environment).not.toContain("API_PORT:");
     expect(environment).not.toContain("DASHBOARD_PORT:");
-    expect(source).toContain("startOmniRoute(node, true)");
+    expect(source).toContain("startOmniRoute(node, entry, true)");
     expect(source).not.toContain("startOmniRoute(node, false)");
     const launcherStart = source.indexOf("function startOmniRoute(");
     const launcherEnd = source.indexOf("\n}\n", launcherStart);
@@ -65,9 +65,9 @@ describe("local OmniRoute gateway security contract", () => {
       'OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}'
     );
     expect(source).toContain("INITIAL_PASSWORD=");
-    expect(source).toContain("authenticateOmniRouteDashboard(dashboardWindow)");
+    expect(source).toContain("authenticateOmniRouteDashboard(window)");
     expect(source).toContain("readInitialManagementPassword()");
-    expect(source).toContain("createOmniRouteClientKey(node, true)");
+    expect(source).toContain("createOmniRouteClientKey(node, true, entry)");
     expect(source).not.toContain("createOmniRouteClientKey(node, false)");
     expect(source).toContain("loginOmniRouteManagement()");
     expect(source).toContain("Cookie: `auth_token=${sessionToken}`");
@@ -148,5 +148,55 @@ describe("local OmniRoute gateway security contract", () => {
     expect(probe).toContain("Authorization: `Bearer ${apiKey}`");
     expect(probe).toContain('redirect: "error"');
     expect(probe).toContain("Array.isArray(models.data)");
+  });
+});
+
+describe("OmniRoute startup reliability", () => {
+  it("uses the complete bundled runtime for a new gateway when it is present", () => {
+    expect(source).toContain("async function resolveRuntimeForNewGateway()");
+    expect(source).toContain(
+      "const { node, entry } = await resolveRuntimeForNewGateway()"
+    );
+    expect(source).toContain("startOmniRoute(node, entry, true)");
+    expect(source).toContain("installedVersion(node, entry)");
+  });
+
+  it("captures bounded gateway output on startup failure", () => {
+    expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
+    expect(source).toContain('captureGatewayOutput("stdout", chunk)');
+    expect(source).toContain('captureGatewayOutput("stderr", chunk)');
+    expect(source).toContain("gatewayOutputForError()");
+    expect(source).toContain("Recent gateway output:");
+    expect(source).toContain("-12_000");
+  });
+
+  it("uses the selected runtime entry for loopback CLI-key derivation", () => {
+    expect(source).toContain("deriveOmniRouteCliToken(runtimeEntry)");
+    expect(source).toContain("createRequire(runtimeEntry)");
+  });
+});
+
+describe("OmniRoute window responsiveness", () => {
+  it("opens a visible startup window before waiting for gateway readiness", () => {
+    const start = source.indexOf("async function openOmniRouteWindow()");
+    const end = source.indexOf(
+      "/**\n * Stop only the gateway process tree",
+      start
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const body = source.slice(start, end);
+    expect(body.indexOf("new BrowserWindow(")).toBeLessThan(
+      body.indexOf("await ensureOmniRoute()")
+    );
+    expect(body).toContain("OMNIROUTE_STARTUP_PAGE_URL");
+    expect(body).toContain("updateOmniRouteStartupPage");
+  });
+
+  it("renders failure diagnostics with textContent and redacts sensitive values", () => {
+    expect(source).toContain("function redactStartupDiagnostic(value: string)");
+    expect(source).toContain("detailsElement.textContent = ");
+    expect(source).toContain("detailsElement.hidden = ");
+    expect(source).toContain("slice(-6_000)");
   });
 });
