@@ -66,6 +66,32 @@ const omniRouteBundleModules = join(omniRouteBundleRoot, "node_modules");
 let gatewayProcess: ChildProcess | null = null;
 let dashboardWindow: BrowserWindow | null = null;
 let ensurePromise: Promise<string> | null = null;
+let gatewayOutputTail = "";
+
+function captureGatewayOutput(
+  stream: "stdout" | "stderr",
+  chunk: unknown
+): void {
+  const lines = String(chunk)
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => `[${stream}] ${line}`);
+  gatewayOutputTail = (gatewayOutputTail + lines.join("\n") + "\n").slice(
+    -12_000
+  );
+}
+
+function gatewayOutputForError(): string {
+  return gatewayOutputTail
+    .replace(/(authorization\s*[:=]\s*bearer\s+)\S+/gi, "$1[REDACTED]")
+    .replace(/(bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
+    .replace(
+      /((?:api[_-]?key|password|token|secret)\s*[:=]\s*)[^\s,;]+/gi,
+      "$1[REDACTED]"
+    )
+    .trim();
+}
 
 type CommandResult = { code: number | null; output: string; stdout: string };
 
@@ -366,11 +392,66 @@ function runCommand(
   });
 }
 
-async function installedVersion(node: string): Promise<string | null> {
-  if (!existsSync(omniRouteEntry)) return null;
-  const result = await runCommand(node, [omniRouteEntry, "--version"], 15_000);
+async function installedVersion(
+  node: string,
+  entry = omniRouteEntry
+): Promise<string | null> {
+  if (!existsSync(entry)) return null;
+  const result = await runCommand(node, [entry, "--version"], 15_000);
   if (result.code !== 0) return null;
   return result.output.trim().split(/\r?\n/).filter(Boolean).at(-1) ?? null;
+}
+
+/**
+ * Prefer the complete, CI-tested runtime that ships alongside the portable
+ * app when starting a new gateway. Keep configuration, credentials, database,
+ * and session data in omniRouteDataDir. This avoids inheriting a partial or
+ * stale node_modules tree from another installation sharing the data folder.
+ * A live shared gateway is checked before this helper is called.
+ */
+async function resolveRuntimeForNewGateway(): Promise<{
+  node: string;
+  entry: string;
+}> {
+  const node = bundledNodeExecutable();
+  const entry = join(
+    omniRouteBundleModules,
+    "omniroute",
+    "bin",
+    "omniroute.mjs"
+  );
+  const manifest = join(
+    omniRouteBundleModules,
+    "omniroute",
+    "package.json"
+  );
+
+  if (node && existsSync(entry) && existsSync(manifest)) {
+    let packageVersion: string | undefined;
+    try {
+      packageVersion = (
+        JSON.parse(readFileSync(manifest, "utf8")) as { version?: string }
+      ).version;
+    } catch {
+      throw new Error("The bundled OmniRoute package manifest is unreadable.");
+    }
+
+    if (packageVersion !== OMNIROUTE_VERSION) {
+      throw new Error(
+        `The bundled OmniRoute runtime must be ${OMNIROUTE_VERSION}; ` +
+          `found ${packageVersion ?? "(unknown)"}.`
+      );
+    }
+
+    if ((await installedVersion(node, entry)) === OMNIROUTE_VERSION) {
+      return { node, entry };
+    }
+  }
+
+  // Compatibility fallback for development/older builds without a complete
+  // bundled runtime. Never run this path over a gateway already listening.
+  const fallbackNode = await ensureRuntimeInstalled();
+  return { node: fallbackNode, entry: omniRouteEntry };
 }
 
 /**
@@ -668,9 +749,11 @@ function readOmniRouteCliSalt(): string {
  * Only the HMAC token is sent, as a loopback-only CLI header; the machine ID
  * itself never leaves this process.
  */
-function deriveOmniRouteCliToken(): string | null {
+function deriveOmniRouteCliToken(
+  runtimeEntry = omniRouteEntry
+): string | null {
   try {
-    const machineIdModule = createRequire(omniRouteEntry)(
+    const machineIdModule = createRequire(runtimeEntry)(
       "node-machine-id"
     ) as {
       machineIdSync?: (original?: boolean) => string;
@@ -691,7 +774,8 @@ function deriveOmniRouteCliToken(): string | null {
 
 async function createOmniRouteClientKey(
   node: string | null,
-  allowCliFallback: boolean
+  allowCliFallback: boolean,
+  runtimeEntry = omniRouteEntry
 ): Promise<string> {
   const sessionToken = await loginOmniRouteManagement();
   if (sessionToken) {
@@ -742,7 +826,7 @@ async function createOmniRouteClientKey(
         "was left untouched; verify dashboard login or the OmniRoute 3.8.50 install."
     );
   }
-  const cliToken = deriveOmniRouteCliToken();
+  const cliToken = deriveOmniRouteCliToken(runtimeEntry);
   if (!cliToken) {
     throw new Error(
       "OmniRoute's local machine token could not be derived from this installation. " +
@@ -889,11 +973,16 @@ async function portIsOccupied(): Promise<boolean> {
   }
 }
 
-function startOmniRoute(node: string, requireApiKey: boolean): ChildProcess {
+function startOmniRoute(
+  node: string,
+  entry: string,
+  requireApiKey: boolean
+): ChildProcess {
+  gatewayOutputTail = "";
   const child = spawn(
     node,
     [
-      omniRouteEntry,
+      entry,
       "--no-open",
       "--no-recovery",
       "--port",
@@ -903,11 +992,15 @@ function startOmniRoute(node: string, requireApiKey: boolean): ChildProcess {
       cwd: omniRouteDataDir,
       env: runtimeEnvironment(requireApiKey),
       windowsHide: true,
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
     }
   );
+  child.stdout?.on("data", (chunk) => captureGatewayOutput("stdout", chunk));
+  child.stderr?.on("data", (chunk) => captureGatewayOutput("stderr", chunk));
   gatewayProcess = child;
-  child.once("error", () => {
+  child.once("error", (error) => {
+    captureGatewayOutput("stderr", `Failed to spawn gateway: ${error.message}`);
+  });
     if (gatewayProcess === child) gatewayProcess = null;
   });
   child.once("exit", () => {
@@ -946,25 +1039,28 @@ async function ensureOmniRoute(): Promise<string> {
       );
     }
 
-    const node = await ensureRuntimeInstalled();
+    const { node, entry } = await resolveRuntimeForNewGateway();
 
     // Start with API-key enforcement enabled before listening on the port.
     // OmniRoute's management API accepts its loopback-only CLI token, so the
     // app can create a real client key without exposing unauthenticated
     // /v1 routes.
-    const child = startOmniRoute(node, true);
+    const child = startOmniRoute(node, entry, true);
     if (!(await waitForOmniRouteDashboard(child, 30_000))) {
       if (child.exitCode === null && child.signalCode === null) {
         await stopOmniRoute();
       }
+      const output = gatewayOutputForError();
       throw new Error(
         "OmniRoute did not become ready for secure key provisioning. " +
-          "Check Node.js/npm, then retry."
+          (output.length > 0
+            ? `Recent gateway output:\n${output}`
+            : "The gateway emitted no diagnostic output. Check the bundled runtime and Windows process permissions.")
       );
     }
 
     try {
-      clientKey = await createOmniRouteClientKey(node, true);
+      clientKey = await createOmniRouteClientKey(node, true, entry);
       if (!(await waitForOmniRoute(child, clientKey, 30_000))) {
         throw new Error(
           "OmniRoute did not pass its authenticated readiness check after " +
