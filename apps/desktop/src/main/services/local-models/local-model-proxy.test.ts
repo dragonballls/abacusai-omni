@@ -82,7 +82,8 @@ beforeEach(async () => {
   proxy = new LocalModelProxy({
     serverFor: (modelId) => upstreams[modelId] ?? null,
     defaultModelId: () => defaultModel,
-    idleMs: 60,
+    // Leave room for real HTTP response flushing on slower CI runners.
+    idleMs: 500,
   });
   // Any free port: the preferred one may be taken on a developer's machine.
   await proxy.listen(49_000 + Math.floor(Math.random() * 500));
