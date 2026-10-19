@@ -143,9 +143,13 @@ function updateOmniRouteStartupPage(
   const script = [
     "(() => {",
     "const titleElement = document.getElementById('status-title');",
-    "if (titleElement) titleElement.textContent = " + JSON.stringify(title) + ";",
+    "if (titleElement) titleElement.textContent = " +
+      JSON.stringify(title) +
+      ";",
     "const messageElement = document.getElementById('status-message');",
-    "if (messageElement) messageElement.textContent = " + JSON.stringify(message) + ";",
+    "if (messageElement) messageElement.textContent = " +
+      JSON.stringify(message) +
+      ";",
     "const detailsElement = document.getElementById('status-details');",
     "if (detailsElement) {",
     "detailsElement.textContent = " + JSON.stringify(safeDetails) + ";",
