@@ -1551,6 +1551,7 @@ export async function openOmniRouteWindow(): Promise<{
 
   try {
     const clientKey = await ensureOmniRoute();
+    const keySync = await syncBrahmaProviderKeys();
     ensureAbacusProvider(clientKey);
     await authenticateOmniRouteDashboard(window);
     await window.loadURL(OMNIROUTE_ORIGIN);
@@ -1573,11 +1574,33 @@ export async function openOmniRouteWindow(): Promise<{
     throw error;
   }
 
+  const keySummary = !keySync.sourceFound
+    ? "No Brahma API-key file was found; existing gateway providers were preserved."
+    : keySync.skipped > 0
+      ? "Synchronized " +
+        keySync.imported +
+        " new and " +
+        keySync.updated +
+        " existing Brahma connections; " +
+        keySync.skipped +
+        " could not be synchronized."
+      : "Synchronized " +
+        keySync.imported +
+        " new and " +
+        keySync.updated +
+        " existing Brahma provider connections.";
+  const astraStatus =
+    keySync.openaiConfigured === true
+      ? "An OpenAI provider connection is configured for GPT-6 Astra."
+      : "To use GPT-6 Astra, configure a valid OpenAI API key in OmniRoute.";
   return {
     ok: true,
     message:
-      "OmniRoute is ready. Add provider API keys in the OmniRoute window; " +
-      "AbacusAI Bot now defaults new sessions to OmniRoute Auto.",
+      "OmniRoute is ready. " +
+      keySummary +
+      " " +
+      astraStatus +
+      " OmniRoute Auto remains available for routing across your configured providers.",
   };
 }
 
