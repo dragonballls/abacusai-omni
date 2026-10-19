@@ -1208,7 +1208,9 @@ export async function openOmniRouteWindow(): Promise<{
     createdWindow.webContents.on("will-navigate", (event, target) => {
       if (target === OMNIROUTE_STARTUP_PAGE_URL) return;
       try {
-        if (new URL(target).origin !== OMNIROUTE_ORIGIN) event.preventDefault();
+        if (new URL(target).origin !== OMNIROUTE_ORIGIN) {
+          event.preventDefault();
+        }
       } catch {
         event.preventDefault();
       }
