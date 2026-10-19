@@ -159,20 +159,22 @@ describe("OmniRoute startup reliability", () => {
       expect(source).toContain(
         "const { node, entry } = await resolveRuntimeForNewGateway()"
       );
-    expect(source).toContain("startOmniRoute(node, entry, true)");
-    expect(source).toContain("installedVersion(node, entry)");
-  });
+      expect(source).toContain("startOmniRoute(node, entry, true)");
+      expect(source).toContain("installedVersion(node, entry)");
+    }
+  );
 
   it(
-    "captures gateway output and includes a bounded diagnostic tail on startup failure",
+    "captures bounded gateway output on startup failure",
     () => {
-    expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
-    expect(source).toContain('captureGatewayOutput("stdout", chunk)');
-    expect(source).toContain('captureGatewayOutput("stderr", chunk)');
-    expect(source).toContain("gatewayOutputForError()");
-    expect(source).toContain("Recent gateway output:");
-    expect(source).toContain("-12_000");
-  });
+      expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
+      expect(source).toContain('captureGatewayOutput("stdout", chunk)');
+      expect(source).toContain('captureGatewayOutput("stderr", chunk)');
+      expect(source).toContain("gatewayOutputForError()");
+      expect(source).toContain("Recent gateway output:");
+      expect(source).toContain("-12_000");
+    }
+  );
 
   it("uses the selected runtime entry for loopback CLI-key derivation", () => {
     expect(source).toContain("deriveOmniRouteCliToken(runtimeEntry)");
