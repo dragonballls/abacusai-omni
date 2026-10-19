@@ -15,6 +15,8 @@ export interface CustomProviderEntry {
   models?: Array<{
     id: string;
     name?: string;
+    /** Per-model transport override. */
+    api?: "openai-completions" | "openai-responses";
     reasoning?: boolean;
     input?: Array<"text" | "image">;
     cost?: {
