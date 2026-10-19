@@ -347,6 +347,9 @@ it.each(["free", "enterprise", "trial", "unknown"] as const)(
     try {
       fireEvent.click(await findProfileTrigger());
       const menu = await screen.findByRole("menu");
+      // Desktop account details appear only after settings confirms the key;
+      // wait for the async account query before checking tier-specific links.
+      await screen.findByRole("button", { name: account.name });
       expect(
         within(menu).queryByRole("menuitem", { name: en.phase5.managePlan })
       ).toBeNull();
