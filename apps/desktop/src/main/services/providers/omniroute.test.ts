@@ -180,7 +180,7 @@ describe("OmniRoute window responsiveness", () => {
   it("opens a visible startup window before waiting for gateway readiness", () => {
     const start = source.indexOf("async function openOmniRouteWindow()");
     const end = source.indexOf(
-      "/**\\n * Stop only the gateway process tree",
+      "/**\n * Stop only the gateway process tree",
       start
     );
     expect(start).toBeGreaterThanOrEqual(0);
@@ -197,6 +197,6 @@ describe("OmniRoute window responsiveness", () => {
     expect(source).toContain("function redactStartupDiagnostic(value: string)");
     expect(source).toContain("detailsElement.textContent = ");
     expect(source).toContain("detailsElement.hidden = ");
-    expect(source).toContain('".replace');
+    expect(source).toContain("slice(-6_000)");
   });
 });

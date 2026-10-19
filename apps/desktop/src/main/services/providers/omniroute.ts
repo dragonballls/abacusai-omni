@@ -124,10 +124,10 @@ function gatewayOutputForError(): string {
 
 function redactStartupDiagnostic(value: string): string {
   return value
-    .replace(/(authorization\\s*[:=]\\s*bearer\\s+)\\S+/gi, "$1[REDACTED]")
-    .replace(/(bearer\\s+)[A-Za-z0-9._~+/-]+/gi, "$1[REDACTED]")
+    .replace(/(authorization\s*[:=]\s*bearer\s+)\S+/gi, "$1[REDACTED]")
+    .replace(/(bearer\s+)[A-Za-z0-9._~+/-]+/gi, "$1[REDACTED]")
     .replace(
-      /((?:api[_-]?key|password|token|secret)\\s*[:=]\\s*)[^\\s,;]+/gi,
+      /((?:api[_-]?key|password|token|secret)\s*[:=]\s*)[^\s,;]+/gi,
       "$1[REDACTED]"
     )
     .slice(-6_000);
@@ -152,7 +152,7 @@ function updateOmniRouteStartupPage(
     "detailsElement.hidden = " + JSON.stringify(safeDetails.length === 0) + ";",
     "}",
     "})();",
-  ].join("\\n");
+  ].join("\n");
 
   return window.webContents
     .executeJavaScript(script)
