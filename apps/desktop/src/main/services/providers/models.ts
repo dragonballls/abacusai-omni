@@ -108,16 +108,14 @@ export const listAvailableModels = async (
 
   const config = readConfig();
 
-  // OpenLLM pools every free-or-nearly-free source, so "configured" means any
-  // of their keys exists; a single `requiresEnv` cannot say that.
-  const openLlmConfigured =
-    hasCredential("ABACUS_API_KEY") ||
-    FREE_POOL_PROVIDERS.some((provider) => {
-      const envVar = PROVIDER_KEY_FIELDS.find(
-        (field) => field.provider === provider
-      )?.envVar;
-      return envVar != null && hasCredential(envVar);
-    });
+  // RouteLLM - Open uses only direct-provider free tiers; Abacus account
+  // credits are intentionally excluded, so only these provider keys count.
+  const openLlmConfigured = FREE_POOL_PROVIDERS.some((provider) => {
+    const envVar = PROVIDER_KEY_FIELDS.find(
+      (field) => field.provider === provider
+    )?.envVar;
+    return envVar != null && hasCredential(envVar);
+  });
 
   const builtins: ModelAvailability[] = MODEL_CATALOG.map((model) => ({
     ...model,
