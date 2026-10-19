@@ -75,11 +75,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
-      - name: Temporary formatter diff diagnostic
-        if: failure()
-        run: |
-          pnpm exec oxfmt apps/desktop/src/main/services/providers/omniroute.ts
-          git diff -- apps/desktop/src/main/services/providers/omniroute.ts
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
       # import) belong to no workspace package, so `pnpm run typecheck` never
