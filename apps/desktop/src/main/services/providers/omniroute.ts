@@ -1149,9 +1149,6 @@ function ensureAbacusProvider(clientKey: string): void {
     id: PROVIDER_ID,
     name: "OmniRoute",
     baseUrl: OMNIROUTE_BASE_URL,
-    // GPT-6 Astra tool calls require OpenAI's Responses API.
-    // OmniRoute 3.8.50 routes /v1/responses through the configured OpenAI key.
-    api: "openai-responses",
     // This is an API key generated and persisted by OmniRoute itself, not an
     // upstream provider credential or a hard-coded placeholder.
     apiKey: clientKey,
