@@ -1163,6 +1163,7 @@ function ensureAbacusProvider(clientKey: string): void {
       {
         id: "openai/gpt-6-astra",
         name: "GPT-6 Astra · Deep Reasoning (Paid API)",
+        api: "openai-responses",
         reasoning: true,
         input: ["text", "image"],
         // Model capacity and published standard short-context pricing; long
