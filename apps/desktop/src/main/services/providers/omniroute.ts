@@ -85,7 +85,7 @@ function captureGatewayOutput(
 function gatewayOutputForError(): string {
   return gatewayOutputTail
     .replace(/(authorization\s*[:=]\s*bearer\s+)\S+/gi, "$1[REDACTED]")
-    .replace(/(bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
+    .replace(/(bearer\s+)[A-Za-z0-9._~+/-]+/gi, "$1[REDACTED]")
     .replace(
       /((?:api[_-]?key|password|token|secret)\s*[:=]\s*)[^\s,;]+/gi,
       "$1[REDACTED]"
@@ -420,11 +420,7 @@ async function resolveRuntimeForNewGateway(): Promise<{
     "bin",
     "omniroute.mjs"
   );
-  const manifest = join(
-    omniRouteBundleModules,
-    "omniroute",
-    "package.json"
-  );
+  const manifest = join(omniRouteBundleModules, "omniroute", "package.json");
 
   if (node && existsSync(entry) && existsSync(manifest)) {
     let packageVersion: string | undefined;
@@ -749,13 +745,9 @@ function readOmniRouteCliSalt(): string {
  * Only the HMAC token is sent, as a loopback-only CLI header; the machine ID
  * itself never leaves this process.
  */
-function deriveOmniRouteCliToken(
-  runtimeEntry = omniRouteEntry
-): string | null {
+function deriveOmniRouteCliToken(runtimeEntry = omniRouteEntry): string | null {
   try {
-    const machineIdModule = createRequire(runtimeEntry)(
-      "node-machine-id"
-    ) as {
+    const machineIdModule = createRequire(runtimeEntry)("node-machine-id") as {
       machineIdSync?: (original?: boolean) => string;
       default?: { machineIdSync?: (original?: boolean) => string };
     };
@@ -981,13 +973,7 @@ function startOmniRoute(
   gatewayOutputTail = "";
   const child = spawn(
     node,
-    [
-      entry,
-      "--no-open",
-      "--no-recovery",
-      "--port",
-      String(OMNIROUTE_PORT),
-    ],
+    [entry, "--no-open", "--no-recovery", "--port", String(OMNIROUTE_PORT)],
     {
       cwd: omniRouteDataDir,
       env: runtimeEnvironment(requireApiKey),
