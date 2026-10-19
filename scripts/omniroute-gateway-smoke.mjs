@@ -124,6 +124,16 @@ function runCommand(command, args, options, timeoutMs) {
         if (child.exitCode === null && child.signalCode === null) {
           child.kill("SIGKILL");
         }
+        // Orphaned descendants can keep inherited stdio open after the parent
+        // exits. Close our read ends and settle even if "close" never arrives.
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        const timeoutSeconds = Math.round(timeoutMs / 1000);
+        void finishError(
+          new Error(
+            `${command} timed out after ${timeoutSeconds} seconds. Last output:\n${output}`
+          )
+        );
       }, 6000);
     }, timeoutMs);
     child.once("error", (error) => {
