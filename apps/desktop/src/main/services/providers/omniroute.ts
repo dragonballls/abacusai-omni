@@ -34,6 +34,35 @@ const OMNIROUTE_ORIGIN = `http://127.0.0.1:${OMNIROUTE_PORT}`;
 const OMNIROUTE_BASE_URL = `${OMNIROUTE_ORIGIN}/v1`;
 const DEFAULT_MODEL = "omniroute/auto";
 const PROVIDER_ID = "omniroute";
+const OMNIROUTE_STARTUP_HTML = [
+  "<!doctype html>",
+  '<html lang="en">',
+  "<head>",
+  '<meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width, initial-scale=1">',
+  "<title>OmniRoute Gateway</title>",
+  "<style>",
+  "*{box-sizing:border-box}",
+  "body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111827;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,sans-serif}",
+  "main{width:min(760px,100%);padding:48px}",
+  ".eyebrow{color:#93c5fd;font-size:12px;letter-spacing:.16em;font-weight:700;margin-bottom:18px}",
+  "h1{font-size:28px;margin:0 0 14px}",
+  "p{color:#cbd5e1;line-height:1.6}",
+  "pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:#030712;padding:16px;border-radius:8px;color:#fca5a5;font-size:12px}",
+  "</style>",
+  "</head>",
+  "<body>",
+  "<main>",
+  '<div class="eyebrow">ABACUSAI BOT / OMNIROUTE</div>',
+  '<h1 id="status-title">Starting OmniRoute</h1>',
+  '<p id="status-message">Starting the secure local gateway.</p>',
+  '<pre id="status-details" hidden></pre>',
+  "</main>",
+  "</body>",
+  "</html>",
+].join("");
+const OMNIROUTE_STARTUP_PAGE_URL =
+  "data:text/html;charset=utf-8," + encodeURIComponent(OMNIROUTE_STARTUP_HTML);
 
 /**
  * Share the same per-user runtime/data folder Brahma Evo uses on Windows.
@@ -91,6 +120,44 @@ function gatewayOutputForError(): string {
       "$1[REDACTED]"
     )
     .trim();
+}
+
+function redactStartupDiagnostic(value: string): string {
+  return value
+    .replace(/(authorization\\s*[:=]\\s*bearer\\s+)\\S+/gi, "$1[REDACTED]")
+    .replace(/(bearer\\s+)[A-Za-z0-9._~+/-]+/gi, "$1[REDACTED]")
+    .replace(
+      /((?:api[_-]?key|password|token|secret)\\s*[:=]\\s*)[^\\s,;]+/gi,
+      "$1[REDACTED]"
+    )
+    .slice(-6_000);
+}
+
+function updateOmniRouteStartupPage(
+  window: BrowserWindow,
+  title: string,
+  message: string,
+  details = ""
+): Promise<void> {
+  const safeDetails = redactStartupDiagnostic(details);
+  const script = [
+    "(() => {",
+    "const titleElement = document.getElementById('status-title');",
+    "if (titleElement) titleElement.textContent = " + JSON.stringify(title) + ";",
+    "const messageElement = document.getElementById('status-message');",
+    "if (messageElement) messageElement.textContent = " + JSON.stringify(message) + ";",
+    "const detailsElement = document.getElementById('status-details');",
+    "if (detailsElement) {",
+    "detailsElement.textContent = " + JSON.stringify(safeDetails) + ";",
+    "detailsElement.hidden = " + JSON.stringify(safeDetails.length === 0) + ";",
+    "}",
+    "})();",
+  ].join("\\n");
+
+  return window.webContents
+    .executeJavaScript(script)
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 type CommandResult = { code: number | null; output: string; stdout: string };
@@ -1104,11 +1171,9 @@ export async function openOmniRouteWindow(): Promise<{
   ok: true;
   message: string;
 }> {
-  const clientKey = await ensureOmniRoute();
-  ensureAbacusProvider(clientKey);
-
-  if (!dashboardWindow || dashboardWindow.isDestroyed()) {
-    dashboardWindow = new BrowserWindow({
+  let window = dashboardWindow;
+  if (!window || window.isDestroyed()) {
+    window = new BrowserWindow({
       title: "OmniRoute Gateway",
       width: 1040,
       height: 740,
@@ -1124,7 +1189,9 @@ export async function openOmniRouteWindow(): Promise<{
         sandbox: true,
       },
     });
-    dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
+    dashboardWindow = window;
+    const createdWindow = window;
+    createdWindow.webContents.setWindowOpenHandler(({ url }) => {
       try {
         if (new URL(url).origin === OMNIROUTE_ORIGIN) {
           return { action: "allow" };
@@ -1135,21 +1202,52 @@ export async function openOmniRouteWindow(): Promise<{
       openExternalHttps(url);
       return { action: "deny" };
     });
-    dashboardWindow.webContents.on("will-navigate", (event, target) => {
+    createdWindow.once("closed", () => {
+      if (dashboardWindow === createdWindow) dashboardWindow = null;
+    });
+    createdWindow.webContents.on("will-navigate", (event, target) => {
+      if (target === OMNIROUTE_STARTUP_PAGE_URL) return;
       try {
         if (new URL(target).origin !== OMNIROUTE_ORIGIN) event.preventDefault();
       } catch {
         event.preventDefault();
       }
     });
-    dashboardWindow.once("closed", () => {
-      dashboardWindow = null;
-    });
-    await authenticateOmniRouteDashboard(dashboardWindow);
-    await dashboardWindow.loadURL(OMNIROUTE_ORIGIN);
+    await createdWindow.loadURL(OMNIROUTE_STARTUP_PAGE_URL);
   } else {
-    dashboardWindow.show();
-    dashboardWindow.focus();
+    await window.loadURL(OMNIROUTE_STARTUP_PAGE_URL);
+  }
+
+  window.show();
+  window.focus();
+  await updateOmniRouteStartupPage(
+    window,
+    "Starting OmniRoute",
+    "Preparing the secure local gateway. Your saved profile and provider settings are being preserved."
+  );
+
+  try {
+    const clientKey = await ensureOmniRoute();
+    ensureAbacusProvider(clientKey);
+    await authenticateOmniRouteDashboard(window);
+    await window.loadURL(OMNIROUTE_ORIGIN);
+  } catch (error) {
+    if (!window.isDestroyed()) {
+      try {
+        await window.loadURL(OMNIROUTE_STARTUP_PAGE_URL);
+        await updateOmniRouteStartupPage(
+          window,
+          "OmniRoute could not start",
+          "The gateway did not become ready. Your saved profile and shared OmniRoute data were not reset.",
+          error instanceof Error ? error.message : String(error)
+        );
+        window.show();
+        window.focus();
+      } catch {
+        // Preserve the original gateway error for the settings RPC and logs.
+      }
+    }
+    throw error;
   }
 
   return {

@@ -175,3 +175,28 @@ describe("OmniRoute startup reliability", () => {
     expect(source).toContain("createRequire(runtimeEntry)");
   });
 });
+
+describe("OmniRoute window responsiveness", () => {
+  it("opens a visible startup window before waiting for gateway readiness", () => {
+    const start = source.indexOf("async function openOmniRouteWindow()");
+    const end = source.indexOf(
+      "/**\\n * Stop only the gateway process tree",
+      start
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const body = source.slice(start, end);
+    expect(body.indexOf("new BrowserWindow(")).toBeLessThan(
+      body.indexOf("await ensureOmniRoute()")
+    );
+    expect(body).toContain("OMNIROUTE_STARTUP_PAGE_URL");
+    expect(body).toContain("updateOmniRouteStartupPage");
+  });
+
+  it("renders failure diagnostics with textContent and redacts sensitive values", () => {
+    expect(source).toContain("function redactStartupDiagnostic(value: string)");
+    expect(source).toContain("detailsElement.textContent = ");
+    expect(source).toContain("detailsElement.hidden = ");
+    expect(source).toContain('".replace');
+  });
+});
