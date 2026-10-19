@@ -1054,7 +1054,8 @@ async function ensureOmniRoute(): Promise<string> {
         "OmniRoute did not become ready for secure key provisioning. " +
           (output.length > 0
             ? `Recent gateway output:\n${output}`
-            : "The gateway emitted no diagnostic output. Check the bundled runtime and Windows process permissions.")
+            : "The gateway emitted no diagnostic output. " +
+              "Check the bundled runtime and Windows process permissions.")
       );
     }
 
