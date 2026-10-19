@@ -65,9 +65,9 @@ describe("local OmniRoute gateway security contract", () => {
       'OMNIROUTE_CLI_SALT=${randomBytes(32).toString("hex")}'
     );
     expect(source).toContain("INITIAL_PASSWORD=");
-    expect(source).toContain("authenticateOmniRouteDashboard(dashboardWindow)");
+    expect(source).toContain("authenticateOmniRouteDashboard(window)");
     expect(source).toContain("readInitialManagementPassword()");
-    expect(source).toContain("createOmniRouteClientKey(node, true)");
+    expect(source).toContain("createOmniRouteClientKey(node, true, entry)");
     expect(source).not.toContain("createOmniRouteClientKey(node, false)");
     expect(source).toContain("loginOmniRouteManagement()");
     expect(source).toContain("Cookie: `auth_token=${sessionToken}`");
