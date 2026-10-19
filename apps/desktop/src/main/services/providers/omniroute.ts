@@ -1000,7 +1000,6 @@ function startOmniRoute(
   gatewayProcess = child;
   child.once("error", (error) => {
     captureGatewayOutput("stderr", `Failed to spawn gateway: ${error.message}`);
-  });
     if (gatewayProcess === child) gatewayProcess = null;
   });
   child.once("exit", () => {
