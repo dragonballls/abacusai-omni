@@ -10,6 +10,8 @@ import * as path from "node:path";
 export interface CustomProviderModel {
   id: string;
   name?: string;
+  /** Per-model transport override, such as Responses API for Astra tool calls. */
+  api?: "openai-completions" | "openai-responses";
   reasoning?: boolean;
   input?: Array<"text" | "image">;
   cost?: {
