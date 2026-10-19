@@ -504,6 +504,7 @@ function toProviderConfig(provider: CustomProviderConfig) {
     models: (provider.models ?? []).map((model) => ({
       id: model.id,
       name: model.name ?? model.id,
+      ...(model.api ? { api: model.api } : {}),
       reasoning: model.reasoning ?? false,
       input: model.input ?? ["text" as const],
       // Keep estimates honest for gateways backed by paid providers. Local and
