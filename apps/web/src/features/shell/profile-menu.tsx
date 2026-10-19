@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { signOutAbacus } from "#platform/sign-out";
@@ -59,9 +59,6 @@ export const ProfileMenu = () => {
   const context = useAppContext();
   const { transport } = context;
   const navigate = useAppNavigate();
-  const account = useAccount();
-  const identity = accountIdentity(account.data);
-  const policy = sidebarAccount(account.data);
   const prefs = usePrefs();
   const updatePrefs = useUpdatePrefs();
   const [open, setOpen] = useState(false);
@@ -70,14 +67,34 @@ export const ProfileMenu = () => {
   const [inviteOpens, setInviteOpens] = useState(0);
   const reduced = useMotionPreference() === "reduced";
   const trigger = useRef<HTMLButtonElement>(null);
+  // Desktop sign-in is optional. Read current settings directly instead
+  // of coalescing with a cached query that may still contain a removed key.
+  const [canUseAbacusAccount, setCanUseAbacusAccount] = useState(!IS_ELECTRON);
+  const readSettings = useEffectEvent(() => transport.client.settings.get({}));
+  const updateOpen = (nextOpen: boolean) => {
+    if (IS_ELECTRON) setCanUseAbacusAccount(false);
+    setOpen(nextOpen);
+  };
+  useEffect(() => {
+    if (!IS_ELECTRON || !open) return;
+    let active = true;
+    void readSettings()
+      .then((result) => {
+        if (active) setCanUseAbacusAccount(canSignOutOfAbacus(result ?? null));
+      })
+      .catch(() => {
+        if (active) setCanUseAbacusAccount(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
+  const account = useAccount({ enabled: canUseAbacusAccount });
+  const identity = accountIdentity(account.data);
+  const policy = sidebarAccount(account.data);
   const summary = useQuery({
     ...transport.orpc.referrals.summary.queryOptions({ input: {} }),
-    enabled: account.data != null && (open || invite),
-    staleTime: 60_000,
-  });
-  const settings = useQuery({
-    ...transport.orpc.settings.get.queryOptions({ input: {} }),
-    enabled: IS_ELECTRON && open,
+    enabled: !IS_ELECTRON && account.data != null && (open || invite),
     staleTime: 60_000,
   });
   const label = identity.name || t("shell.rail.account");
@@ -107,7 +124,7 @@ export const ProfileMenu = () => {
   ) => void navigate({ to, transition: "settings-in" });
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={open} onOpenChange={updateOpen}>
         <Tooltip>
           <TooltipTrigger render={<DropdownMenuTrigger render={button} />} />
           <TooltipContent side="right">{label}</TooltipContent>
@@ -124,7 +141,7 @@ export const ProfileMenu = () => {
               // menu primitive can restore focus, so explicitly return focus
               // after React removes the portal.
               event.stopPropagation();
-              setOpen(false);
+              updateOpen(false);
               requestAnimationFrame(() => trigger.current?.focus());
               return;
             }
@@ -175,7 +192,7 @@ export const ProfileMenu = () => {
             <ChartNoAxesColumn aria-hidden />
             <span className="truncate">{t("settings.pages.usage")}</span>
           </DropdownMenuItem>
-          {policy.billing && (
+          {!IS_ELECTRON && policy.billing && (
             <DropdownMenuItem
               className={row}
               onClick={() => go("/settings/account")}
@@ -242,7 +259,7 @@ export const ProfileMenu = () => {
             <HelpCircle aria-hidden />
             <span className="truncate">{t("profile.help")}</span>
           </DropdownMenuItem>
-          {account.data && (
+          {!IS_ELECTRON && account.data && (
             <DropdownMenuItem
               className={row}
               onClick={() => {
@@ -254,7 +271,7 @@ export const ProfileMenu = () => {
               <span className="truncate">{t("referrals.title")}</span>
             </DropdownMenuItem>
           )}
-          {(!IS_ELECTRON || canSignOutOfAbacus(settings.data ?? null)) && (
+          {canUseAbacusAccount && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -268,66 +285,68 @@ export const ProfileMenu = () => {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Dialog open={invite} onOpenChange={setInvite}>
-        <DialogContent
-          render={
-            <motion.div
-              initial={
-                reduced ? false : { opacity: 0, transform: "scale(0.98)" }
-              }
-              animate={{ opacity: 1, transform: "scale(1)" }}
-              transition={reduced ? reducedTransition : springs.surface}
-            />
-          }
-          finalFocus={trigger}
-          showCloseButton={false}
-          data-sidebar-overlay=""
-          className="floating-surface scroll-fade-y max-h-[calc(100dvh-2rem)] animate-none! overflow-y-auto rounded-(--pane-radius) sm:max-w-sm"
-        >
-          <DialogHeader className="pe-6">
-            <DialogTitle>{t("referrals.title")}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {t("profile.referralValue")}
-            </DialogDescription>
-          </DialogHeader>
-          {summary.data ? (
-            <ReferralLink
-              summary={summary.data}
-              firstOpen={inviteOpens === 1}
-            />
-          ) : (
-            <div
-              className="bg-muted h-40 rounded-(--pane-radius)"
-              aria-busy="true"
-            />
-          )}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setInvite(false);
-              void navigate({
-                to: "/settings/account",
-                search: { invite: "gmail" },
-                transition: "settings-in",
-              });
-            }}
-          >
-            {t("profile.inviteContacts")}
-          </Button>
-          <DialogClose
+      {!IS_ELECTRON && (
+        <Dialog open={invite} onOpenChange={setInvite}>
+          <DialogContent
             render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="absolute end-2 top-2"
-                aria-label={t("profile.close")}
+              <motion.div
+                initial={
+                  reduced ? false : { opacity: 0, transform: "scale(0.98)" }
+                }
+                animate={{ opacity: 1, transform: "scale(1)" }}
+                transition={reduced ? reducedTransition : springs.surface}
               />
             }
+            finalFocus={trigger}
+            showCloseButton={false}
+            data-sidebar-overlay=""
+            className="floating-surface scroll-fade-y max-h-[calc(100dvh-2rem)] animate-none! overflow-y-auto rounded-(--pane-radius) sm:max-w-sm"
           >
-            <X className="size-4" />
-          </DialogClose>
-        </DialogContent>
-      </Dialog>
+            <DialogHeader className="pe-6">
+              <DialogTitle>{t("referrals.title")}</DialogTitle>
+              <DialogDescription className="sr-only">
+                {t("profile.referralValue")}
+              </DialogDescription>
+            </DialogHeader>
+            {summary.data ? (
+              <ReferralLink
+                summary={summary.data}
+                firstOpen={inviteOpens === 1}
+              />
+            ) : (
+              <div
+                className="bg-muted h-40 rounded-(--pane-radius)"
+                aria-busy="true"
+              />
+            )}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setInvite(false);
+                void navigate({
+                  to: "/settings/account",
+                  search: { invite: "gmail" },
+                  transition: "settings-in",
+                });
+              }}
+            >
+              {t("profile.inviteContacts")}
+            </Button>
+            <DialogClose
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute end-2 top-2"
+                  aria-label={t("profile.close")}
+                />
+              }
+            >
+              <X className="size-4" />
+            </DialogClose>
+          </DialogContent>
+        </Dialog>
+      )}
       <ConfirmAction
         open={signOut}
         onOpenChange={(next) => {

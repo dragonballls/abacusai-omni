@@ -108,6 +108,7 @@ import { MEDIA_CHECK_TOOL_NAME } from "../send-media.js";
 import { conversationSessionManager } from "../session-file.js";
 import type { TurnHandle } from "../session.js";
 import {
+  OPENLLM_POOL_EMPTY_MESSAGE,
   OPENLLM_POOL_EXHAUSTED_MESSAGE,
   OPENLLM_POOL_SHUT_MESSAGE,
   capRetriesWhileRouting,
@@ -573,20 +574,26 @@ export class ForeverEngine {
     };
 
     if (reference == null) {
-      const fallback = fallBack(registry.getAvailable()[0]);
-
-      return fallback != null
-        ? { model: fallback }
-        : {
-            error: NO_MODEL_CONFIGURED,
-          };
+      // No free/API candidate is not permission to fall back to Abacus credits
+      // or to an arbitrary paid model. Wait for an explicit model choice/key.
+      return {
+        error: this.openLlmActive
+          ? OPENLLM_POOL_EMPTY_MESSAGE
+          : NO_MODEL_CONFIGURED,
+      };
     }
 
     const resolved = resolveModel(runtime, reference, this.maxOutputTokens);
     const model =
       resolved.model != null && registry.hasConfiguredAuth(resolved.model)
         ? resolved.model
-        : fallBack(registry.getAvailable()[0]);
+        : this.openLlmActive
+          ? undefined
+          : fallBack(
+              registry
+                .getAvailable()
+                .find((candidate) => candidate.provider !== "abacus")
+            );
 
     return model != null
       ? { model }
@@ -972,7 +979,7 @@ export class ForeverEngine {
           error: {
             message: compactFailure(rotation.failure),
             code: "turn_failed",
-            ...this.upgradeActionsFor(rotation.failure),
+            ...this.providerFallbackActionsFor(rotation.failure),
           },
         },
         { origin: "turn" }
@@ -1179,16 +1186,16 @@ export class ForeverEngine {
   }
 
   /**
-   * What the app can offer about a failed turn: the upgrade card when out of
-   * credits, the free-source card when the pool is shut, a model switch when
-   * a pinned model timed out or is overloaded.
+   * What the app can offer about a failed turn: direct-provider choices when
+   * a provider quota is exhausted, the provider card when the pool is shut,
+   * or a model switch when a pinned model is overloaded.
    */
   private errorActionsFor(
     raw: string
   ):
     | { actions: Array<{ type: string; link?: string }> }
     | Record<string, never> {
-    const actions = [...(this.upgradeActionsFor(raw).actions ?? [])];
+    const actions = [...(this.providerFallbackActionsFor(raw).actions ?? [])];
     if (actions.some((action) => action.type === "free-pool-out"))
       return { actions };
     if (
@@ -1279,23 +1286,21 @@ export class ForeverEngine {
   }
 
   /**
-   * Included credits ran out on an Abacus-served turn: the app renders the
-   * upgrade card, not a red line.
+   * An Abacus-hosted or provider API allowance ran out: point toward another
+   * provider/model, not an account upgrade.
    */
-  private upgradeActionsFor(
+  private providerFallbackActionsFor(
     raw: string
   ):
     | { actions: Array<{ type: string; link?: string }> }
     | Record<string, never> {
     const provider = this.session?.model?.provider;
-    const abacusServed = provider === "abacus" || this.openLlmActive;
     const actions: Array<{ type: string; link?: string }> = [];
 
-    if (abacusServed && isOutOfCredits(raw)) {
-      actions.push({
-        type: "upgrade-abacus",
-        link: "https://apps.abacus.ai/chatllm/choose-plan/",
-      });
+    if (isOutOfCredits(raw)) {
+      if (provider === "abacus") actions.push({ type: "free-pool-out" });
+      else if (provider != null && !this.openLlmActive)
+        actions.push({ type: "switch-model" });
     }
     // The router with every source used up: the card that connects another
     // free source is the way out, whichever provider spoke last.
@@ -1304,7 +1309,7 @@ export class ForeverEngine {
       this.openLlmActive &&
       registry != null &&
       this.router.poolShut(registry) &&
-      !actions.some((action) => action.type === "upgrade-abacus")
+      !actions.some((action) => action.type === "free-pool-out")
     ) {
       actions.push({ type: "free-pool-out" });
     }

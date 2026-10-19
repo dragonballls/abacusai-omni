@@ -111,7 +111,6 @@ import {
 } from "./protocol.js";
 import {
   createModelRuntime,
-  listModels,
   registerAbacusProvider,
   registerCustomProviders,
   registerGeminiProvider,
@@ -1012,7 +1011,14 @@ export class AbacusBotSession {
 
     if (model == null) {
       this.openLlmActive = false;
-      const fallback = registry.getAvailable()[0];
+      // `openllm/auto` is a free/API-source router, not permission to
+      // silently fall back to an arbitrary paid or Abacus-hosted model.
+      const fallback =
+        requested == null || isOpenLlmReference(requested)
+          ? undefined
+          : registry
+              .getAvailable()
+              .find((candidate) => candidate.provider !== "abacus");
 
       if (fallback != null) {
         // The requested model cannot run (no key, or an empty free pool), so
@@ -1026,9 +1032,11 @@ export class AbacusBotSession {
             : (resolved.error ?? "unavailable")
         }), so this session is running ${fallback.provider}/${fallback.id}.`;
       } else {
-        // No model at all: saying which key to set beats a resolution failure
-        // the user cannot act on.
-        startupError = NO_MODEL_CONFIGURED;
+        // An empty automatic pool needs a direct provider API key, or an
+        // explicit model selection. Do not use the Abacus key as a fallback.
+        startupError = isOpenLlmReference(requested)
+          ? OPENLLM_POOL_EMPTY_MESSAGE
+          : NO_MODEL_CONFIGURED;
       }
     }
 
@@ -1345,62 +1353,36 @@ export class AbacusBotSession {
   }
 
   /**
-   * The one error the app can fix for the user: Abacus credits ran out, which
-   * renders as the upgrade card. Abacus-served turns only; an OpenRouter user
-   * out of credits would be sold the wrong thing.
+   * Turn exhausted provider access into a route away from that provider, never
+   * a prompt to buy an Abacus plan. Auto routing is handled by the pool itself.
    */
-  private upgradeActionsFor(
+  private providerFallbackActionsFor(
     raw: string
   ): { actions: NotificationAction[] } | Record<string, never> {
     const provider = this.session?.model?.provider;
-    const abacusServed = provider === "abacus" || this.openLlmActive;
     if (isOutOfCredits(raw) || isAuthFailure(raw)) this.providersStale = true;
-    if (!abacusServed || !isOutOfCredits(raw)) return {};
-    return {
-      actions: [
-        { type: "upgrade-abacus", link: ABACUS_PLAN_URL },
-        ...this.freeModelSwitches(),
-      ],
-    };
+    if (!isOutOfCredits(raw)) return {};
+    if (provider === "abacus") return { actions: [{ type: "free-pool-out" }] };
+    if (provider != null && !this.openLlmActive)
+      return { actions: [{ type: "switch-model" }] };
+    return {};
   }
 
   /**
-   * The models the platform still serves once the balance is gone, as
-   * switches the upgrade card can offer by name. Read off the catalog, so
-   * which they are is the platform's to change.
-   */
-  private freeModelSwitches(): Array<{
-    type: string;
-    model: string;
-    label: string;
-  }> {
-    const registry = this.registry;
-    if (registry == null) return [];
-
-    return listModels(registry)
-      .filter((choice) => choice.provider === "abacus" && choice.free)
-      .map((choice) => ({
-        type: "switch-model",
-        model: choice.id,
-        label: choice.label,
-      }));
-  }
-
-  /**
-   * What the app can offer about a failed turn: the upgrade card when out of
-   * credits, a model switch when a pinned model timed out or is overloaded.
+   * What the app can offer about a failed turn: direct provider/model choices
+   * when a provider quota is exhausted, or a switch when a model is overloaded.
    */
   private errorActionsFor(
     raw: string
   ): { actions: NotificationAction[] } | Record<string, never> {
     const actions: NotificationAction[] = [
-      ...(this.upgradeActionsFor(raw).actions ?? []),
+      ...(this.providerFallbackActionsFor(raw).actions ?? []),
     ];
-    // The router with every source used up: the card that connects another
-    // free source, rather than a switch button leading to the same empty pool.
+    // The router with every source used up: offer more direct API sources. The
+    // card never links to an Abacus plan or suggests Abacus fallback models.
     if (this.openLlmActive && this.isPoolShut()) {
-      if (!actions.some((action) => action.type === "upgrade-abacus")) {
-        actions.push({ type: "free-pool-out" }, ...this.freeModelSwitches());
+      if (!actions.some((action) => action.type === "free-pool-out")) {
+        actions.push({ type: "free-pool-out" });
       }
       return { actions };
     }
@@ -2216,7 +2198,7 @@ export class AbacusBotSession {
               : OPENLLM_POOL_EMPTY_MESSAGE,
             code: "model_unavailable",
             actions: shut
-              ? [{ type: "free-pool-out" }, ...this.freeModelSwitches()]
+              ? [{ type: "free-pool-out" }]
               : [{ type: "switch-model" }],
           },
         },
@@ -3364,8 +3346,8 @@ export class AbacusBotSession {
  * a first-time user can act on. Plain text, so it reads the same anywhere.
  */
 const NO_MODEL_CONFIGURED =
-  "No model provider is configured. Set an API key (ABACUS_API_KEY, ANTHROPIC_API_KEY, " +
-  "OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY or GEMINI_API_KEY) or add one in Settings.";
+  "No model provider is configured. Add a provider API key in " +
+  "Settings → Models, or choose an explicitly configured model.";
 
 /** What to say when one model's key is missing but others are configured. */
 const missingKeyMessage = (reference: string, provider: string): string => {
@@ -3519,8 +3501,6 @@ function providerFailureSummary(raw: string): string {
   return classifyProviderFailure(raw).summary;
 }
 
-const ABACUS_PLAN_URL = "https://apps.abacus.ai/chatllm/choose-plan/";
-
 /**
  * What the chat says when the router has nothing left to try. Fixed lines:
  * under the router the user did not pick a model, so no provider's wording
@@ -3531,7 +3511,7 @@ export const OPENLLM_POOL_EXHAUSTED_MESSAGE =
 export const OPENLLM_POOL_SHUT_MESSAGE =
   "Every free source is used up for now. Connect another free source, or pick a different model to keep going.";
 export const OPENLLM_POOL_EMPTY_MESSAGE =
-  "RouteLLM - Open has no model to run on yet. Pick a model, or connect Abacus.AI, Google AI Studio or OpenRouter from the model list.";
+  "RouteLLM - Open has no eligible API model yet. Add a provider key in Settings → Models, or choose a model explicitly.";
 
 /** The provider rejected the credential, rather than the account's balance. */
 function isAuthFailure(raw: string): boolean {
@@ -3586,12 +3566,13 @@ export function classifyProviderFailure(raw: string): {
   const status = Number(raw.match(/^\s*(\d{3})\b/)?.[1] ?? Number.NaN);
   const text = raw.toLowerCase();
 
-  // Before the rate-limit branch: an out-of-credits account answers 429 too,
-  // and "try again in a moment" is exactly the wrong advice for it.
+  // Providers use different quota/billing systems. Never direct a user to
+  // an Abacus purchase page for an error that may come from another provider.
   if (isOutOfCredits(raw)) {
     return {
-      summary: "You're out of credits",
-      remedy: `Upgrade your plan at ${ABACUS_PLAN_URL}, or switch to a model with its own key.`,
+      summary: "The provider's usage allowance is exhausted",
+      remedy:
+        "Choose a different model or connect another provider API key. The provider controls its own limits and billing.",
     };
   }
 

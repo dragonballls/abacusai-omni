@@ -19,22 +19,20 @@ ready.
 
 ## First run
 
-On a fresh install, onboarding:
+On a fresh desktop install, onboarding goes straight to model setup. You can
+skip Abacus.AI sign-in and start by adding your own provider API key in Settings
+→ Models. Google AI Studio and some OpenRouter models offer provider-managed
+free tiers; paid API use is billed by the provider you selected. The automatic
+RouteLLM - Open path uses eligible direct-provider free tiers and local models,
+not Abacus account credits.
 
-1. Opens Abacus.AI sign-in or free account creation in your browser. The app
-   receives its own API key and never receives your password.
-2. Offers WhatsApp, Telegram, Discord, Gmail, and the rest of the connector
-   catalog. You can skip every connector and add one later.
-3. Shows the free model options. A free Abacus.AI account starts with 2,000
-   credits and a selection of free models. OpenRouter and Google AI Studio add
-   other free options. Paid plans skip this screen because their model catalog
-   is already available.
-4. Opens a guided tour of Bots, Connectors, Capabilities, Routines, Memory,
-   Artifacts, Changes, and permissions.
-5. Creates a Chief of Staff bot when the install has no bots. You can edit or
-   delete it like any other bot. Its template contains a weekday-morning job.
-   When the bot's first chat starts, it may create that routine. A routine
-   created by a bot runs once immediately.
+Onboarding then lets you skip connectors and open a guided tour of Bots,
+Connectors, Capabilities, Routines, Memory, Artifacts, Changes, and permissions.
+Some account-linked connectors may still require their own sign-in or
+authorization. It creates a Chief of Staff bot when the install has no bots.
+You can edit or delete it like any other bot. Its template contains a
+weekday-morning job. When the bot's first chat starts, it may create that
+routine. A routine created by a bot runs once immediately.
 
 The app automatically uploads transcripts, logs, and diagnostics to Abacus.AI
 for product improvement and troubleshooting when an Abacus.AI key is saved.

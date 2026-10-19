@@ -13,10 +13,10 @@ import { OnboardingProviderKey } from "./provider-key";
 
 const ROWS = [
   {
-    id: "abacus",
-    mark: "abacus",
-    lead: "onboarding.setupBlurbAbacusLead",
-    accent: "onboarding.setupBlurbAbacusAccent",
+    id: "gemini",
+    mark: "gemini",
+    lead: "onboarding.setupBlurbGeminiLead",
+    accent: "onboarding.setupBlurbGeminiAccent",
     tail: null,
   },
   {
@@ -27,10 +27,10 @@ const ROWS = [
     tail: "onboarding.setupBlurbOpenrouterTail",
   },
   {
-    id: "gemini",
-    mark: "gemini",
-    lead: "onboarding.setupBlurbGeminiLead",
-    accent: "onboarding.setupBlurbGeminiAccent",
+    id: "abacus",
+    mark: "abacus",
+    lead: "onboarding.setupBlurbAbacusLead",
+    accent: "onboarding.setupBlurbAbacusAccent",
     tail: null,
   },
 ] as const;
@@ -81,23 +81,21 @@ export const ModelsStep = ({
               <ConnectedMark>
                 {t("onboarding.pages.connectedLabel")}
               </ConnectedMark>
-            ) : row.id === "gemini" ? (
+            ) : row.id === "gemini" || row.id === "abacus" ? (
               <OnboardingProviderKey
                 transport={props.transport}
                 saved={refresh}
-                provider="gemini"
+                provider={row.id}
               />
             ) : (
               <StepButton
                 variant="small"
                 disabled={busy}
                 onClick={() =>
-                  row.id === "abacus"
-                    ? props.signIn("signin")
-                    : void perform(async () => {
-                        await props.transport.client.auth.openRouter.start({});
-                        await refresh();
-                      })
+                  void perform(async () => {
+                    await props.transport.client.auth.openRouter.start({});
+                    await refresh();
+                  })
                 }
               >
                 {t("onboarding.pages.connectLabel")}

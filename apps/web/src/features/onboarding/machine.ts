@@ -6,6 +6,7 @@ import {
   type OnboardingStepId,
 } from "#renderer/lib/navigation/areas";
 import { IS_ELECTRON } from "#renderer/lib/platform";
+
 export const ONBOARDING_FLOW = ONBOARDING_STEPS.filter(
   (step) => step !== "done"
 );
@@ -36,6 +37,9 @@ export const next = (
     return "ignore";
   switch (step) {
     case "welcome":
+      // Desktop is a local, bring-your-own-key app: model setup does not
+      // require an Abacus.AI account or its credit plan.
+      if (IS_ELECTRON && event.type === "next") return "models";
       return event.type === "sign-up" || event.type === "sign-in"
         ? "connect"
         : "ignore";
@@ -101,7 +105,13 @@ export const guardStep = (
     !["pending", "failed"].includes(doc.signIn?.status ?? "")
   )
     return facts.signedIn ? "connected" : "welcome";
-  if (!facts.signedIn && step !== "welcome" && step !== "connect")
+  // Provider-key users can complete desktop setup without platform auth.
+  if (
+    !IS_ELECTRON &&
+    !facts.signedIn &&
+    step !== "welcome" &&
+    step !== "connect"
+  )
     return "welcome";
   if (step === "done") return "first-bot";
   return step;
@@ -109,7 +119,7 @@ export const guardStep = (
 export const needsOnboarding = (
   account: AccountState,
   signedIn = true
-): boolean => !account.onboarded || !signedIn;
+): boolean => !account.onboarded || (!IS_ELECTRON && !signedIn);
 export const onboardingTarget = (prefs: PrefsRow) => ({
   to: "/onboarding/$step" as const,
   params: {

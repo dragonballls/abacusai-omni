@@ -293,25 +293,6 @@ const UserMessage = ({
   );
 };
 
-const Credits = ({ message }: { message: UIMessage }) => {
-  const { t } = useTranslation();
-  const credits = (
-    message.metadata as
-      | { abacus?: { credits?: Array<{ creditsUsed: number }> } }
-      | undefined
-  )?.abacus?.credits;
-  if (credits == null || credits.length === 0) return null;
-  const total = credits.reduce((sum, item) => sum + item.creditsUsed, 0);
-  return (
-    <div
-      className="text-muted-foreground text-xs select-none"
-      data-selection-chrome=""
-    >
-      {t("chat.message.credits", { count: total })}
-    </div>
-  );
-};
-
 const useStreaming = (message: UIMessage): boolean => {
   const { session } = useChatView();
   const active = useThreadStore(session, (state) => state.runs.active != null);
@@ -414,7 +395,6 @@ export const BotMessage = ({ message, Parts }: MessageProps<unknown>) => {
           {message.parts.some((part) => part.type === "subagent") ? (
             <StepControls side="more" />
           ) : null}
-          <Credits message={message} />
           {decoration?.after}
         </div>
       </MessageActions>
@@ -574,7 +554,6 @@ export const SessionMessage = ({ message }: MessageProps<unknown>) => {
           <StepControls side="earlier" />
           <GroupedParts message={message} />
           <StepControls side="more" />
-          <Credits message={message} />
         </div>
       </MessageActions>
     </MessageScope>

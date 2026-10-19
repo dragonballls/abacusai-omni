@@ -21,8 +21,7 @@ export interface FreeSource {
   provider: string;
   /**
    * The models pooled, best first. Absent: membership is decided by a rule
-   * in openllm.ts (Abacus's catalog flag, OpenRouter's `:free` suffix, every
-   * Gemini or local model).
+   * in openllm.ts (OpenRouter's `:free` suffix, every Gemini or local model).
    */
   models?: readonly string[];
   limits?: WindowLimits;
@@ -31,15 +30,15 @@ export interface FreeSource {
 }
 
 /**
- * The order the pool spends them: the account's own Abacus credits, then
- * the two sources the app offers first (a Studio key's Gemini quota,
- * OpenRouter's free models), then the rest. Mistral and NVIDIA carry strong
- * models with room for a whole agent turn; Cerebras is a short trial; Groq's
- * free tier allows 8K tokens a minute, under one agent request, so it only
- * helps a paid key. Local is the floor.
+ * This API-only automatic pool starts with the direct provider sources the
+ * app offers first (a Studio key's Gemini quota and OpenRouter's free models),
+ * then the other provider free tiers. Abacus-hosted models are intentionally
+ * excluded so automatic fallback cannot spend Abacus account credits. Mistral
+ * and NVIDIA carry strong models with room for a whole agent turn; Cerebras is
+ * a short trial; Groq's free tier allows 8K tokens a minute, under one agent
+ * request, so it only helps a paid key. Local is the floor.
  */
 export const FREE_SOURCES: readonly FreeSource[] = [
-  { provider: "abacus" },
   { provider: "gemini" },
   {
     provider: "openrouter",

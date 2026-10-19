@@ -40,9 +40,10 @@ export const AccountPage = () => {
   const local = useQuery(
     transport.orpc.account.state.queryOptions({ input: {} })
   );
-  const referrals = useQuery(
-    transport.orpc.referrals.summary.queryOptions({ input: {} })
-  );
+  const referrals = useQuery({
+    ...transport.orpc.referrals.summary.queryOptions({ input: {} }),
+    enabled: !IS_ELECTRON,
+  });
   const settings = useQuery(
     transport.orpc.settings.get.queryOptions({ input: {} })
   );
@@ -67,6 +68,10 @@ export const AccountPage = () => {
     },
     [pending, transport]
   );
+  const signedOutTitle = () => {
+    if (IS_ELECTRON) return t("phase5.ownKeys");
+    return t("phase5.signedOut");
+  };
   const signIn = async () => {
     const id = ++attempt.current;
     setPending(true);
@@ -83,14 +88,43 @@ export const AccountPage = () => {
   if (!account.data)
     return (
       <AreaPage title={t("settings.pages.account")}>
-        <h2 className="font-medium">{t("phase5.signedOut")}</h2>
+        <h2 className="font-medium">{signedOutTitle()}</h2>
         <p className="text-muted-foreground text-sm">
-          {t("phase5.signInDetail")}
+          {t(
+            IS_ELECTRON ? "phase5.settings.modelsDetail" : "phase5.signInDetail"
+          )}
         </p>
-        <div className="flex gap-2">
-          <Button disabled={pending} onClick={() => void signIn()}>
-            {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          {IS_ELECTRON ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => void navigate({ to: "/settings/models" })}
+              >
+                {t("phase5.ownKeys")}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={pending}
+                onClick={() => void signIn()}
+              >
+                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}{" "}
+                (optional)
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button disabled={pending} onClick={() => void signIn()}>
+                {t(pending ? "phase5.waitingSignIn" : "phase5.signIn")}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void navigate({ to: "/settings/models" })}
+              >
+                {t("phase5.ownKeys")}
+              </Button>
+            </>
+          )}
           {!IS_ELECTRON && (
             <ConfirmAction
               title={t("phase5.signOut")}
@@ -123,12 +157,6 @@ export const AccountPage = () => {
               )}
             </>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => void navigate({ to: "/settings/models" })}
-          >
-            {t("phase5.ownKeys")}
-          </Button>
         </div>
         {error && <p role="alert">{error}</p>}
         <LocalDataReset />
@@ -171,49 +199,55 @@ export const AccountPage = () => {
             {t("phase5.removeOtherKeys")}
           </label>
         )}
-        <SettingRow
-          id="plan"
-          title={account.data.plan ?? t("phase5.unknownPlan")}
-        >
-          {billing && (
-            <Button
-              size="sm"
-              onClick={() => void openUpgrade(transport.client)}
+        {!IS_ELECTRON && (
+          <>
+            <SettingRow
+              id="plan"
+              title={account.data.plan ?? t("phase5.unknownPlan")}
             >
-              {t(
-                billing === "upgrade" ? "creditsCard.cta" : "phase5.managePlan"
+              {billing && (
+                <Button
+                  size="sm"
+                  onClick={() => void openUpgrade(transport.client)}
+                >
+                  {t(
+                    billing === "upgrade"
+                      ? "creditsCard.cta"
+                      : "phase5.managePlan"
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-        </SettingRow>
-        <SettingRow
-          id="credits"
-          title={t("phase5.credits")}
-          detail={
-            account.data.credits_granted
-              ? t("phase5.creditUsage", {
-                  used: number(account.data.credits_used),
-                  granted: number(account.data.credits_granted),
-                })
-              : undefined
-          }
-        >
-          {billing === "manage" && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                void (accountTier(account.data) === "basic"
-                  ? openUpgrade(transport.client)
-                  : platformSystem(transport.client).openExternal({
-                      url: ABACUS_BUY_CREDITS_URL,
-                    }))
+            </SettingRow>
+            <SettingRow
+              id="credits"
+              title={t("phase5.credits")}
+              detail={
+                account.data.credits_granted
+                  ? t("phase5.creditUsage", {
+                      used: number(account.data.credits_used),
+                      granted: number(account.data.credits_granted),
+                    })
+                  : undefined
               }
             >
-              {t("phase5.topUp")}
-            </Button>
-          )}
-        </SettingRow>
+              {billing === "manage" && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    void (accountTier(account.data) === "basic"
+                      ? openUpgrade(transport.client)
+                      : platformSystem(transport.client).openExternal({
+                          url: ABACUS_BUY_CREDITS_URL,
+                        }))
+                  }
+                >
+                  {t("phase5.topUp")}
+                </Button>
+              )}
+            </SettingRow>
+          </>
+        )}
         {vaultUrl && (
           <SettingRow
             id="vault"
@@ -245,53 +279,57 @@ export const AccountPage = () => {
           />
         )}
       </GroupCard>
-      <GroupCard title={t("phase5.referrals")}>
-        <SettingRow id="inviteLink" title={t("phase5.inviteLink")}>
-          <Button
-            size="sm"
-            disabled={!inviteLink}
-            onClick={() => {
-              if (inviteLink)
-                void navigator.clipboard
-                  .writeText(inviteLink)
-                  .then(() => showInfo(t("phase5.copied")));
-            }}
-          >
-            {t("phase5.copy")}
-          </Button>
-        </SettingRow>
-      </GroupCard>
-      <GroupCard>
-        {(
-          [
-            ...(referrals.data?.gmailConnected
-              ? (["gmail", "link"] as const)
-              : (["link", "gmail"] as const)),
-            "whatsapp",
-          ] as const
-        )
-          .filter((invite) => IS_ELECTRON || invite !== "whatsapp")
-          .map((invite) => (
-            <SettingRow
-              key={invite}
-              id={`invite-${invite}`}
-              title={t(`phase5.inviteChannels.${invite}`)}
-            >
+      {!IS_ELECTRON && (
+        <>
+          <GroupCard title={t("phase5.referrals")}>
+            <SettingRow id="inviteLink" title={t("phase5.inviteLink")}>
               <Button
                 size="sm"
-                onClick={() =>
-                  void navigate({
-                    to: "/settings/account",
-                    search: { invite },
-                    transition: "none",
-                  })
-                }
+                disabled={!inviteLink}
+                onClick={() => {
+                  if (inviteLink)
+                    void navigator.clipboard
+                      .writeText(inviteLink)
+                      .then(() => showInfo(t("phase5.copied")));
+                }}
               >
-                {t("phase5.invite")}
+                {t("phase5.copy")}
               </Button>
             </SettingRow>
-          ))}
-      </GroupCard>
+          </GroupCard>
+          <GroupCard>
+            {(
+              [
+                ...(referrals.data?.gmailConnected
+                  ? (["gmail", "link"] as const)
+                  : (["link", "gmail"] as const)),
+                "whatsapp",
+              ] as const
+            )
+              .filter((invite) => invite !== "whatsapp")
+              .map((invite) => (
+                <SettingRow
+                  key={invite}
+                  id={`invite-${invite}`}
+                  title={t(`phase5.inviteChannels.${invite}`)}
+                >
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      void navigate({
+                        to: "/settings/account",
+                        search: { invite },
+                        transition: "none",
+                      })
+                    }
+                  >
+                    {t("phase5.invite")}
+                  </Button>
+                </SettingRow>
+              ))}
+          </GroupCard>
+        </>
+      )}
       {local.data && (
         <GroupCard>
           <SettingRow
@@ -334,12 +372,12 @@ export const UsagePage = () => {
       Number(value) || 0
     );
   const { transport } = useAppContext();
+  const account = useAccount();
   const query = useQuery({
     ...transport.orpc.account.usage.queryOptions({ input: {} }),
     staleTime: 0,
     refetchOnMount: "always",
   });
-  const account = useAccount();
   const snapshot = query.data;
   const days = Array.from({ length: 14 }, (_, i) => {
     const date = new Date();
@@ -383,17 +421,19 @@ export const UsagePage = () => {
         <>
           {snapshot.totals.requests === 0 && <p>{t("usage.empty")}</p>}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <GroupCard>
-              <SettingRow
-                id="abacusCredits"
-                title={t("phase5.credits")}
-                detail={
-                  account.data
-                    ? number(account.data.credits_used)
-                    : t("phase5.unavailable")
-                }
-              />
-            </GroupCard>
+            {!IS_ELECTRON && (
+              <GroupCard>
+                <SettingRow
+                  id="abacusCredits"
+                  title={t("phase5.credits")}
+                  detail={
+                    account.data
+                      ? number(account.data.credits_used)
+                      : t("phase5.unavailable")
+                  }
+                />
+              </GroupCard>
+            )}
             <GroupCard>
               <SettingRow
                 id="openrouterUsage"

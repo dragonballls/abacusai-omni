@@ -899,6 +899,26 @@
     "workspace.worktree.currentCheckout",
     "workspace.worktree.description",
     "workspace.worktree.error",
-    "workspace.worktree.select"
+    "workspace.worktree.select",
+    "creditsCard.paidBody",
+    "creditsCard.paidTitle",
+    "creditsCard.topUpCta",
+    "onboarding.connectCta",
+    "onboarding.haveAccountCta",
+    "onboarding.usesBrowserSessions",
+    "workspace.premiumUpgrade.exhaustedTitle",
+    "workspace.premiumUpgrade.poolOutTitle",
+    "workspace.premiumUpgrade.switchNote",
+    "chat.message.credits_one",
+    "chat.message.credits_other",
+    "phase5.creditsExhausted",
+    "phase5.creditsAlternatives",
+    "phase5.connectFree",
+    "phase5.useLocal",
+    "phase5.signedOut",
+    "phase5.signInDetail",
+    "phase5.unknownPlan",
+    "phase5.creditUsage",
+    "phase5.topUp"
   ]
 }

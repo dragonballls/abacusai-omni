@@ -58,12 +58,12 @@ describe("ModelsStep", () => {
     );
     const rows = [...container.querySelectorAll(".onboarding-row")];
     expect(rows.map((row) => row.getAttribute("data-connected"))).toEqual([
+      "false",
+      "false",
       "true",
-      "false",
-      "false",
       null,
     ]);
-    expect(rows[0]!.textContent).toContain("Connected");
+    expect(rows[2]!.textContent).toContain("Connected");
     expect(rows[3]!.getAttribute("data-slot")).toBe("local-model-row");
     expect(screen.getByRole("heading").textContent).toBe("Hook up your AI");
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -84,14 +84,18 @@ describe("ModelsStep", () => {
     );
     const rows = [...container.querySelectorAll(".onboarding-row")];
     expect(rows.map((row) => row.getAttribute("data-connected"))).toEqual([
+      "true",
+      "true",
       "false",
-      "true",
-      "true",
       null,
     ]);
-    // Signed out: Abacus's Connect starts a sign-in attempt from this row.
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    expect(context.props.signIn).toHaveBeenCalledWith("signin");
+    // Signed out: Abacus is just another optional API-key provider.
+    const abacusKeyButton = rows[2]!.querySelector<HTMLButtonElement>("button");
+    expect(abacusKeyButton).not.toBeNull();
+    fireEvent.click(abacusKeyButton!);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toMatch(/Abacus\.AI/);
+    expect(context.props.signIn).not.toHaveBeenCalled();
   });
 
   it("opens the Gemini key dialog directly and the picker from Paste a key", async () => {
@@ -105,7 +109,7 @@ describe("ModelsStep", () => {
         heading={createRef()}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add API key" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Add API key" })[0]!);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toMatch(
       /Go to Google Gemini.*and get your API key/

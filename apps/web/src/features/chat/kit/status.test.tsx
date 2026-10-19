@@ -15,7 +15,7 @@ import { createMemoryTransport } from "#renderer/data/transport/memory";
 
 import * as b from "../fixtures/builders";
 import { FakeRelay } from "../fixtures/relay";
-import { hostActionsFor } from "../runtime/host-actions";
+import { hostActionsFor, inertHostActions } from "../runtime/host-actions";
 import { emptyThreadState } from "../store/thread-store";
 import { renderRelay, renderScenario } from "../testing";
 import { busyLabel } from "./status/status";
@@ -303,4 +303,40 @@ it("re-runs a bot's hidden first turn when there is no visible user message", as
     role: "user",
     parts: [{ type: "text", content: "Continue from where you left off" }],
   });
+});
+
+it("resumes a failed turn after connecting a fallback provider", async () => {
+  const relay = new FakeRelay();
+  relay.emitAll([
+    ...b.sessionReady(),
+    b.runStarted("dead"),
+    ...b.text("ask", "user", "go"),
+    b.runError("dead", {
+      message: "The provider account has no remaining credits.",
+      actions: [{ type: "free-pool-out" }],
+    }),
+  ]);
+  const onResumeOnFreePool = vi.fn(async () => {});
+  const configuredFreeSources = vi.fn(async () => ({ gemini: true }));
+  const connectFreeSource = vi.fn(async () => true);
+  const host = {
+    ...inertHostActions,
+    configuredFreeSources,
+    connectFreeSource,
+  };
+  current = await renderRelay(relay, "bot", { onResumeOnFreePool }, {}, host);
+  await waitFor(() => expect(configuredFreeSources).toHaveBeenCalled());
+  const connect = document.querySelector<HTMLButtonElement>(
+    '[data-source="openrouter"] button'
+  );
+  expect(connect).not.toBeNull();
+  fireEvent.click(connect!);
+  await waitFor(() =>
+    expect(connectFreeSource).toHaveBeenCalledExactlyOnceWith(
+      "openrouter",
+      undefined
+    )
+  );
+  await waitFor(() => expect(onResumeOnFreePool).toHaveBeenCalledOnce());
+  await waitFor(() => expect(relay.stats.send).toHaveLength(1));
 });

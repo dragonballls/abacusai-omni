@@ -62,7 +62,14 @@ vi.mock("#renderer/lib/use-app-context", () => ({
           },
         },
       },
-      client: { system: { openExternal: state.open } },
+      client: {
+        system: { openExternal: state.open },
+        settings: {
+          get: vi.fn(async () => ({
+            apiKeys: { ABACUS_API_KEY: "test-key" },
+          })),
+        },
+      },
     },
   }),
 }));
@@ -224,11 +231,11 @@ it("hands one mounted mascot between pinned, peek and collapsed presentations", 
   );
 });
 
-it("keeps one account cache when an exhaustion notice is cleared", () => {
+it("keeps one account cache when an exhaustion notice is cleared", async () => {
   const view = render(<UpgradePromo />);
   state.exhaustedAt = Date.now();
   view.rerender(<UpgradePromo />);
-  expect(state.refetch).toHaveBeenCalledOnce();
+  await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce());
   state.exhaustedAt = null;
   view.rerender(<UpgradePromo />);
   for (const [options] of state.query.mock.calls)

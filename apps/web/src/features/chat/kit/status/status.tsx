@@ -1,7 +1,6 @@
 /**
  * Status components (spec 02 §5.6): the sessions busy line, the bots typing
- * bubble, run outcome markers, the error card with its action table (and
- * the upgrade variant), and notices.
+ * bubble, run outcome markers, provider fallback cards, and notices.
  */
 import type { UIMessage } from "@tanstack/ai-client";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
@@ -243,7 +242,7 @@ export const ErrorCard = ({
   const [accountTier, setAccountTier] =
     useState<NonNullable<ErrorCardProps["tier"]>>("unknown");
   useEffect(() => {
-    if (providedTier != null) return;
+    if (IS_ELECTRON || providedTier != null) return;
     let live = true;
     runtime.host
       .accountTier()
@@ -262,7 +261,8 @@ export const ErrorCard = ({
   const detail = (error as { detail?: string }).detail;
   const upgrade = wantsUpgradeCard(actions);
   useEffect(() => {
-    if (upgrade) void runtime.host.markCreditsExhausted?.().catch(() => {});
+    if (!IS_ELECTRON && upgrade)
+      void runtime.host.markCreditsExhausted?.().catch(() => {});
   }, [upgrade, runtime]);
   const crashed = error.code === "agent_exit" || error.code === "agent_crashed";
   const canReply = composer.readOnly == null;
@@ -273,7 +273,7 @@ export const ErrorCard = ({
         skin === "bot" ? t("workspace.retryMessage") : undefined
       )
       .catch(() => {});
-  if (wantsUpgradeCard(actions)) {
+  if (upgrade && !IS_ELECTRON) {
     return (
       <div
         role="group"
@@ -321,7 +321,7 @@ export const ErrorCard = ({
                   await composer.onResumeOnFreePool?.();
                   await session.retry(
                     {
-                      model: "abacus/openllm",
+                      model: "openllm/auto",
                       ...(composer.fixedMode
                         ? { mode: composer.fixedMode }
                         : {}),
@@ -330,6 +330,83 @@ export const ErrorCard = ({
                   );
                 }
               : undefined
+          }
+        />
+      </div>
+    );
+  }
+  if (upgrade && IS_ELECTRON) {
+    return (
+      <div
+        role="group"
+        aria-label={t("chat.error.label")}
+        data-slot="error-card"
+        data-variant="provider-fallback"
+      >
+        <CreditsCard
+          providerFallback
+          host={runtime.host}
+          onResume={
+            latest && canReply
+              ? async () => {
+                  await composer.onResumeOnFreePool?.();
+                  await session.retry(
+                    {
+                      model: "openllm/auto",
+                      ...(composer.fixedMode
+                        ? { mode: composer.fixedMode }
+                        : {}),
+                    },
+                    skin === "bot" ? t("workspace.retryMessage") : undefined
+                  );
+                }
+              : undefined
+          }
+          alternatives={
+            canReply ? (
+              <>
+                {composer.model && (
+                  <Button
+                    variant="secondary"
+                    data-action="switch-model"
+                    onClick={(event) =>
+                      event.currentTarget
+                        .closest('[data-slot="chat-view"]')
+                        ?.querySelector<HTMLButtonElement>(
+                          '[data-slot="chat-model-picker"]'
+                        )
+                        ?.click()
+                    }
+                  >
+                    {t("chat.error.switchModel")}
+                  </Button>
+                )}
+                {composer.model &&
+                  actions
+                    .filter(
+                      (action) => action.type === "switch-model" && action.model
+                    )
+                    .map((action) => (
+                      <Button
+                        key={action.model}
+                        variant="secondary"
+                        onClick={() => composer.model?.onChange(action.model!)}
+                      >
+                        {t("workspace.premiumUpgrade.continueOn", {
+                          model: action.label ?? action.model,
+                        })}
+                      </Button>
+                    ))}
+                {composer.onUseLocalModel && (
+                  <Button
+                    variant="secondary"
+                    onClick={composer.onUseLocalModel}
+                  >
+                    {t("localModels.useLocal")}
+                  </Button>
+                )}
+              </>
+            ) : undefined
           }
         />
       </div>
@@ -588,10 +665,12 @@ export const NoticeRow = ({
                       '[data-slot="chat-model-picker"]'
                     )
                     ?.click();
-              } else if (action.type === "upgrade-abacus")
-                void runtime.host.openUpgrade();
-              else if (action.link != null)
+              } else if (
+                action.type !== "upgrade-abacus" &&
+                action.link != null
+              ) {
                 void runtime.host.openExternal(action.link);
+              }
             }}
           >
             {action.label ?? t("chat.error.open")}

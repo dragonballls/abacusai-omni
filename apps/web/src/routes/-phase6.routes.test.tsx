@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { onboardingStore } from "#renderer/features/onboarding";
 import { firstBotStore } from "#renderer/features/onboarding/first-bot";
@@ -25,7 +25,7 @@ beforeEach(() => {
   onboardingStore.setState(() => ({ signIn: null, createdBotId: null }));
   firstBotStore.setState(() => ({ state: "idle" }));
 });
-it("R6-T2 fresh account reaches onboarding before shell; signed-out onboarded account returns to the sign-in wall", async () => {
+it("R6-T2 fresh accounts get onboarding, but an onboarded account can use BYOK without Abacus sign-in", async () => {
   harness = await renderApp("/bots/new", { onboarded: false });
   await waitFor(() =>
     expect(harness!.router.state.location.pathname).toBe("/onboarding/welcome")
@@ -35,66 +35,29 @@ it("R6-T2 fresh account reaches onboarding before shell; signed-out onboarded ac
   await harness.cleanup();
   harness = await renderApp("/bots/new", { onboarded: true, signedIn: false });
   await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/onboarding/welcome")
+    expect(harness!.router.state.location.pathname).toBe("/bots/new")
   );
-  expect(
-    await screen.findByRole("button", { name: "Sign up for free" })
-  ).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
+  await act(() => harness!.router.navigate({ to: "/settings/models" }));
+  expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy();
 });
-it("R6-T7 real router preserves failed attempts and resumes persisted authentication after cancellation", async () => {
-  let outcome!: (value: { ok: false; error: string } | { ok: true }) => void;
+it("R6-T7 desktop welcome starts provider setup without attempting Abacus sign-up", async () => {
+  const authStart = vi.fn(async () => ({ ok: true as const }));
   harness = await renderApp("/onboarding/welcome", {
     onboarded: false,
-    authStart: () =>
-      new Promise((resolve) => {
-        outcome = resolve;
-      }),
+    signedIn: false,
+    authStart,
   });
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Sign up for free" })
-  );
-  await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/onboarding/connect")
-  );
-  await act(async () => {
-    outcome({ ok: false, error: "auth-failed" });
-  });
-  expect(await screen.findByRole("button", { name: "Try again" })).toBeTruthy();
-  await act(async () => {
-    await harness!.router.invalidate();
-  });
-  expect(harness.router.state.location.pathname).toBe("/onboarding/connect");
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() =>
-    expect(
-      harness!.calls.filter(([name]) => name === "auth.abacus.start")
-    ).toHaveLength(2)
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/onboarding/welcome")
-  );
-  expect(onboardingStore.state.signIn).toBeNull();
-  await act(async () => {
-    // The host has saved credentials even though this attempt was cancelled.
-    // Ignore its stale handoff, not the authenticated route guard's answer.
-    outcome({ ok: true });
-  });
-  await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe(
-      "/onboarding/connected"
-    )
-  );
-  expect(onboardingStore.state.signIn).toBeNull();
   expect(screen.queryByRole("button", { name: "Sign up for free" })).toBeNull();
-  expect(
-    (await harness.transport.client.settings.get({})).apiKeys?.ABACUS_API_KEY
-  ).toBeTruthy();
+  fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+  await waitFor(() =>
+    expect(harness!.router.state.location.pathname).toBe("/onboarding/models")
+  );
+  expect(authStart).not.toHaveBeenCalled();
   expect(
     harness.calls.filter(([name]) => name === "auth.abacus.start")
-  ).toHaveLength(2);
+  ).toHaveLength(0);
 });
-
 it.each([false, true])(
   "R6-T8 authenticated completion creates one sponsored Chief of Staff after onboarding, channel lane=%s",
   async (hasChannelLane) => {
@@ -359,7 +322,7 @@ const settingsHost = () => {
     open: () => streams.size,
   };
 };
-it("the shell gate reads settings once, skips hover preloads, and a credential notice signs the shell out", async () => {
+it("the shell gate re-reads credentials but does not block an onboarded BYOK session", async () => {
   const { host, procedures, notify, open } = settingsHost();
   harness = await renderApp("/bots/new", { procedures });
   const first = host.reads;
@@ -370,24 +333,22 @@ it("the shell gate reads settings once, skips hover preloads, and a credential n
   await act(() => harness!.router.navigate({ to: "/routines" }));
   await act(() => harness!.router.navigate({ to: "/bots/new" }));
   expect(host.reads).toBe(first);
-  // The host signs out (another window, a revoked key) and says so.
   host.signedIn = false;
-  await act(async () => {
-    notify({ type: "credentials-changed", provider: "abacus" });
-  });
+  await act(async () =>
+    notify({ type: "credentials-changed", provider: "abacus" })
+  );
   await act(() => harness!.router.navigate({ to: "/routines" }));
   await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/onboarding/welcome")
+    expect(harness!.router.state.location.pathname).toBe("/routines")
   );
   expect(host.reads).toBeGreaterThan(first);
 });
-it("a reopened settings stream re-reads the gate's settings: a notice may have been lost", async () => {
+it("a reopened settings stream re-reads credentials without imposing a credit wall", async () => {
   const { host, procedures, drop, open } = settingsHost();
   harness = await renderApp("/bots/new", { procedures });
   await waitFor(() => expect(open()).toBeGreaterThan(0));
   const first = host.reads;
   const opens = host.opens;
-  // Signed out while the stream was down: no notice will ever say so.
   host.signedIn = false;
   await act(async () => drop());
   await waitFor(() => expect(host.opens).toBeGreaterThanOrEqual(2 * opens), {
@@ -395,7 +356,7 @@ it("a reopened settings stream re-reads the gate's settings: a notice may have b
   });
   await act(() => harness!.router.navigate({ to: "/routines" }));
   await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/onboarding/welcome")
+    expect(harness!.router.state.location.pathname).toBe("/routines")
   );
   expect(host.reads).toBeGreaterThan(first);
 });

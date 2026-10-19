@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { IS_ELECTRON } from "#renderer/lib/platform";
+
 import {
   guardStep,
   next,
+  needsOnboarding,
   ONBOARDING_FLOW,
   resumeStep,
   type FlowFacts,
@@ -13,6 +16,14 @@ const facts: FlowFacts[] = [false, true].flatMap((signedIn) =>
   )
 );
 describe("R6-T4 step machine and R6-T5 resume", () => {
+  it("lets desktop users continue directly to provider setup without Abacus sign-in", () => {
+    expect(next("welcome", { type: "next" }, facts[0]!, null)).toBe(
+      IS_ELECTRON ? "models" : "ignore"
+    );
+    expect(needsOnboarding({ onboarded: true } as never, false)).toBe(
+      !IS_ELECTRON
+    );
+  });
   it("has six steps and resumes the retired done URL at final setup", () => {
     expect(ONBOARDING_FLOW).toEqual([
       "welcome",

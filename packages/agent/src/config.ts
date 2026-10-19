@@ -36,9 +36,6 @@ export const PROVIDER_DEFAULTS: ReadonlyArray<{
   model: string;
 }> = [
   { envVar: "DEEPSEEK_API_KEY", model: "deepseek/deepseek-v4-flash" },
-  // OpenLLM, not the code router directly: the pool holds the same cheap
-  // drivers and any free key added later widens it without another default.
-  { envVar: "ABACUS_API_KEY", model: "openllm/auto" },
   { envVar: "ANTHROPIC_API_KEY", model: "anthropic/claude-haiku-4-5" },
   { envVar: "OPENAI_API_KEY", model: "openai/gpt-5.6-luna" },
   // OpenLLM rather than one model: these keys live on the free tier, where any
@@ -83,8 +80,8 @@ export const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 
 /**
  * What a session starts on when nothing was asked for. Null rather than a guess
- * when no provider is configured, so both front ends can say "configure a
- * model first" instead of failing on the first token.
+ * when no supported direct-provider default is configured. An Abacus account
+ * key alone does not select the free/API-only auto router.
  */
 export const defaultModelFor = (
   env: NodeJS.ProcessEnv = process.env

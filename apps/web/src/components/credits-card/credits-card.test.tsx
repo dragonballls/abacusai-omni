@@ -61,20 +61,27 @@ it("connects OpenRouter and replays a dead turn once after the refreshed catalog
   );
 });
 
-it("opens the account upgrade offer for a basic tier top-up", async () => {
+it("does not show Abacus upgrades or top-ups for any plan tier", async () => {
   const openExternal = vi.fn(async () => {});
   const openUpgrade = vi.fn(async () => {});
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="basic"
-      host={{ openExternal, openUpgrade, canTopUpCredits: async () => true }}
+      host={{
+        openExternal,
+        openUpgrade,
+        canTopUpCredits: async () => true,
+        configuredFreeSources: async () => ({}),
+      }}
     />
   );
   cleanup = rendered.cleanup;
-  expect(document.querySelector("[data-source]")).toBeNull();
-  fireEvent.click(await screen.findByRole("button"));
-  expect(openUpgrade).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Upgrade" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Top up" })).toBeNull();
+  expect(openUpgrade).not.toHaveBeenCalled();
   expect(openExternal).not.toHaveBeenCalled();
+  expect(document.querySelector('[data-source="gemini"]')).toBeTruthy();
 });
 
 it.each([false, undefined])(
@@ -99,10 +106,11 @@ it.each([false, undefined])(
   }
 );
 
-it("offers upgrade for an exhausted free account while retaining free sources", async () => {
+it("offers provider choices instead of an upgrade when the free pool is exhausted", async () => {
   const openUpgrade = vi.fn(async () => {});
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="free"
       host={{
         openExternal: async () => {},
@@ -112,16 +120,17 @@ it("offers upgrade for an exhausted free account while retaining free sources", 
     />
   );
   cleanup = rendered.cleanup;
-  fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
-  expect(openUpgrade).toHaveBeenCalledOnce();
   await waitFor(() =>
     expect(document.querySelector('[data-source="gemini"]')).toBeTruthy()
   );
+  expect(screen.queryByRole("button", { name: "Upgrade" })).toBeNull();
+  expect(openUpgrade).not.toHaveBeenCalled();
 });
 
 it("does not infer an upgrade offer for an unknown account", async () => {
   const rendered = await renderWithDb(
     <CreditsCard
+      providerFallback
       tier="unknown"
       host={{ openExternal: async () => {}, openUpgrade: async () => {} }}
     />
