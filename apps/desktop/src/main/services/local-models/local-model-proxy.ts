@@ -226,6 +226,20 @@ export class LocalModelProxy {
     response: http.ServerResponse
   ): Promise<void> {
     return new Promise((resolve) => {
+      // Keep the model counted as in-flight until the downstream response has
+      // actually flushed or the client has disconnected. An upstream "end"
+      // can fire before ServerResponse finishes writing buffered bytes.
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        response.off("finish", finish);
+        response.off("close", finish);
+        resolve();
+      };
+      response.once("finish", finish);
+      response.once("close", finish);
+
       // Host and port are the upstream's own; only the vetted path is the request's.
       const base = new URL(upstream.baseUrl);
       const headers = { ...request.headers };
@@ -246,17 +260,16 @@ export class LocalModelProxy {
             upstreamResponse.headers
           );
           upstreamResponse.pipe(response);
-          upstreamResponse.on("end", resolve);
           upstreamResponse.on("error", () => {
-            response.end();
-            resolve();
+            if (!response.destroyed && !response.writableEnded) {
+              response.end();
+            }
           });
         }
       );
       proxied.on("error", (error) => {
         if (!response.headersSent) fail(response, 502, error.message);
-        else response.end();
-        resolve();
+        else if (!response.destroyed && !response.writableEnded) response.end();
       });
       // The client going away mid-stream: stop generating for nobody.
       response.on("close", () => proxied.destroy());
