@@ -152,14 +152,20 @@ describe("local OmniRoute gateway security contract", () => {
 });
 
 describe("OmniRoute startup reliability", () => {
-  it("uses the complete bundled runtime for a new gateway when it is present", () => {
-    expect(source).toContain("async function resolveRuntimeForNewGateway()");
-    expect(source).toContain("const { node, entry } = await resolveRuntimeForNewGateway()");
+  it(
+    "uses the complete bundled runtime for a new gateway when it is present",
+    () => {
+      expect(source).toContain("async function resolveRuntimeForNewGateway()");
+      expect(source).toContain(
+        "const { node, entry } = await resolveRuntimeForNewGateway()"
+      );
     expect(source).toContain("startOmniRoute(node, entry, true)");
     expect(source).toContain("installedVersion(node, entry)");
   });
 
-  it("captures gateway output and includes a bounded diagnostic tail on startup failure", () => {
+  it(
+    "captures gateway output and includes a bounded diagnostic tail on startup failure",
+    () => {
     expect(source).toContain('stdio: ["ignore", "pipe", "pipe"]');
     expect(source).toContain('captureGatewayOutput("stdout", chunk)');
     expect(source).toContain('captureGatewayOutput("stderr", chunk)');
