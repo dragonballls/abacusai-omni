@@ -74,6 +74,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TEMP dump formatter output (remove before merge)
+        run: |
+          pnpm exec oxfmt apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts
+          git diff -- apps/desktop/src/main/services/providers/omniroute.ts apps/desktop/src/main/services/providers/omniroute.test.ts
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
