@@ -187,6 +187,11 @@ it("keeps the account-agent link tied to account access without inserting a cred
           open(input)
         ),
       },
+      settings: {
+        get: os.settings.get.handler(
+          () => ({ apiKeys: { ABACUS_API_KEY: "dummy" } }) as never
+        ),
+      },
     },
   });
   const refresh = () =>
