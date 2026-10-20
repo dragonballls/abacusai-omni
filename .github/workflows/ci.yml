@@ -131,22 +131,22 @@ jobs:
 
           changed_paths="$(git diff --name-only "$base" HEAD)"
           ui_inputs_changed=false
-          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$|pnpm-workspace\.yaml$)'; then
+          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$)'; then
             ui_inputs_changed=true
           fi
 
           if [ "$ui_inputs_changed" = true ]; then
             pnpm --filter @abacus-ai/desktop run check:ui-registry
-          elif printf '%s\n' "$changed_paths" | grep -Fxq 'pnpm-lock.yaml'; then
-            # A lockfile-only security patch should not replay an unrelated UI
-            # snapshot. Still run the guard if either code-generation tool pin
-            # changed in the resolved lockfile.
+          elif printf '%s\n' "$changed_paths" | grep -Eq '^(pnpm-workspace\.yaml|pnpm-lock\.yaml)$'; then
+            # Workspace/lockfile changes can be unrelated security patches.
+            # Replay the UI snapshot only if the locked generator/formatter
+            # pins changed; source/config changes above always run the guard.
             base_tools="$(git show "$base:pnpm-lock.yaml" | grep -E '^  (shadcn|oxfmt)@' || true)"
             head_tools="$(grep -E '^  (shadcn|oxfmt)@' pnpm-lock.yaml || true)"
             if [ "$base_tools" != "$head_tools" ]; then
               pnpm --filter @abacus-ai/desktop run check:ui-registry
             else
-              echo "Only unrelated lockfile resolutions changed; shadcn and oxfmt pins are unchanged." >> "$GITHUB_STEP_SUMMARY"
+              echo "Only unrelated workspace/lockfile resolutions changed; shadcn and oxfmt pins are unchanged." >> "$GITHUB_STEP_SUMMARY"
               echo "::notice::Skipping shadcn registry snapshot replay because the registry inputs and generator pins are unchanged."
             fi
           else
