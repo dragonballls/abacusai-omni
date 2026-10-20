@@ -2,9 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   chmodSync,
-  cpSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -12,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:net";
-import { delimiter, dirname, join, relative } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 
 import type {
   GodsEyeIntegrationStatus,
@@ -29,6 +27,8 @@ import {
   type Life360Location,
 } from "./gods-eye-life360.js";
 import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
+import { prepareGodsEyeRuntime } from "./gods-eye-runtime.js";
+import { supportsOsBackedSecureStorage } from "./gods-eye-security.js";
 
 const GODS_EYE_REVISION = "064d51f7be2675f1c69e16068e9c49d1a60144d1";
 const DEFAULT_HA_URL = "http://127.0.0.1:8123";
@@ -83,10 +83,13 @@ function readConfig(): StoredConfig {
 }
 
 function isOsBackedSecureStorageAvailable(): boolean {
-  if (!safeStorage.isEncryptionAvailable()) return false;
-  if (process.platform !== "linux") return true;
-  const backend = safeStorage.getSelectedStorageBackend();
-  return backend !== "basic_text" && backend !== "unknown";
+  return supportsOsBackedSecureStorage(
+    process.platform,
+    safeStorage.isEncryptionAvailable(),
+    process.platform === "linux"
+      ? safeStorage.getSelectedStorageBackend()
+      : undefined
+  );
 }
 
 function decryptToken(config: StoredConfig): string {
@@ -142,78 +145,7 @@ function findSource(): string | null {
 function runtimeRoot(): string {
   const source = findSource();
   if (!source) throw new Error("God's Eye source is missing from this build.");
-  const root = runtimePath();
-  const marker = join(root, ".abacus-gods-eye-revision");
-  const viteCli = join(root, "node_modules", "vite", "bin", "vite.js");
-  let revision = "";
-  try {
-    revision = readFileSync(marker, "utf8").trim();
-  } catch {
-    /* First run. */
-  }
-  if (
-    revision === GODS_EYE_REVISION &&
-    existsSync(viteCli) &&
-    existsSync(join(root, "src", "main.js"))
-  )
-    return root;
-
-  // Keep user-entered provider settings outside the source tree during an
-  // upstream refresh. These files are deliberately excluded from packaging.
-  const preservedSettings = [".env", join("pinokio", "ENVIRONMENT")].flatMap(
-    (relativePath) => {
-      const path = join(root, relativePath);
-      try {
-        if (!lstatSync(path).isFile()) return [];
-        return [{ relativePath, contents: readFileSync(path) }];
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-        throw error;
-      }
-    }
-  );
-
-  mkdirSync(dirname(root), { recursive: true });
-  rmSync(root, { recursive: true, force: true });
-  cpSync(source, root, {
-    recursive: true,
-    force: true,
-    filter: (path) => {
-      const relativePath = relative(source, path);
-      const parts = relativePath.split(/[\\/]/);
-      const basename = parts.at(-1) ?? "";
-      if (
-        parts.includes(".git") ||
-        parts.includes(".gev-cache") ||
-        parts.includes(".gev-logs")
-      )
-        return false;
-      if (parts.includes(".cache") && parts.includes("node_modules"))
-        return false;
-      if (basename.startsWith(".env") && basename !== ".env.example")
-        return false;
-      return true;
-    },
-  });
-  for (const setting of preservedSettings) {
-    const target = join(root, setting.relativePath);
-    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
-    writeFileSync(target, setting.contents, { mode: 0o600 });
-    try {
-      chmodSync(target, 0o600);
-    } catch {
-      /* Windows ACLs are per-user. */
-    }
-  }
-  if (!existsSync(viteCli))
-    throw new Error(
-      "God's Eye dependencies are not packaged. Rebuild the installer."
-    );
-  writeFileSync(marker, GODS_EYE_REVISION + "\n", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  return root;
+  return prepareGodsEyeRuntime(source, runtimePath(), GODS_EYE_REVISION);
 }
 
 function findNode(): string {
