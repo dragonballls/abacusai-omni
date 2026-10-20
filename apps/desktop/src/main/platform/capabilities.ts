@@ -12,6 +12,7 @@ export const WEB_HOST_DENIED = [
   "system.dialog",
   "system.openExternal",
   "settings.omniRoute.open",
+  "settings.godsEye",
   "system.notify",
   "system.logs.save",
   "messaging.showLogin",

@@ -396,6 +396,11 @@ jobs:
       - name: Bundle budgets
         run: pnpm --dir apps/desktop run measure:size && pnpm exec size-limit
 
+      - name: Use Node.js 24.14 for God's Eye packaging
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+
       - name: Package unpacked app
         env:
           # Use an unsigned package in public CI.
