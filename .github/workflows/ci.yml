@@ -74,6 +74,44 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Export Oxfmt-normalized God’s Eye integration files (temporary)
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 17
+        run: |
+          set -euo pipefail
+          pnpm exec oxfmt \
+            apps/desktop/src/main/index.ts \
+            apps/desktop/src/main/rpc/procedures/settings.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.ts \
+            apps/desktop/src/main/services/providers/gods-eye.ts \
+            apps/web/src/features/settings/environment.tsx \
+            packages/contract/src/contract/settings.ts \
+            packages/contract/src/contracts.ts \
+            scripts/prepare-gods-eye-runtime.mjs
+          mkdir -p /tmp/gods-eye-formatted
+          cp --parents \
+            apps/desktop/src/main/index.ts \
+            apps/desktop/src/main/rpc/procedures/settings.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.ts \
+            apps/desktop/src/main/services/providers/gods-eye.ts \
+            apps/web/src/features/settings/environment.tsx \
+            packages/contract/src/contract/settings.ts \
+            packages/contract/src/contracts.ts \
+            scripts/prepare-gods-eye-runtime.mjs \
+            /tmp/gods-eye-formatted/
+          tar -czf /tmp/gods-eye-formatted.tar.gz -C /tmp/gods-eye-formatted .
+      - name: Upload temporary Oxfmt output
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 17
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gods-eye-oxfmt-output
+          path: /tmp/gods-eye-formatted.tar.gz
+          if-no-files-found: error
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
