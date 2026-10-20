@@ -79,7 +79,7 @@ describe("prepareGodsEyeRuntime", () => {
         "PUBLIC_PLACEHOLDER=example\n"
       );
       expect(existsSync(join(root, ".gev-cache", "stale.json"))).toBe(false);
-    }
+    },
   );
 
   it(
@@ -99,6 +99,6 @@ describe("prepareGodsEyeRuntime", () => {
       expect(readFileSync(join(root, ".env.example"), "utf8")).toBe(
         "PUBLIC_PLACEHOLDER=example\n"
       );
-    }
+    },
   );
 });
