@@ -24,7 +24,7 @@ import { abacusBotHome } from "../../paths.js";
 import { resourcePath } from "../../resources.js";
 import {
   Life360HomeAssistantProvider,
-  validateHomeAssistantBaseUrl,
+  validateHomeAssistantBaseUrlWhenEnabled,
   type Life360Location,
 } from "./gods-eye-life360.js";
 import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
@@ -546,7 +546,7 @@ export async function saveGodsEyeLife360Settings(input: {
     throw new Error(
       "Use at most 100 valid Home Assistant device_tracker entity IDs."
     );
-  await validateHomeAssistantBaseUrl(baseUrl);
+  await validateHomeAssistantBaseUrlWhenEnabled(input.enabled, baseUrl);
   const current = readConfig();
   let tokenCipher = current.tokenCipher;
   const newToken = String(input.token ?? "").trim();
