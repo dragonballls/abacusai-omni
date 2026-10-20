@@ -27,8 +27,8 @@ import {
   type Life360Location,
 } from "./gods-eye-life360.js";
 import { prepareGodsEyeRuntime } from "./gods-eye-runtime.js";
-import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 import { supportsOsBackedSecureStorage } from "./gods-eye-security.js";
+import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 
 const GODS_EYE_REVISION = "064d51f7be2675f1c69e16068e9c49d1a60144d1";
 const DEFAULT_HA_URL = "http://127.0.0.1:8123";
