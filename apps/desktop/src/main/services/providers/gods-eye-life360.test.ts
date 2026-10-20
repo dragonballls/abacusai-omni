@@ -5,6 +5,7 @@ import {
   Life360HomeAssistantProvider,
   isPrivateOrLoopbackAddress,
   validateHomeAssistantBaseUrl,
+  validateHomeAssistantBaseUrlWhenEnabled,
 } from "./gods-eye-life360";
 
 const state = (entity_id: string, attributes: Record<string, unknown>) => ({
@@ -24,6 +25,21 @@ describe("Life360 Home Assistant provider", () => {
     expect(isPrivateOrLoopbackAddress("8.8.8.8")).toBe(false);
     expect(isPrivateOrLoopbackAddress("2606:4700:4700::1111")).toBe(false);
     expect(isPrivateOrLoopbackAddress("fd00::12")).toBe(true);
+  });
+
+  it("allows disabling Life360 when Home Assistant is offline", async () => {
+    const lookupAddresses = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    await expect(
+      validateHomeAssistantBaseUrlWhenEnabled(
+        false,
+        "https://home.example",
+        lookupAddresses
+      )
+    ).resolves.toBeUndefined();
+    expect(lookupAddresses).not.toHaveBeenCalled();
   });
 
   it("refuses a public host before sending the bearer token", async () => {
