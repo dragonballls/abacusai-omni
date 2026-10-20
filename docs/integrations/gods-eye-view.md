@@ -3,7 +3,7 @@
 AbacusAI Bot launches the full standalone God’s Eye View console inside a separate, resizable desktop window. The application and its local provider server start only when the user opens it. It uses the pinned upstream revision listed below rather than silently drifting at launch.
 
 - Upstream source: https://github.com/bilawalsidhu/gods-eye-view
-- Pinned revision: https://github.com/bilawalsidhu/gods-eye-view/commit/de2138e84c1778fd98a48b7c9fd0b9788c318946
+- Pinned revision: https://github.com/bilawalsidhu/gods-eye-view/commit/f88262661211441df6aa999e6ed4bde168366dfd
 - Code license: MIT. Third-party data, camera feeds, datasets, and models have separate usage and attribution requirements. Keep the upstream DATA_SOURCES.md, LICENSE, and public/models/README.md with the packaged app and obey every applicable carve-out.
 
 ## Build and runtime

@@ -29,7 +29,7 @@ import {
 } from "./gods-eye-life360.js";
 import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 
-const GODS_EYE_REVISION = "de2138e84c1778fd98a48b7c9fd0b9788c318946";
+const GODS_EYE_REVISION = "f88262661211441df6aa999e6ed4bde168366dfd";
 const DEFAULT_HA_URL = "http://127.0.0.1:8123";
 const STARTUP_TIMEOUT_MS = 45_000;
 
