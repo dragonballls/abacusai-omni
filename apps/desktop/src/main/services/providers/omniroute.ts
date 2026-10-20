@@ -3,8 +3,10 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
  * Local OmniRoute gateway integration for AbacusAI Bot.
  *
  * Matches Brahma Evo's pinned OmniRoute 3.8.50 runtime and shared Windows
- * data directory. Upstream provider credentials are entered in OmniRoute's
- * own dashboard and are never copied into AbacusAI Bot settings.
+ * data directory. Opening the dashboard syncs explicitly saved Abacus model
+ * provider keys and supported Brahma Evo keys into separately named
+ * OmniRoute connections. Environment-only credentials and non-model keys are
+ * intentionally excluded.
  */
 import { createHmac, randomBytes } from "node:crypto";
 import {
@@ -22,7 +24,10 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 
-import type { CustomProviderEntry } from "@abacus-ai/contract/settings";
+import {
+  PROVIDER_KEY_FIELDS,
+  type CustomProviderEntry,
+} from "@abacus-ai/contract/settings";
 import { app, BrowserWindow, shell } from "electron";
 
 import { isSafeExternalUrl } from "../../external-links.js";
@@ -1228,6 +1233,37 @@ function readBrahmaProviderKeys(): {
   return { sourceFound: true, keys };
 }
 
+/**
+ * Return only model-provider keys deliberately saved in Abacus settings.
+ * Do not import the Abacus account key, capability-only credentials, or
+ * shell/environment credentials. Stable names let future opens update a
+ * connection created by this sync without touching user-managed connections.
+ */
+function readAbacusProviderKeys(): BrahmaProviderKey[] {
+  const saved = readSettings().apiKeys ?? {};
+  return PROVIDER_KEY_FIELDS.filter(
+    (field) => field.kind === "model" && field.provider !== "abacus"
+  ).flatMap((field) => {
+    const raw = saved[field.envVar];
+    if (typeof raw !== "string") return [];
+    const key = raw.trim();
+    if (
+      key.length < 8 ||
+      key.length > 4096 ||
+      /[\u0000-\u001f\u007f]/.test(key)
+    ) {
+      return [];
+    }
+    return [
+      {
+        provider: field.provider,
+        name: "AbacusAI Bot - " + field.label,
+        key,
+      },
+    ];
+  });
+}
+
 async function resolveOmniRouteCliRuntime(): Promise<OmniRouteCliRuntime | null> {
   const bundledNode = bundledNodeExecutable();
   const bundledEntry = join(
@@ -1353,6 +1389,9 @@ function applyBrahmaProviderKey(
 
 async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
   const source = readBrahmaProviderKeys();
+  const abacusKeys = readAbacusProviderKeys();
+  const providerKeysFound = source.sourceFound || abacusKeys.length > 0;
+  const keys = [...source.keys, ...abacusKeys];
   const runtime = await resolveOmniRouteCliRuntime();
   const connections = runtime
     ? await listOmniRouteProviderConnections(runtime)
@@ -1362,7 +1401,7 @@ async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
       (connection) => connection.provider?.toLowerCase() === "openai"
     ) ?? null;
 
-  if (!source.sourceFound) {
+  if (!providerKeysFound) {
     return {
       sourceFound: false,
       imported: 0,
@@ -1376,7 +1415,7 @@ async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
       sourceFound: true,
       imported: 0,
       updated: 0,
-      skipped: source.keys.length,
+      skipped: keys.length,
       openaiConfigured: knownOpenAI,
     };
   }
@@ -1385,7 +1424,7 @@ async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
   let updated = 0;
   let skipped = 0;
   let openaiCredentialApplied = false;
-  for (const key of source.keys) {
+  for (const key of keys) {
     // Stable names make repeated syncs idempotent and key rotation update the
     // connection owned by this bridge without modifying other provider entries.
     const existing = connections.find(
@@ -1404,7 +1443,7 @@ async function performBrahmaProviderKeySync(): Promise<BrahmaKeySyncResult> {
   }
 
   return {
-    sourceFound: true,
+    sourceFound: providerKeysFound,
     imported,
     updated,
     skipped,
@@ -1600,20 +1639,20 @@ export async function openOmniRouteWindow(): Promise<{
   }
 
   const keySummary = !keySync.sourceFound
-    ? "No Brahma API-key file was found; existing gateway providers were preserved."
+    ? "No saved model-provider keys were found in Abacus settings or the Brahma Evo key file; existing OmniRoute connections were preserved."
     : keySync.skipped > 0
       ? "Synchronized " +
         keySync.imported +
         " new and " +
         keySync.updated +
-        " existing Brahma connections; " +
+        " existing Abacus/Brahma provider connections; " +
         keySync.skipped +
         " could not be synchronized."
       : "Synchronized " +
         keySync.imported +
         " new and " +
         keySync.updated +
-        " existing Brahma provider connections.";
+        " existing provider connections from saved Abacus and Brahma keys.";
   const astraStatus =
     keySync.openaiConfigured === true
       ? "An OpenAI provider connection is configured for GPT-6 Astra."
