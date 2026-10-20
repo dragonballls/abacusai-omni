@@ -6,7 +6,8 @@ This document tracks a **public-documentation-only** evaluation of T.O.R.V.I.S b
 
 Checked 20 October 2026:
 
-- Product and download page: https://heytorvis.com/
+- Product page: https://heytorvis.com/
+- Official download page supplied for review: https://heytorvis.com/download/
 - Terms of Use: https://heytorvis.com/en/terms/
 - Creator's installation video: https://www.youtube.com/watch?v=mMigua_rhkw
 - Separate public project reference: https://github.com/FatihMakes/Mark-LVI — this is a separate project and must not be described as T.O.R.V.I.S source code.
