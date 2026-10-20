@@ -121,8 +121,31 @@ describe("local OmniRoute gateway security contract", () => {
     expect(environment).toContain('PUPPETEER_SKIP_DOWNLOAD: "1"');
   });
 
-  it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
+  it("syncs saved Abacus provider keys into OmniRoute connections", () => {
+    expect(source).toContain("function readAbacusProviderKeys()");
+    expect(source).toContain("PROVIDER_KEY_FIELDS.filter(");
+    expect(source).toContain(
+      'field.kind === "model" && field.provider !== "abacus"'
+    );
+    expect(source).toContain('name: "AbacusAI Bot - " + field.label');
+    expect(source).toContain("const keys = [...source.keys, ...abacusKeys];");
+    expect(source).toContain('"--credential-stdin"');
+    expect(source).toContain("connection.name === key.name");
+    expect(source).toContain(
+      "Environment-only credentials and non-model keys are"
+    );
+  });
+
+  it("registers Astra via Responses API and preserves the default", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
+    expect(source).toContain('api: "openai-responses"');
+    expect(source).toContain('id: "openai/gpt-6-astra"');
+    expect(source).toContain("contextWindow: 1_050_000");
+    expect(source).toContain("maxTokens: 128_000");
+    expect(source).toContain("cacheRead: 1");
+    expect(source).toContain("cacheWrite: 12.5");
+    expect(source).toContain("if (!readSettings().defaultModel)");
+    expect(source).toContain("setDefaultModel(DEFAULT_MODEL);");
     expect(source).toContain('id: "auto"');
     expect(source).toContain("upsertCustomProvider(provider)");
     expect(source).toContain("findExistingPinnedRuntimeNode()");

@@ -499,18 +499,27 @@ function toProviderConfig(provider: CustomProviderConfig) {
     name: provider.name ?? provider.id,
     baseUrl: provider.baseUrl,
     ...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
-    api: "openai-completions" as const,
+    api: provider.api ?? ("openai-completions" as const),
     ...(provider.headers ? { headers: provider.headers } : {}),
     models: (provider.models ?? []).map((model) => ({
       id: model.id,
       name: model.name ?? model.id,
+      ...(model.api ? { api: model.api } : {}),
       reasoning: model.reasoning ?? false,
-      input: ["text" as const],
-      // No billing meter on a self-hosted endpoint; zero cost is accurate and
-      // marks these "free" in the picker.
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      input: model.input ?? ["text" as const],
+      // Keep estimates honest for gateways backed by paid providers. Local and
+      // unmetered endpoints remain zero-cost unless they declare prices.
+      cost: {
+        input: model.cost?.input ?? 0,
+        output: model.cost?.output ?? 0,
+        cacheRead: model.cost?.cacheRead ?? model.cost?.input ?? 0,
+        cacheWrite: model.cost?.cacheWrite ?? model.cost?.input ?? 0,
+      },
       contextWindow: model.contextWindow ?? 128_000,
       maxTokens: model.maxTokens ?? 8_192,
+      ...(model.thinkingLevelMap
+        ? { thinkingLevelMap: model.thinkingLevelMap }
+        : {}),
     })),
   };
 }

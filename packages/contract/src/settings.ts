@@ -8,14 +8,26 @@ export interface CustomProviderEntry {
   id: string;
   name?: string;
   baseUrl: string;
+  /** Transport used by the endpoint; absent keeps legacy Chat Completions behavior. */
+  api?: "openai-completions" | "openai-responses";
   apiKey?: string;
   headers?: Record<string, string>;
   models?: Array<{
     id: string;
     name?: string;
+    /** Per-model transport override. */
+    api?: "openai-completions" | "openai-responses";
     reasoning?: boolean;
+    input?: Array<"text" | "image">;
+    cost?: {
+      input: number;
+      output: number;
+      cacheRead?: number;
+      cacheWrite?: number;
+    };
     contextWindow?: number;
     maxTokens?: number;
+    thinkingLevelMap?: Record<string, string | null>;
   }>;
 }
 

@@ -123,3 +123,26 @@ available to the app.
 
 The app computes usage totals locally. This does not disable transcript, log,
 or diagnostic uploads described in [Privacy](privacy.md).
+
+## GPT-6 Astra through the shared OmniRoute gateway
+
+Open **Settings → Models → OmniRoute Gateway** once to register the shared local
+gateway, then choose **GPT-6 Astra · Deep Reasoning · Paid API** from the model
+picker when a task needs deeper reasoning and tool use. Abacus sends this model
+through OmniRoute's OpenAI **Responses API** endpoint; keep OmniRoute 3.8.50 and
+the OpenAI provider credential configured in the shared gateway. On Windows,
+Abacus reuses `%LOCALAPPDATA%\\BrahmaAI\\OmniRoute`, which Brahma Evo also uses.
+The provider key stays in OmniRoute rather than being copied into Abacus settings.
+
+`omniroute/auto` remains the default for routine work and fallback. Astra is an
+explicit, higher-cost choice rather than an automatic route, so ordinary chats
+do not unexpectedly start using the premium model. Standard short-context
+pricing is currently $10 per million input tokens and $50 per million output
+tokens; cached input and cache writes have separate rates. Long-context requests
+and processing tiers may cost more. The picker estimate is informational and
+does not replace the provider's billing page.
+
+GPT-6 Astra requires the Responses API for tool calling. The OmniRoute adapter
+uses the Responses transport so tool-enabled agent turns do not fall back to
+Chat Completions. For a provider failure, verify the OpenAI key in the shared
+OmniRoute dashboard and test that provider there before changing other keys.
