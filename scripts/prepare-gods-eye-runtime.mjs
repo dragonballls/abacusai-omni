@@ -93,10 +93,7 @@ if (installedHash !== lockHash || !existsSync(viteCli)) {
     join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js"),
     join(nodeDir, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
   ].find(existsSync);
-  assert(
-    npmCli,
-    "npm CLI was not found beside the build Node.js runtime."
-  );
+  assert(npmCli, "npm CLI was not found beside the build Node.js runtime.");
   run(process.execPath, [npmCli, "ci", "--no-audit", "--no-fund"], {
     cwd: SOURCE,
     env: {
