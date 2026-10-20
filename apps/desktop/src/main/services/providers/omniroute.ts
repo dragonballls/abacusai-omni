@@ -1229,7 +1229,9 @@ function readBrahmaProviderKeys(): {
   return { sourceFound: true, keys };
 }
 
-async function resolveOmniRouteCliRuntime(): Promise<OmniRouteCliRuntime | null> {
+async function resolveOmniRouteCliRuntime(): Promise<
+  OmniRouteCliRuntime | null
+> {
   const bundledNode = bundledNodeExecutable();
   const bundledEntry = join(
     omniRouteBundleModules,
