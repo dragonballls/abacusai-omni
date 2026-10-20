@@ -267,9 +267,13 @@ export class Life360HomeAssistantProvider {
         .filter(Boolean);
       if (
         configuredIds.length > LIFE360_MAX_ENTITY_IDS ||
-        configuredIds.some((value) => !/^device_tracker\.[a-z0-9_]+$/i.test(value))
+        configuredIds.some(
+          (value) => !/^device_tracker\.[a-z0-9_]+$/i.test(value)
+        )
       ) {
-        throw new Error("Stored tracker allowlist contains invalid entity IDs.");
+        throw new Error(
+          "Stored tracker allowlist contains invalid entity IDs."
+        );
       }
       const allowlist = new Set(
         configuredIds.map((value) => value.toLowerCase())
@@ -282,11 +286,15 @@ export class Life360HomeAssistantProvider {
           new URL("/api/template", baseUrl).href,
           {
             method: "POST",
-            body: JSON.stringify({ template: LIFE360_ENTITY_DISCOVERY_TEMPLATE }),
+            body: JSON.stringify({
+              template: LIFE360_ENTITY_DISCOVERY_TEMPLATE,
+            }),
           }
         );
         if (!Array.isArray(discovered))
-          throw new Error("Home Assistant returned malformed tracker discovery data.");
+          throw new Error(
+            "Home Assistant returned malformed tracker discovery data."
+          );
         entityIds = [
           ...new Set(
             discovered
@@ -313,10 +321,7 @@ export class Life360HomeAssistantProvider {
           !Array.isArray(state.attributes)
             ? (state.attributes as Record<string, unknown>)
             : {};
-        const attribution = [
-          attrs.attribution,
-          attrs.source,
-        ]
+        const attribution = [attrs.attribution, attrs.source]
           .map((value) => String(value ?? ""))
           .join(" ")
           .toLowerCase();
@@ -432,18 +437,20 @@ export class Life360HomeAssistantProvider {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const body = options.body;
-      const response = await this.fetchImpl(url, {
+      const headers: Record<string, string> = {
+        Authorization: "Bearer " + this.config.token,
+        Accept: "application/json",
+      };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      const requestOptions: RequestInit = {
         method: options.method ?? "GET",
-        headers: {
-          Authorization: "Bearer " + this.config.token,
-          Accept: "application/json",
-          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        },
-        ...(body === undefined ? {} : { body }),
+        headers,
         cache: "no-store",
         redirect: "error",
         signal: controller.signal,
-      });
+      };
+      if (body !== undefined) requestOptions.body = body;
+      const response = await this.fetchImpl(url, requestOptions);
       if (!response.ok) {
         if (response.status === 401 || response.status === 403)
           throw new Error("Home Assistant rejected the access token.");
