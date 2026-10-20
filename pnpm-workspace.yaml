@@ -22,7 +22,7 @@ catalog:
   tsdown: ^0.22.14
   typescript: ^7.0.2
   ultracite: ^7.10.5
-  vite: ^8.2.1
+  vite: ^8.3.3
   vitest: ^4.1.11
 
 # Electron and the native addons resolve their own binaries by walking up from
@@ -47,6 +47,9 @@ allowBuilds:
 # high SSRF / host-confusion advisories (GHSA-5jgf-p345-68v8, GHSA-qw65-cvwx-89v3
 # and siblings).
 overrides:
+  # GHSA-587h-7wmj-h5pm and related October 2026 advisories: Vite 8.3.3
+  # carries the patched launch-editor integration.
+  vite: ^8.3.3
   # Patched releases for the October 2026 dependency audit.
   seroval: ^1.6.1
   source-map-js: ^1.2.2
