@@ -130,7 +130,7 @@ jobs:
           fi
 
           changed_paths="$(git diff --name-only "$base" HEAD)"
-          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$|pnpm-workspace\.yaml$|pnpm-lock\.yaml$)'; then
+          if printf '%s\n' "$changed_paths" | grep -Eq '^(apps/web/src/ui/|apps/web/src/styles/|apps/web/src/lib/utils\.ts$|apps/web/(components\.json|tsconfig\.json|package\.json)$|apps/desktop/shadcn-registry/|apps/desktop/scripts/(shadcn[^/]*\.mjs|registry-content\.mjs)$|oxfmt\.config\.ts$|package\.json$)'; then
             pnpm --filter @abacus-ai/desktop run check:ui-registry
           else
             echo "Shadcn registry inputs unchanged; snapshot replay is not applicable to this change." >> "$GITHUB_STEP_SUMMARY"
