@@ -1578,7 +1578,7 @@ export async function openOmniRouteWindow(): Promise<{
   try {
     const clientKey = await ensureOmniRoute();
     keySync = await syncBrahmaProviderKeys();
-    ensureAbacusProvider(clientKey);
+    ensureAbacusProvider(clientKey, keySync.openaiConfigured);
     await authenticateOmniRouteDashboard(window);
     await window.loadURL(OMNIROUTE_ORIGIN);
   } catch (error) {
