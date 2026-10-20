@@ -97,7 +97,11 @@ if (
     join(dirname(process.execPath), "LICENSE"),
   ];
   const nodeLicense = licenseCandidates.find(existsSync);
-  if (nodeLicense) copyFileSync(nodeLicense, join(runtimeDirectory, "LICENSE"));
+  assert(
+    nodeLicense,
+    "The Node.js distribution license file was not found beside the runtime."
+  );
+  copyFileSync(nodeLicense, join(runtimeDirectory, "LICENSE"));
 }
 const lockHash = createHash("sha256")
   .update(readFileSync(join(SOURCE, "package.json")))
