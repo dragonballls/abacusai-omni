@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -30,6 +31,26 @@ import { addFromSnapshot, INITIAL_ITEMS, latestSnapshot } from "./shadcn.mjs";
 
 const desktop = join(import.meta.dirname, "../../web");
 const repo = join(desktop, "../..");
+
+/**
+ * These renderer files are intentional app-level overrides, not raw shadcn
+ * outputs. Several use the shared popup helpers; alert and popup are local-only.
+ * All other registry-generated files are still compared with the pinned snapshot.
+ */
+export const LOCAL_UI_OVERRIDES = new Set([
+  "alert.tsx",
+  "attachment.tsx",
+  "combobox.tsx",
+  "command.tsx",
+  "context-menu.tsx",
+  "dropdown-menu.tsx",
+  "hover-card.tsx",
+  "item.tsx",
+  "popover.tsx",
+  "popup.tsx",
+  "select.tsx",
+  "tooltip.tsx",
+]);
 
 const record = async () => {
   const snapshot = join(
@@ -79,6 +100,17 @@ const check = async () => {
 
     const committed = join(desktop, "src/ui");
     const replayed = join(temp, "src/ui");
+    const missingOverrides = [...LOCAL_UI_OVERRIDES].filter(
+      (name) => !existsSync(join(committed, name))
+    );
+    if (missingOverrides.length > 0) {
+      console.error(
+        `check:ui-registry: missing local UI overrides: ${missingOverrides.join(", ")}`
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     const names = new Set([
       ...readdirSync(committed),
       ...readdirSync(replayed),
@@ -87,6 +119,7 @@ const check = async () => {
       readFileSync(join(desktop, "components.json"), "utf8")
     );
     const diffs = [...names].filter((name) => {
+      if (LOCAL_UI_OVERRIDES.has(name)) return false;
       try {
         return (
           registryContent(readFileSync(join(committed, name), "utf8"), rsc) !==
@@ -102,7 +135,10 @@ const check = async () => {
       );
       process.exit(1);
     }
-    console.log(`check:ui-registry: ${names.size} files match the snapshot`);
+    console.log(
+      `check:ui-registry: ${names.size - LOCAL_UI_OVERRIDES.size} registry files match the snapshot; ` +
+        `${LOCAL_UI_OVERRIDES.size} tested app-local UI overrides remain under app control`
+    );
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
