@@ -59,7 +59,6 @@ describe("God's Eye Life360 view handoff", () => {
     expect(annotations).toHaveLength(24);
   });
 
-
   it("removes Life360 pins on disconnect without deleting user pins or view state", () => {
     const source =
       "http://127.0.0.1:4173/#v=2&lat=33.9&lon=-117.9&alt=1200000&pitch=-80&an=" +

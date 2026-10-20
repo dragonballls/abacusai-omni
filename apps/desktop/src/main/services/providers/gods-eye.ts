@@ -568,10 +568,7 @@ export async function saveGodsEyeLife360Settings(input: {
     tokenCipher,
   });
   life360StatusError = null;
-  if (
-    !input.enabled &&
-    !(await refreshOpenGodsEyeMap([]))
-  ) {
+  if (!input.enabled && !(await refreshOpenGodsEyeMap([]))) {
     life360StatusError =
       "Life360 was disconnected, but the open map could not be refreshed. Close and reopen God's Eye to remove any remaining location pins.";
   }
