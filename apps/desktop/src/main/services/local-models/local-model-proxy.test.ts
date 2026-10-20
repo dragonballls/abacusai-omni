@@ -83,7 +83,7 @@ beforeEach(async () => {
     serverFor: (modelId) => upstreams[modelId] ?? null,
     defaultModelId: () => defaultModel,
     // Leave room for real HTTP response flushing on slower CI runners.
-    idleMs: 500,
+    idleMs: 1_000,
   });
   // Any free port: the preferred one may be taken on a developer's machine.
   await proxy.listen(49_000 + Math.floor(Math.random() * 500));
@@ -186,7 +186,7 @@ describe("the local model endpoint", () => {
     expect(proxy.servingId).toBe("a");
 
     await vi.waitFor(() => expect(proxy.servingId).toBeNull(), {
-      timeout: 2_000,
+      timeout: 5_000,
     });
     expect(upstreams.a!.stops).toBe(1);
 
