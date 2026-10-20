@@ -67,32 +67,21 @@ describe("Life360 Home Assistant provider", () => {
   });
 
   it("reads only explicit tracker allowlist entries and never returns the token", async () => {
-    const states = [
-      state("device_tracker.alice_phone", {
-        latitude: 34.1,
-        longitude: -117.8,
-        gps_accuracy: 9,
-        friendly_name: "Alice phone",
-      }),
-      state("device_tracker.bob_phone", {
-        latitude: 34.2,
-        longitude: -117.9,
-        friendly_name: "Bob phone",
-      }),
-      state("device_tracker.life360_guest", {
-        latitude: 999,
-        longitude: -117.9,
-        source: "Life360",
-      }),
-      state("sensor.alice", { latitude: 34.1, longitude: -117.8 }),
-    ];
+    const alice = state("device_tracker.alice_phone", {
+      latitude: 34.1,
+      longitude: -117.8,
+      gps_accuracy: 9,
+      friendly_name: "Alice phone",
+    });
     const fetchImpl = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
       return url.endsWith("/api/")
         ? new Response(JSON.stringify({ message: "API running." }), {
             status: 200,
           })
-        : new Response(JSON.stringify(states), { status: 200 });
+        : url.endsWith("/api/states/device_tracker.alice_phone")
+          ? new Response(JSON.stringify(alice), { status: 200 })
+          : new Response("not found", { status: 404 });
     });
     const provider = new Life360HomeAssistantProvider(
       {
@@ -121,24 +110,30 @@ describe("Life360 Home Assistant provider", () => {
   });
 
   it("auto-selects only Life360-attributed trackers when there is no explicit allowlist", async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
-      String(input).endsWith("/api/")
-        ? new Response('{"message":"API running."}', { status: 200 })
-        : new Response(
-            JSON.stringify([
-              state("device_tracker.life360_family", {
-                latitude: 33,
-                longitude: -117,
-              }),
-              state("device_tracker.wifi_guest", {
-                latitude: 34,
-                longitude: -118,
-                source: "router",
-              }),
-            ]),
-            { status: 200 }
-          )
-    );
+    const life360 = state("device_tracker.life360_family", {
+      latitude: 33,
+      longitude: -117,
+    });
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/api/"))
+        return new Response('{"message":"API running."}', { status: 200 });
+      if (url.endsWith("/api/template")) {
+        expect(init?.method).toBe("POST");
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          template?: string;
+        };
+        expect(body.template).toContain("states.device_tracker");
+        expect(body.template).toContain("to_json");
+        return new Response(
+          JSON.stringify(["device_tracker.life360_family"]),
+          { status: 200 }
+        );
+      }
+      if (url.endsWith("/api/states/device_tracker.life360_family"))
+        return new Response(JSON.stringify(life360), { status: 200 });
+      return new Response("not found", { status: 404 });
+    });
     const provider = new Life360HomeAssistantProvider(
       {
         enabled: true,
