@@ -68,9 +68,7 @@ export const EnvironmentPage = () => {
         setLife360EnabledDraft(null);
         setLife360BaseUrlDraft(null);
         setLife360EntityIdsDraft(null);
-        setLife360Message(
-          t("godsEye.settingsSaved")
-        );
+        setLife360Message(t("godsEye.settingsSaved"));
       },
       meta: { errorToast: true },
     })
@@ -242,7 +240,9 @@ export const EnvironmentPage = () => {
               }
               onClick={() => openGodsEye.mutate({})}
             >
-              {openGodsEye.isPending ? t("godsEye.opening") : t("godsEye.openRefresh")}
+              {openGodsEye.isPending
+                ? t("godsEye.opening")
+                : t("godsEye.openRefresh")}
             </Button>
           </SettingRow>
           <SettingRow
@@ -259,7 +259,9 @@ export const EnvironmentPage = () => {
           <div className="grid gap-2 p-3">
             <Input
               aria-label={t("godsEye.baseUrlLabel")}
-              placeholder={"http://127.0.0.1:8123" /* i18n-ignore: fixed URL example */}
+              placeholder={
+                "http://127.0.0.1:8123" /* i18n-ignore: fixed URL example */
+              }
               value={life360BaseUrl}
               onChange={(event) => setLife360BaseUrlDraft(event.target.value)}
             />
@@ -273,7 +275,9 @@ export const EnvironmentPage = () => {
             />
             <Input
               aria-label={t("godsEye.entityAllowlistLabel")}
-              placeholder={"Optional: device_tracker.phone, device_tracker.tablet" /* i18n-ignore: technical entity ID examples */}
+              placeholder={
+                "Optional: device_tracker.phone, device_tracker.tablet" /* i18n-ignore: technical entity ID examples */
+              }
               value={life360EntityIds}
               onChange={(event) => setLife360EntityIdsDraft(event.target.value)}
             />
@@ -298,7 +302,9 @@ export const EnvironmentPage = () => {
                 });
               }}
             >
-              {saveLife360.isPending ? t("godsEye.saving") : t("godsEye.saveSettings")}
+              {saveLife360.isPending
+                ? t("godsEye.saving")
+                : t("godsEye.saveSettings")}
             </Button>
             <Button
               size="sm"
@@ -309,7 +315,9 @@ export const EnvironmentPage = () => {
               }
               onClick={() => testLife360.mutate({})}
             >
-              {testLife360.isPending ? t("godsEye.testing") : t("godsEye.testConnection")}
+              {testLife360.isPending
+                ? t("godsEye.testing")
+                : t("godsEye.testConnection")}
             </Button>
             <Button
               size="sm"
