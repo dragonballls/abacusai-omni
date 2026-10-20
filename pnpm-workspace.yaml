@@ -22,7 +22,7 @@ catalog:
   tsdown: ^0.22.14
   typescript: ^7.0.2
   ultracite: ^7.10.5
-  vite: ^8.2.1
+  vite: ^8.2.4
   vitest: ^4.1.11
 
 # Electron and the native addons resolve their own binaries by walking up from
