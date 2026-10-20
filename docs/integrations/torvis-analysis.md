@@ -1,56 +1,46 @@
-# T.O.R.V.I.S package research plan
+# T.O.R.V.I.S public-information and compatibility research
 
-This document records a lawful, non-destructive compatibility investigation for the T.O.R.V.I.S desktop installer by FatihMakes. It is **not** the T.O.R.V.I.S source code, and no proprietary installer, executable, extracted application files, API secrets, license tokens, or user data should be committed to this public repository unless the rights holder expressly permits redistribution.
+This document tracks a **public-documentation-only** evaluation of T.O.R.V.I.S by FatihMakes. It is not T.O.R.V.I.S source code. Do not commit the vendor installer, executables, extracted application files, license keys, tokens, cookies, private user data, or other proprietary materials to this public repository.
 
-## What is confirmed so far
+## Official information checked
 
-- The creator's installation video points to https://heytorvis.com for T.O.R.V.I.S and describes access through FatihMakes Academy.
-- The video includes a "License Key & Setup" step. A downloadable installer alone therefore should not be treated as permission to use the application or evidence that its backend services are included.
-- The public Mark-LVI repository is a separate project. It is useful as a public architectural reference, but it should not be represented as the T.O.R.V.I.S source.
-- Official video: https://www.youtube.com/watch?v=mMigua_rhkw
-- Public Mark-LVI reference: https://github.com/FatihMakes/Mark-LVI
+Checked 20 October 2026:
 
-These points are based on public descriptions and have not been independently tested against an installed T.O.R.V.I.S package.
+- Product and download page: https://heytorvis.com/
+- Terms of Use: https://heytorvis.com/en/terms/
+- Creator's installation video: https://www.youtube.com/watch?v=mMigua_rhkw
+- Separate public project reference: https://github.com/FatihMakes/Mark-LVI — this is a separate project and must not be described as T.O.R.V.I.S source code.
 
-## Investigation goals
+The official site describes T.O.R.V.I.S as a Windows voice assistant that can operate apps and files, interact with the screen, use Python plugins, and connect to a phone through a private Telegram bot. It says the AI models run on the vendor's servers. The site describes installation followed by a licence key, and subscription plans; downloading the installer alone does not provide permission to use the service or mean that the hosted AI is included in the installer.
 
-1. Establish the exact installer filename, version, publisher/signature, SHA-256 hash, and package type.
-2. Inspect file manifests and bundled-runtime metadata without executing the installer.
-3. Identify ordinary integration surfaces (documented local endpoints, plugin APIs, command-line arguments, IPC, configuration formats, or supported launch options).
-4. In a disposable Windows Sandbox/VM, observe normal startup and shutdown, child processes, file changes, and outbound network destinations. Do not submit credentials or personal data.
-5. Compare findings with Abacus's existing Electron lifecycle, permission boundaries, and OmniRoute gateway.
-6. Implement only an authorized integration adapter or independently written compatible functionality. Do not disable activation/licensing, extract secrets, impersonate accounts, or claim the vendor's hosted AI is included in the installer.
+## Important terms and eligibility limits
 
-## Sample handling
+The Terms of Use currently identify themselves as effective **19 October 2026** and state that users must be **18 or older**. They also state that the application is licensed, not sold, and prohibit copying, modifying, decompiling, disassembling, reverse engineering, extracting code or contents, redistributing/reselling the app, or using it to build a competing product, except where the law expressly allows otherwise.
 
-Keep the installer and any extracted proprietary application files outside the public repository, in a local, access-controlled analysis directory. Do not run an unknown installer on the primary Windows profile before static inspection.
+Accordingly, this repository workstream must not provide a download-and-upload path for the proprietary app, attempt to bypass its licence/age requirements, unpack or reverse-engineer its internals, or redistribute its installer. Continue only with public product documentation, published and supported integration surfaces, independently written compatible functionality, or work for which the rights holder has given appropriate written authorization. If uncertain whether a proposed inspection is permitted, stop and ask the vendor for written clarification.
 
-In PowerShell, replace the path below with the installer you obtained from the official source:
+## Safe Abacus integration goals
 
-```powershell
-$sample = "C:\Path\To\TorvisInstaller.exe"
-Get-Item $sample | Select-Object FullName, Length, LastWriteTime
-Get-FileHash $sample -Algorithm SHA256
-Get-AuthenticodeSignature $sample | Format-List Status, StatusMessage, SignerCertificate, Path
-```
-
-Record only non-sensitive metadata in the public investigation report. Do not paste license keys, authentication tokens, cookies, private account data, or user conversations into logs or GitHub.
-
-If the package is an archive that the publisher permits inspecting, list its contents before extracting it. Do not upload the installer or unpacked application to this public repo. If a package is not inspectable without bypassing technical or licensing restrictions, stop and use the vendor's documented interface or request permission.
+1. Record publicly documented user-facing capabilities and relevant product links.
+2. Look for an explicitly documented, supported plugin/interface/API that can lawfully interoperate with Abacus. Do not assume one exists until official documentation confirms it.
+3. If no supported interface is documented, implement original Abacus features inspired by the general capability (voice interaction, permissioned desktop actions, plugin isolation, visible confirmations) without copying Torvis code, UI assets, prompts, or proprietary package contents.
+4. Keep Abacus's existing process boundaries, secret handling, and user confirmations. Never embed a Torvis licence key or credentials in source control.
+5. If the vendor offers a developer programme or grants written permission for a specific integration, record its scope and conditions before proceeding.
 
 ## Findings log
 
-No T.O.R.V.I.S installer has been obtained or analyzed in this workstream yet.
+No T.O.R.V.I.S installer has been downloaded, installed, executed, or analyzed as part of this repository workstream. This is intentional: the current public terms impose age and intellectual-property restrictions that must be respected.
 
 | Field | Status |
 |---|---|
-| Official source identified | Yes: https://heytorvis.com |
-| Actual installer file obtained | Not yet |
-| SHA-256 / signature checked | Not yet |
-| Static package inventory | Not yet |
-| Runtime/network behavior observed | Not yet |
-| Supported integration API confirmed | Not yet |
-| Abacus integration implemented | Not yet |
-| Vendor authorization for redistribution | Not established |
+| Official product page identified | Yes: https://heytorvis.com/ |
+| Official Terms of Use reviewed | Yes: effective 19 October 2026 |
+| Age eligibility | Terms state 18+ |
+| Public product capabilities recorded | Yes, from the official website |
+| Installer obtained or inspected | No |
+| Vendor internals extracted or reverse-engineered | No |
+| Supported developer API/plugin interface verified | Not yet |
+| Vendor authorization for redistribution or reverse engineering | Not established |
+| Abacus integration implemented | No |
 
-Do not describe this investigation as completed until these fields are updated with reproducible evidence.
+Do not describe the T.O.R.V.I.S investigation or integration as completed until an authorized, supported integration path has been confirmed and verified with reproducible tests.
