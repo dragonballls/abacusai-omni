@@ -405,10 +405,7 @@ export class Life360HomeAssistantProvider {
   ): Promise<unknown | null> {
     try {
       const value = await this.requestJson(
-        new URL(
-          "/api/states/" + encodeURIComponent(entityId),
-          baseUrl
-        ).href
+        new URL("/api/states/" + encodeURIComponent(entityId), baseUrl).href
       );
       if (value == null || typeof value !== "object" || Array.isArray(value))
         return null;
