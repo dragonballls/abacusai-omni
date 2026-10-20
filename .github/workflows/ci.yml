@@ -530,3 +530,61 @@ jobs:
           path: apps/desktop/release/win-unpacked/
           if-no-files-found: error
           retention-days: 14
+
+  format-fix:
+    name: Temporary Oxfmt commit (PR 17 only)
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 17
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format the integration files
+        run: |
+          pnpm exec oxfmt \
+            apps/desktop/src/main/index.ts \
+            apps/desktop/src/main/rpc/procedures/settings.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.ts \
+            apps/desktop/src/main/services/providers/gods-eye.ts \
+            apps/web/src/features/settings/environment.tsx \
+            packages/contract/src/contract/settings.ts \
+            packages/contract/src/contracts.ts \
+            scripts/prepare-gods-eye-runtime.mjs
+      - name: Commit formatting to this review branch
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/desktop/src/main/index.ts \
+            apps/desktop/src/main/rpc/procedures/settings.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-life360.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.test.ts \
+            apps/desktop/src/main/services/providers/gods-eye-view-url.ts \
+            apps/desktop/src/main/services/providers/gods-eye.ts \
+            apps/web/src/features/settings/environment.tsx \
+            packages/contract/src/contract/settings.ts \
+            packages/contract/src/contracts.ts \
+            scripts/prepare-gods-eye-runtime.mjs
+          if git diff --cached --quiet; then
+            echo "Integration files are already formatted."
+            exit 0
+          fi
+          git commit -m "Format God's Eye integration files"
+          git push origin "HEAD:${BRANCH}"
