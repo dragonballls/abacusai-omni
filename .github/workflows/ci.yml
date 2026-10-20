@@ -74,11 +74,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Temporary God’s Eye formatter diagnostic
-        run: |
-          pnpm exec oxfmt apps/desktop/src/main/services/providers/gods-eye-runtime.test.ts apps/desktop/src/main/services/providers/gods-eye.ts
-          git diff -- apps/desktop/src/main/services/providers/gods-eye-runtime.test.ts apps/desktop/src/main/services/providers/gods-eye.ts
-          exit 23
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they

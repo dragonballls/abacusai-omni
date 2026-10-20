@@ -26,8 +26,8 @@ import {
   validateHomeAssistantBaseUrlWhenEnabled,
   type Life360Location,
 } from "./gods-eye-life360.js";
-import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 import { prepareGodsEyeRuntime } from "./gods-eye-runtime.js";
+import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 import { supportsOsBackedSecureStorage } from "./gods-eye-security.js";
 
 const GODS_EYE_REVISION = "064d51f7be2675f1c69e16068e9c49d1a60144d1";
