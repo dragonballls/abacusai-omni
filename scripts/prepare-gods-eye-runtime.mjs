@@ -87,7 +87,13 @@ if (
   // The app must run God’s Eye without asking users to install Node separately.
   // Windows reuses the pinned Node executable bundled for OmniRoute; macOS and
   // Linux ship this dedicated runtime beside the app's other resources.
-  const runtimeDirectory = join(ROOT, "apps", "desktop", "resources", "gods-eye-node");
+  const runtimeDirectory = join(
+    ROOT,
+    "apps",
+    "desktop",
+    "resources",
+    "gods-eye-node"
+  );
   const runtimeExecutable = join(runtimeDirectory, "node");
   mkdirSync(runtimeDirectory, { recursive: true });
   copyFileSync(process.execPath, runtimeExecutable);
