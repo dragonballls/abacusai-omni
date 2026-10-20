@@ -29,7 +29,9 @@ describe("Life360 Home Assistant provider", () => {
   it("refuses a public host before sending the bearer token", async () => {
     const fetchImpl = vi.fn<typeof fetch>();
     await expect(
-      validateHomeAssistantBaseUrl("https://example.com", async () => ["8.8.8.8"])
+      validateHomeAssistantBaseUrl("https://example.com", async () => [
+        "8.8.8.8",
+      ])
     ).rejects.toThrow(/private-network/);
     const provider = new Life360HomeAssistantProvider(
       {
@@ -71,7 +73,9 @@ describe("Life360 Home Assistant provider", () => {
     const fetchImpl = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
       return url.endsWith("/api/")
-        ? new Response(JSON.stringify({ message: "API running." }), { status: 200 })
+        ? new Response(JSON.stringify({ message: "API running." }), {
+            status: 200,
+          })
         : new Response(JSON.stringify(states), { status: 200 });
     });
     const provider = new Life360HomeAssistantProvider(
@@ -95,7 +99,9 @@ describe("Life360 Home Assistant provider", () => {
       accuracyM: 9,
     });
     expect(JSON.stringify(result)).not.toContain("do-not-leak");
-    expect(fetchImpl.mock.calls.every((call) => call[1]?.redirect === "error")).toBe(true);
+    expect(
+      fetchImpl.mock.calls.every((call) => call[1]?.redirect === "error")
+    ).toBe(true);
   });
 
   it("auto-selects only Life360-attributed trackers when there is no explicit allowlist", async () => {
@@ -104,8 +110,15 @@ describe("Life360 Home Assistant provider", () => {
         ? new Response('{"message":"API running."}', { status: 200 })
         : new Response(
             JSON.stringify([
-              state("device_tracker.life360_family", { latitude: 33, longitude: -117 }),
-              state("device_tracker.wifi_guest", { latitude: 34, longitude: -118, source: "router" }),
+              state("device_tracker.life360_family", {
+                latitude: 33,
+                longitude: -117,
+              }),
+              state("device_tracker.wifi_guest", {
+                latitude: 34,
+                longitude: -118,
+                source: "router",
+              }),
             ]),
             { status: 200 }
           )
@@ -129,7 +142,9 @@ describe("Life360 Home Assistant provider", () => {
     const fetchImpl = vi.fn<typeof fetch>(async (input) =>
       String(input).endsWith("/api/")
         ? new Response('{"message":"API running."}', { status: 200 })
-        : new Response("x".repeat(LIFE360_MAX_RESPONSE_BYTES + 1), { status: 200 })
+        : new Response("x".repeat(LIFE360_MAX_RESPONSE_BYTES + 1), {
+            status: 200,
+          })
     );
     const provider = new Life360HomeAssistantProvider(
       {
@@ -145,8 +160,12 @@ describe("Life360 Home Assistant provider", () => {
   });
 
   it("does not follow credential-bearing redirects", async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () =>
-      new Response("redirect", { status: 302, headers: { Location: "https://evil.example/" } })
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () =>
+        new Response("redirect", {
+          status: 302,
+          headers: { Location: "https://evil.example/" },
+        })
     );
     const provider = new Life360HomeAssistantProvider(
       {

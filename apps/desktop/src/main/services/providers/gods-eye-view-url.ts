@@ -28,7 +28,9 @@ export function buildGodsEyeRefreshUrl(
     url.protocol !== "http:" ||
     !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
   ) {
-    throw new Error("God's Eye refresh URLs must stay on the local app origin.");
+    throw new Error(
+      "God's Eye refresh URLs must stay on the local app origin."
+    );
   }
 
   const params = new URLSearchParams(url.hash.replace(/^#/, ""));
@@ -42,7 +44,9 @@ export function buildGodsEyeRefreshUrl(
       existing = [];
     }
   }
-  const manual = existing.filter((item) => !isLife360Annotation(item)).slice(0, MAX_ANNOTATIONS);
+  const manual = existing
+    .filter((item) => !isLife360Annotation(item))
+    .slice(0, MAX_ANNOTATIONS);
   const availableSlots = Math.max(0, MAX_ANNOTATIONS - manual.length);
   const family = locations
     .filter(validLocation)

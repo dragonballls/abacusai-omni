@@ -34,14 +34,22 @@ export const EnvironmentPage = () => {
     enabled: IS_ELECTRON,
   });
   const savedLife360 = godsEyeStatusQuery.data?.life360;
-  const [life360EnabledDraft, setLife360EnabledDraft] = useState<boolean | null>(null);
-  const [life360BaseUrlDraft, setLife360BaseUrlDraft] = useState<string | null>(null);
-  const [life360EntityIdsDraft, setLife360EntityIdsDraft] = useState<string | null>(null);
+  const [life360EnabledDraft, setLife360EnabledDraft] = useState<
+    boolean | null
+  >(null);
+  const [life360BaseUrlDraft, setLife360BaseUrlDraft] = useState<string | null>(
+    null
+  );
+  const [life360EntityIdsDraft, setLife360EntityIdsDraft] = useState<
+    string | null
+  >(null);
   const [life360Token, setLife360Token] = useState("");
   const [life360Message, setLife360Message] = useState("");
   const life360Enabled = life360EnabledDraft ?? savedLife360?.enabled ?? false;
-  const life360BaseUrl = life360BaseUrlDraft ?? savedLife360?.baseUrl ?? "http://127.0.0.1:8123";
-  const life360EntityIds = life360EntityIdsDraft ?? savedLife360?.entityIds.join(", ") ?? "";
+  const life360BaseUrl =
+    life360BaseUrlDraft ?? savedLife360?.baseUrl ?? "http://127.0.0.1:8123";
+  const life360EntityIds =
+    life360EntityIdsDraft ?? savedLife360?.entityIds.join(", ") ?? "";
   const godsEyeStatusKey = godsEyeApi.status.queryKey({ input: {} });
   const openGodsEye = useMutation(
     godsEyeApi.open.mutationOptions({
@@ -60,7 +68,9 @@ export const EnvironmentPage = () => {
         setLife360EnabledDraft(null);
         setLife360BaseUrlDraft(null);
         setLife360EntityIdsDraft(null);
-        setLife360Message("Life360 settings saved. The access token is encrypted by OS-backed secure storage.");
+        setLife360Message(
+          "Life360 settings saved. The access token is encrypted by OS-backed secure storage."
+        );
       },
       meta: { errorToast: true },
     })
@@ -214,7 +224,11 @@ export const EnvironmentPage = () => {
             title="God’s Eye View"
             detail="Open the full local spatial-intelligence console. Its public data layers keep their upstream source terms and attribution."
           >
-            <StatePill tone={godsEyeStatusQuery.data?.runtimeReady ? "success" : "warning"}>
+            <StatePill
+              tone={
+                godsEyeStatusQuery.data?.runtimeReady ? "success" : "warning"
+              }
+            >
               {godsEyeStatusQuery.data?.runtimeReady
                 ? "Ready"
                 : godsEyeStatusQuery.data?.runtimeAvailable
@@ -223,7 +237,9 @@ export const EnvironmentPage = () => {
             </StatePill>
             <Button
               size="sm"
-              disabled={!godsEyeStatusQuery.data?.runtimeReady || openGodsEye.isPending}
+              disabled={
+                !godsEyeStatusQuery.data?.runtimeReady || openGodsEye.isPending
+              }
               onClick={() => openGodsEye.mutate({})}
             >
               {openGodsEye.isPending ? "Opening…" : "Open / refresh"}
@@ -261,10 +277,11 @@ export const EnvironmentPage = () => {
               value={life360EntityIds}
               onChange={(event) => setLife360EntityIdsDraft(event.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              The allowlist restricts which trackers can be displayed. When it is empty,
-              only entities attributed to Life360 are selected. Pins refresh when you
-              open or refresh God’s Eye; up to 24 pins are drawn at once.
+            <p className="text-muted-foreground text-xs">
+              The allowlist restricts which trackers can be displayed. When it
+              is empty, only entities attributed to Life360 are selected. Pins
+              refresh when you open or refresh God’s Eye; up to 24 pins are
+              drawn at once.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 p-3">
@@ -277,7 +294,10 @@ export const EnvironmentPage = () => {
                   baseUrl: life360BaseUrl.trim(),
                   token: life360Token,
                   clearToken: false,
-                  entityIds: life360EntityIds.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+                  entityIds: life360EntityIds
+                    .split(/[\n,]+/)
+                    .map((item) => item.trim())
+                    .filter(Boolean),
                 });
               }}
             >
@@ -286,7 +306,10 @@ export const EnvironmentPage = () => {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!godsEyeStatusQuery.data?.life360.enabled || testLife360.isPending}
+              disabled={
+                !godsEyeStatusQuery.data?.life360.enabled ||
+                testLife360.isPending
+              }
               onClick={() => testLife360.mutate({})}
             >
               {testLife360.isPending ? "Testing…" : "Test connection"}
@@ -294,14 +317,20 @@ export const EnvironmentPage = () => {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!godsEyeStatusQuery.data?.life360.configured || saveLife360.isPending}
+              disabled={
+                !godsEyeStatusQuery.data?.life360.configured ||
+                saveLife360.isPending
+              }
               onClick={() => {
                 saveLife360.mutate({
                   enabled: false,
                   baseUrl: life360BaseUrl.trim(),
                   token: "",
                   clearToken: true,
-                  entityIds: life360EntityIds.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+                  entityIds: life360EntityIds
+                    .split(/[\n,]+/)
+                    .map((item) => item.trim())
+                    .filter(Boolean),
                 });
                 setLife360EnabledDraft(false);
                 setLife360Token("");

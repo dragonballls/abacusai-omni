@@ -1647,7 +1647,6 @@ export interface ExecBackendState {
   statuses: BackendStatus[];
 }
 
-
 /** Status for the local God's Eye console and its opt-in Life360 bridge. */
 export interface GodsEyeLife360Status {
   enabled: boolean;

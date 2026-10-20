@@ -78,12 +78,16 @@ export const settingsRouter = impl.settings.router({
       return service.openGodsEyeWindow();
     }),
     life360: {
-      save: impl.settings.godsEye.life360.save.handler(async ({ input, context }) => {
-        if (context.platform !== "electron")
-          throw new Error("Life360 can be configured in the desktop app only.");
-        const service = await import("../../services/providers/gods-eye.js");
-        return service.saveGodsEyeLife360Settings(input);
-      }),
+      save: impl.settings.godsEye.life360.save.handler(
+        async ({ input, context }) => {
+          if (context.platform !== "electron")
+            throw new Error(
+              "Life360 can be configured in the desktop app only."
+            );
+          const service = await import("../../services/providers/gods-eye.js");
+          return service.saveGodsEyeLife360Settings(input);
+        }
+      ),
       test: impl.settings.godsEye.life360.test.handler(async ({ context }) => {
         if (context.platform !== "electron")
           throw new Error("Life360 can be tested in the desktop app only.");
