@@ -90,3 +90,33 @@ Practical implication: non-commercial reuse may be possible only while satisfyin
 - Documentation checks for this update: source list and compatibility matrix reviewed against the checked public pages/files; no T.O.R.V.I.S installer or private vendor package contents are included.
 
 The research milestone is ready for review when this documentation commit's CI has completed. T.O.R.V.I.S compatibility and full desktop-assistant completion remain unverified until an authorized interface and reproducible integration tests are available.
+
+## Follow-up verification — 20 October 2026
+
+This follow-up rechecked the official product and download pages directly. The prohibited terms URL was not accessed.
+
+### Current public product evidence
+
+The [official T.O.R.V.I.S. homepage](https://heytorvis.com/) currently describes a Windows voice assistant with application/file operations, screen-based clicking and typing, long-running background tasks, a private Telegram bot for phone access, vendor-hosted AI, ready-to-use skills, and user-authored Python plugins. It says consequential actions such as sending, deleting, running code, calling, and shutdown require confirmation. These are vendor-published product claims, not independently measured behavior.
+
+The [official download page](https://heytorvis.com/download/) states Windows 10/11 64-bit, microphone, and internet requirements; a per-user installer that does not require administrator rights; a subscription/license key; and in-app updates. The public pages still do not document a third-party API, external CLI contract, machine-readable configuration schema, or plugin ABI that another application can invoke. A Python-plugin guide inside the T.O.R.V.I.S. application is not itself evidence of a supported external integration interface.
+
+The installation video could not be inspected with the available web reader. The official installer has not been downloaded, executed, hashed, or signature-verified. This investigation therefore does not establish its exact package version or installer technology.
+
+### Implementation decision
+
+- **No direct vendor adapter is implemented.** There is no documented public interface to target from the pages reviewed. Do not invent endpoints, inspect private vendor data, bypass activation, or redistribute the installer.
+- **Abacus should implement equivalent features through its own architecture.** Reuse and extend its existing voice, agent-tool, skill/MCP, permission/confirmation, file, browser, and OmniRoute surfaces instead of adding a second competing agent runtime.
+- **Mark-LVI remains a distinct reference project.** Its current public README describes a Python/PyQt desktop application, configurable STT/LLM/TTS, OpenAI-compatible chat completions, file-based Python plugins, memory, undo, permission confirmation, and desktop/browser actions. Its checked-in license is CC BY-NC 4.0; do not copy its code into the main Abacus source tree without a separate, deliberate licensing and distribution decision. Any future sidecar must have a clear process/API boundary, opt-in activation, narrow permissions, isolated configuration, and regression coverage.
+- **Integration milestone:** wait for a documented vendor interface if direct T.O.R.V.I.S interoperability is required; meanwhile implement missing user-visible behavior natively in Abacus and prove it through Abacus-owned tests.
+
+### Latest CI evidence reviewed
+
+- Main branch remains at `513aafabf66d48c465294b9a52ef5c2af8c75dd6`. [Main CI run 39459134458](https://github.com/dragonballls/abacusai-omni/actions/runs/39459134458) completed successfully for that SHA. This does not validate changes on the research branch or PR #17.
+- Research branch head before this follow-up: `1c2c710fdc93c7aa681a88cc380f2600c740bcd4`. [CI run 39511236809](https://github.com/dragonballls/abacusai-omni/actions/runs/39511236809) was in progress at inspection. Its format, lint, typecheck, script checks, license checks, and other guard steps passed; the combined check job failed at the high/critical dependency audit. Linux, Windows, and macOS test jobs had not all completed at that inspection.
+- [Dependency audit run 39511236822](https://github.com/dragonballls/abacusai-omni/actions/runs/39511236822) failed on [GHSA-587h-7wmj-h5pm](https://github.com/vitejs/launch-editor/security/advisories/GHSA-587h-7wmj-h5pm), a high-severity Windows command-injection issue affecting `launch-editor` through Vite. The lockfile currently resolves `vite@8.2.1`; the advisory lists Vite 8.2.4 and `launch-editor` 2.14.2 as patched releases. This is a real dependency fix to make and retest, not an advisory to waive or accept without mitigation. This follow-up has not yet changed the lockfile or claimed the audit is fixed.
+- [God's Eye/Life360 PR #17 CI run 39507470449](https://github.com/dragonballls/abacusai-omni/actions/runs/39507470449) was still in progress during inspection. Its Ubuntu test job passed and its Windows packaging job completed with packaged startup, OmniRoute smoke test, and portable artifact upload successful. The macOS test job reported two failures in `src/main/services/local-models/local-model-proxy.test.ts`: an `ECONNRESET` during a local endpoint test and a stop-count assertion that received 2 instead of 1. The rest of that suite reported 331 test files passed and 1 failed (3,616 tests passed, 2 failed, 2 skipped). Do not mark PR #17 green until the full run is resolved and retested.
+
+### Outstanding verification
+
+No T.O.R.V.I.S installer/API integration, provider-backed live OmniRoute request, phone-to-vendor test, or T.O.R.V.I.S compatibility test was executed. Those remain unverified. The next engineering blockers visible from the latest evidence are the dependency lockfile/audit failure on PR #18 and the macOS test failure in PR #17. The research result is ready for review, but neither the overall desktop-assistant objective nor packaging/test completion should be marked complete yet.
