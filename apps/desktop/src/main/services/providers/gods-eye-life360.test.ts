@@ -114,6 +114,12 @@ describe("Life360 Home Assistant provider", () => {
       latitude: 33,
       longitude: -117,
     });
+    const sourceAttributed = state("device_tracker.family_phone", {
+      latitude: 33.1,
+      longitude: -117.1,
+      attribution: "Home Assistant",
+      source: "Life360",
+    });
     const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
       if (url.endsWith("/api/"))
@@ -126,12 +132,17 @@ describe("Life360 Home Assistant provider", () => {
         expect(body.template).toContain("states.device_tracker");
         expect(body.template).toContain("to_json");
         return new Response(
-          JSON.stringify(["device_tracker.life360_family"]),
+          JSON.stringify([
+            "device_tracker.life360_family",
+            "device_tracker.family_phone",
+          ]),
           { status: 200 }
         );
       }
       if (url.endsWith("/api/states/device_tracker.life360_family"))
         return new Response(JSON.stringify(life360), { status: 200 });
+      if (url.endsWith("/api/states/device_tracker.family_phone"))
+        return new Response(JSON.stringify(sourceAttributed), { status: 200 });
       return new Response("not found", { status: 404 });
     });
     const provider = new Life360HomeAssistantProvider(
@@ -146,6 +157,7 @@ describe("Life360 Home Assistant provider", () => {
     expect(result.success).toBe(true);
     expect(result.locations.map((location) => location.id)).toEqual([
       "device_tracker.life360_family",
+      "device_tracker.family_phone",
     ]);
   });
 
