@@ -24,7 +24,8 @@ import {
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { registryContent } from "./registry-content.mjs";
 import { addFromSnapshot, INITIAL_ITEMS, latestSnapshot } from "./shadcn.mjs";
@@ -144,10 +145,17 @@ const check = async () => {
   }
 };
 
-const mode = process.argv[2];
-if (mode === "--record") await record();
-else if (mode === "--check") await check();
-else {
-  console.error("usage: shadcn-registry-snapshot.mjs --record | --check");
-  process.exit(1);
+// Tests import LOCAL_UI_OVERRIDES from this module. Dispatch the CLI only
+// when the module itself is the executed entry point.
+if (
+  process.argv[1] != null &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  const mode = process.argv[2];
+  if (mode === "--record") await record();
+  else if (mode === "--check") await check();
+  else {
+    console.error("usage: shadcn-registry-snapshot.mjs --record | --check");
+    process.exit(1);
+  }
 }
