@@ -1646,3 +1646,27 @@ export interface ExecBackendState {
   effective: BackendId;
   statuses: BackendStatus[];
 }
+
+
+/** Status for the local God's Eye console and its opt-in Life360 bridge. */
+export interface GodsEyeLife360Status {
+  enabled: boolean;
+  configured: boolean;
+  baseUrl: string;
+  entityIds: string[];
+  error: string | null;
+}
+
+export interface GodsEyeIntegrationStatus {
+  runtimeAvailable: boolean;
+  runtimeReady: boolean;
+  running: boolean;
+  windowOpen: boolean;
+  life360: GodsEyeLife360Status;
+}
+
+export interface GodsEyeLife360TestResult {
+  success: boolean;
+  locationCount: number;
+  message: string;
+}

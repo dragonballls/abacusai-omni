@@ -9,6 +9,11 @@ module.exports = () => {
   );
   execFileSync(
     process.execPath,
+    [path.join(__dirname, "../../../scripts/prepare-gods-eye-runtime.mjs")],
+    { stdio: "inherit" }
+  );
+  execFileSync(
+    process.execPath,
     [path.join(__dirname, "generate-notices.js")],
     {
       stdio: "inherit",

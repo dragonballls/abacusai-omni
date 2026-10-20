@@ -65,6 +65,24 @@ extraResources:
   # walking broad resource roots, so ship this specific tree explicitly too.
   - from: resources/omniroute-runtime/node_modules/omniroute/dist/node_modules/
     to: omniroute-runtime/node_modules/omniroute/dist/node_modules/
+  # God’s Eye source and its production/build dependencies stay outside app.asar.
+  # Copy node_modules separately because nested dependency trees are skipped by
+  # electron-builder when walking the wider resources source.
+  - from: ../../integrations/gods-eye-view/
+    to: gods-eye-view/
+    filter:
+      - "**/*"
+      - "!**/.git"
+      - "!**/.git/**"
+      - "!**/node_modules/**"
+      - "!**/.env"
+      - "!**/.env.*"
+      - "!**/.gev-cache/**"
+      - "!**/.gev-logs/**"
+      - "!**/coverage/**"
+  - from: ../../integrations/gods-eye-view/node_modules/
+    to: gods-eye-view/node_modules/
+
   # The agent, one process per session: spawned, so it cannot live in the asar.
   # Its build metadata is not: source maps are 24 MB of the 39 MB here and
   # nothing reads them, because the agent is never spawned with

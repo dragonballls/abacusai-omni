@@ -1,6 +1,6 @@
 import { EXEC_BACKENDS } from "@abacus-ai/contract/exec-backends";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -27,6 +27,54 @@ export const EnvironmentPage = () => {
   const cache = useQueryClient();
   const query = useQuery(
     transport.orpc.settings.execBackend.get.queryOptions({ input: {} })
+  );
+  const godsEyeApi = transport.orpc.settings.godsEye;
+  const godsEyeStatusQuery = useQuery({
+    ...godsEyeApi.status.queryOptions({ input: {} }),
+    enabled: IS_ELECTRON,
+  });
+  const savedLife360 = godsEyeStatusQuery.data?.life360;
+  const [life360Enabled, setLife360Enabled] = useState(false);
+  const [life360BaseUrl, setLife360BaseUrl] = useState("http://127.0.0.1:8123");
+  const [life360Token, setLife360Token] = useState("");
+  const [life360EntityIds, setLife360EntityIds] = useState("");
+  const [life360Message, setLife360Message] = useState("");
+  useEffect(() => {
+    if (!savedLife360) return;
+    setLife360Enabled(savedLife360.enabled);
+    setLife360BaseUrl(savedLife360.baseUrl);
+    setLife360EntityIds(savedLife360.entityIds.join(", "));
+  }, [savedLife360?.enabled, savedLife360?.baseUrl, savedLife360?.entityIds]);
+  const godsEyeStatusKey = godsEyeApi.status.queryKey({ input: {} });
+  const openGodsEye = useMutation(
+    godsEyeApi.open.mutationOptions({
+      onSuccess: (result) => {
+        showInfo(result.message);
+        void cache.invalidateQueries({ queryKey: godsEyeStatusKey });
+      },
+      meta: { errorToast: true },
+    })
+  );
+  const saveLife360 = useMutation(
+    godsEyeApi.life360.save.mutationOptions({
+      onSuccess: (result) => {
+        cache.setQueryData(godsEyeStatusKey, result);
+        setLife360Token("");
+        setLife360Message("Life360 settings saved. The access token is encrypted by OS-backed secure storage.");
+      },
+      meta: { errorToast: true },
+    })
+  );
+  const testLife360 = useMutation(
+    godsEyeApi.life360.test.mutationOptions({
+      onSuccess: (result) => {
+        setLife360Message(result.message);
+        if (result.success) showInfo(result.message);
+        else showError(result.message);
+        void cache.invalidateQueries({ queryKey: godsEyeStatusKey });
+      },
+      meta: { errorToast: true },
+    })
   );
   const shell = useQuery(
     transport.orpc.terminal.shell.get.queryOptions({ input: {} })
@@ -159,6 +207,121 @@ export const EnvironmentPage = () => {
           </StatePill>
         </SettingRow>
       </GroupCard>
+      {IS_ELECTRON && (
+        <GroupCard>
+          <SettingRow
+            id="godsEyeView"
+            title="God’s Eye View"
+            detail="Open the full local spatial-intelligence console. Its public data layers keep their upstream source terms and attribution."
+          >
+            <StatePill tone={godsEyeStatusQuery.data?.runtimeReady ? "success" : "warning"}>
+              {godsEyeStatusQuery.data?.runtimeReady
+                ? "Ready"
+                : godsEyeStatusQuery.data?.runtimeAvailable
+                  ? "Dependencies missing"
+                  : "Not bundled"}
+            </StatePill>
+            <Button
+              size="sm"
+              disabled={!godsEyeStatusQuery.data?.runtimeReady || openGodsEye.isPending}
+              onClick={() => openGodsEye.mutate({})}
+            >
+              {openGodsEye.isPending ? "Opening…" : "Open / refresh"}
+            </Button>
+          </SettingRow>
+          <SettingRow
+            id="godsEyeLife360Enabled"
+            title="Life360 through Home Assistant"
+            detail="Opt-in only. Reads authorized device_tracker entities from your private Home Assistant instance; it does not sign in to Life360 or bypass Circle sharing."
+          >
+            <SettingSwitch
+              id="godsEyeLife360Enabled"
+              checked={life360Enabled}
+              onCheckedChange={setLife360Enabled}
+            />
+          </SettingRow>
+          <div className="grid gap-2 p-3">
+            <Input
+              aria-label="Home Assistant base URL"
+              placeholder="http://127.0.0.1:8123"
+              value={life360BaseUrl}
+              onChange={(event) => setLife360BaseUrl(event.target.value)}
+            />
+            <Input
+              aria-label="Home Assistant long-lived access token"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Token (blank keeps the saved token)"
+              value={life360Token}
+              onChange={(event) => setLife360Token(event.target.value)}
+            />
+            <Input
+              aria-label="Life360 device tracker allowlist"
+              placeholder="Optional: device_tracker.phone, device_tracker.tablet"
+              value={life360EntityIds}
+              onChange={(event) => setLife360EntityIds(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              The allowlist restricts which trackers can be displayed. When it is empty,
+              only entities attributed to Life360 are selected. Pins refresh when you
+              open or refresh God’s Eye; up to 24 pins are drawn at once.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 p-3">
+            <Button
+              size="sm"
+              disabled={saveLife360.isPending}
+              onClick={() => {
+                saveLife360.mutate({
+                  enabled: life360Enabled,
+                  baseUrl: life360BaseUrl.trim(),
+                  token: life360Token,
+                  clearToken: false,
+                  entityIds: life360EntityIds.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+                });
+              }}
+            >
+              {saveLife360.isPending ? "Saving…" : "Save Life360 settings"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!godsEyeStatusQuery.data?.life360.enabled || testLife360.isPending}
+              onClick={() => testLife360.mutate({})}
+            >
+              {testLife360.isPending ? "Testing…" : "Test connection"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!godsEyeStatusQuery.data?.life360.configured || saveLife360.isPending}
+              onClick={() => {
+                saveLife360.mutate({
+                  enabled: false,
+                  baseUrl: life360BaseUrl.trim(),
+                  token: "",
+                  clearToken: true,
+                  entityIds: life360EntityIds.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+                });
+                setLife360Enabled(false);
+                setLife360Token("");
+              }}
+            >
+              Disconnect Life360
+            </Button>
+          </div>
+          {godsEyeStatusQuery.data?.life360.error && (
+            <p className="px-3 pb-2 text-xs" role="status">
+              {godsEyeStatusQuery.data.life360.error}
+            </p>
+          )}
+          {life360Message && (
+            <p className="px-3 pb-3 text-xs" role="status">
+              {life360Message}
+            </p>
+          )}
+        </GroupCard>
+      )}
     </AreaPage>
   );
 };
