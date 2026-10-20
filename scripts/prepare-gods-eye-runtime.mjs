@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RELATIVE = "integrations/gods-eye-view";
 const SOURCE = join(ROOT, RELATIVE);
-const PIN = "064d51f7be2675f1c69e16068e9c49d1a60144d1";
+const PIN = "713285b554bbc99c8ae0261fe307beb3cbeb2adf";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

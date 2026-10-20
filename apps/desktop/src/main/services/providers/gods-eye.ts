@@ -30,7 +30,7 @@ import { prepareGodsEyeRuntime } from "./gods-eye-runtime.js";
 import { supportsOsBackedSecureStorage } from "./gods-eye-security.js";
 import { buildGodsEyeRefreshUrl } from "./gods-eye-view-url.js";
 
-const GODS_EYE_REVISION = "064d51f7be2675f1c69e16068e9c49d1a60144d1";
+const GODS_EYE_REVISION = "713285b554bbc99c8ae0261fe307beb3cbeb2adf";
 const DEFAULT_HA_URL = "http://127.0.0.1:8123";
 const STARTUP_TIMEOUT_MS = 45_000;
 
