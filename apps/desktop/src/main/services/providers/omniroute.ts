@@ -1193,8 +1193,7 @@ function readBrahmaProviderKeys(): {
   if (process.platform !== "win32") return { sourceFound: false, keys: [] };
 
   const localAppData =
-    process.env.LOCALAPPDATA ||
-    join(app.getPath("home"), "AppData", "Local");
+    process.env.LOCALAPPDATA || join(app.getPath("home"), "AppData", "Local");
   const apiConfigPath = join(
     localAppData,
     "BrahmaAI",
@@ -1229,9 +1228,7 @@ function readBrahmaProviderKeys(): {
   return { sourceFound: true, keys };
 }
 
-async function resolveOmniRouteCliRuntime(): Promise<
-  OmniRouteCliRuntime | null
-> {
+async function resolveOmniRouteCliRuntime(): Promise<OmniRouteCliRuntime | null> {
   const bundledNode = bundledNodeExecutable();
   const bundledEntry = join(
     omniRouteBundleModules,
@@ -1438,8 +1435,8 @@ function ensureAbacusProvider(
   clientKey: string,
   openaiConfigured: boolean | null
 ): void {
-  const existingAstra = readSettings().customProviders
-    ?.find((entry) => entry.id === PROVIDER_ID)
+  const existingAstra = readSettings()
+    .customProviders?.find((entry) => entry.id === PROVIDER_ID)
     ?.models?.some((model) => model.id === "openai/gpt-6-astra");
   const showAstra =
     openaiConfigured === true ||
@@ -1464,9 +1461,9 @@ function ensureAbacusProvider(
             {
               id: "openai/gpt-6-astra",
               name: "GPT-6 Astra · Deep Reasoning (Paid API)",
-              api: "openai-responses",
+              api: "openai-responses" as const,
               reasoning: true,
-              input: ["text", "image"],
+              input: ["text", "image"] as Array<"text" | "image">,
               // Model capacity and standard short-context pricing; long
               // contexts and processing tiers can cost more.
               contextWindow: 1_050_000,
