@@ -182,10 +182,17 @@ function runtimeRoot(): string {
 }
 
 function findNode(): string {
-  const bundled = resourcePath("omniroute-runtime", "node.exe");
+  const bundledGodsEye = resourcePath(
+    "gods-eye-node",
+    process.platform === "win32" ? "node.exe" : "node"
+  );
+  const bundledOmniRoute = resourcePath("omniroute-runtime", "node.exe");
   const entries = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
   const candidates = [
-    ...(process.platform === "win32" && existsSync(bundled) ? [bundled] : []),
+    ...(existsSync(bundledGodsEye) ? [bundledGodsEye] : []),
+    ...(process.platform === "win32" && existsSync(bundledOmniRoute)
+      ? [bundledOmniRoute]
+      : []),
     ...entries.flatMap((entry) => [
       join(entry, process.platform === "win32" ? "node.exe" : "node"),
     ]),

@@ -10,7 +10,7 @@ AbacusAI Bot launches the full standalone God’s Eye View console inside a sepa
 
 The pack hook calls scripts/prepare-gods-eye-runtime.mjs. It initializes the submodule at the exact pinned commit, installs its locked dependencies with Puppeteer and Playwright browser downloads disabled, and checks that the Vite runtime exists before packaging. The installer copies source and dependencies as separate resources. On first launch, Abacus copies them into its writable per-account profile, so God’s Eye can save its own Provider Settings without writing into the installation directory. Build-host .env files and upstream cache/log folders are never packaged.
 
-God’s Eye requires Node.js 24.14.x or 26.x. On Windows, the Abacus-bundled Node runtime is used when available; on macOS and Linux a supported Node runtime must be on PATH. The server binds only to 127.0.0.1, runs with a random local port, and is stopped when the God’s Eye window closes or Abacus quits. Do not publish this local server to a LAN or the internet.
+God’s Eye uses Node.js 24.14.x or 26.x. The Windows build reuses the bundled Node runtime; the macOS and Linux builds package a dedicated Node 24.14 runtime beside the app, so end users do not need to install Node separately. The server binds only to 127.0.0.1, runs with a random local port, and is stopped when the God’s Eye window closes or Abacus quits. Do not publish this local server to a LAN or the internet.
 
 ## Optional Life360 bridge
 

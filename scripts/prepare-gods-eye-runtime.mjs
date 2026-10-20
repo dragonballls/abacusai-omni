@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -73,6 +80,25 @@ assert(
   (version[0] === 24 && version[1] >= 14) || version[0] === 26,
   "God's Eye preparation requires Node.js 24.14.x or 26.x."
 );
+if (
+  process.env.ABACUS_GODS_EYE_PACKAGE === "1" &&
+  process.platform !== "win32"
+) {
+  // The app must run God’s Eye without asking users to install Node separately.
+  // Windows reuses the pinned Node executable bundled for OmniRoute; macOS and
+  // Linux ship this dedicated runtime beside the app's other resources.
+  const runtimeDirectory = join(ROOT, "apps", "desktop", "resources", "gods-eye-node");
+  const runtimeExecutable = join(runtimeDirectory, "node");
+  mkdirSync(runtimeDirectory, { recursive: true });
+  copyFileSync(process.execPath, runtimeExecutable);
+  chmodSync(runtimeExecutable, 0o755);
+  const licenseCandidates = [
+    join(dirname(process.execPath), "..", "LICENSE"),
+    join(dirname(process.execPath), "LICENSE"),
+  ];
+  const nodeLicense = licenseCandidates.find(existsSync);
+  if (nodeLicense) copyFileSync(nodeLicense, join(runtimeDirectory, "LICENSE"));
+}
 const lockHash = createHash("sha256")
   .update(readFileSync(join(SOURCE, "package.json")))
   .update(readFileSync(join(SOURCE, "package-lock.json")))

@@ -385,6 +385,11 @@ jobs:
       - name: Prepare OmniRoute resource root for platform packaging
         run: >-
           node -e 'require("node:fs").mkdirSync("apps/desktop/resources/omniroute-runtime/node_modules/omniroute/dist/node_modules", { recursive: true })'
+      - name: Use Node.js 24.14 for God's Eye packaging
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+
       - name: Bundle pinned OmniRoute and Node.js in the Windows portable app
         if: runner.os == 'Windows'
         env:
@@ -395,11 +400,6 @@ jobs:
 
       - name: Bundle budgets
         run: pnpm --dir apps/desktop run measure:size && pnpm exec size-limit
-
-      - name: Use Node.js 24.14 for God's Eye packaging
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24.14.0
 
       - name: Package unpacked app
         env:
