@@ -4,6 +4,7 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -81,9 +82,16 @@ function readConfig(): StoredConfig {
   }
 }
 
+function isOsBackedSecureStorageAvailable(): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false;
+  if (process.platform !== "linux") return true;
+  const backend = safeStorage.getSelectedStorageBackend();
+  return backend !== "basic_text" && backend !== "unknown";
+}
+
 function decryptToken(config: StoredConfig): string {
   if (!config.tokenCipher) return "";
-  if (!safeStorage.isEncryptionAvailable())
+  if (!isOsBackedSecureStorageAvailable())
     throw new Error("OS secure storage is unavailable.");
   try {
     return safeStorage.decryptString(Buffer.from(config.tokenCipher, "base64"));
@@ -150,7 +158,23 @@ function runtimeRoot(): string {
   )
     return root;
 
+  // Keep user-entered provider settings outside the source tree during an
+  // upstream refresh. These files are deliberately excluded from packaging.
+  const preservedSettings = [".env", join("pinokio", "ENVIRONMENT")].flatMap(
+    (relativePath) => {
+      const path = join(root, relativePath);
+      try {
+        if (!lstatSync(path).isFile()) return [];
+        return [{ relativePath, contents: readFileSync(path) }];
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+        throw error;
+      }
+    }
+  );
+
   mkdirSync(dirname(root), { recursive: true });
+  rmSync(root, { recursive: true, force: true });
   cpSync(source, root, {
     recursive: true,
     force: true,
@@ -171,6 +195,16 @@ function runtimeRoot(): string {
       return true;
     },
   });
+  for (const setting of preservedSettings) {
+    const target = join(root, setting.relativePath);
+    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+    writeFileSync(target, setting.contents, { mode: 0o600 });
+    try {
+      chmodSync(target, 0o600);
+    } catch {
+      /* Windows ACLs are per-user. */
+    }
+  }
   if (!existsSync(viteCli))
     throw new Error(
       "God's Eye dependencies are not packaged. Rebuild the installer."
@@ -552,7 +586,7 @@ export async function saveGodsEyeLife360Settings(input: {
   const newToken = String(input.token ?? "").trim();
   if (input.clearToken) tokenCipher = "";
   else if (newToken) {
-    if (!safeStorage.isEncryptionAvailable())
+    if (!isOsBackedSecureStorageAvailable())
       throw new Error(
         "OS secure storage is unavailable; the Life360 token was not saved."
       );
