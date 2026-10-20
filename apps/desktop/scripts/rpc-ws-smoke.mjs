@@ -44,6 +44,11 @@ const SMOKE_MODULE_STUBS = [
   },
 ];
 
+const findSmokeRequest = (id) =>
+  SMOKE_MODULE_STUBS.find((stub) => id.includes(stub.request));
+const findSmokeModule = (id) =>
+  SMOKE_MODULE_STUBS.find((stub) => stub.id === id);
+
 const entry = `
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/websocket";
@@ -147,10 +152,8 @@ await build({
       // browser/RPC smoke independent of Electron and avoid bundling its
       // process-owning gateway implementation into the test harness.
       name: "smoke-omniroute-stub",
-      resolveId: (id) =>
-        SMOKE_MODULE_STUBS.find((stub) => id.includes(stub.request))?.id ?? null,
-      load: (id) =>
-        SMOKE_MODULE_STUBS.find((stub) => stub.id === id)?.source ?? null,
+      resolveId: (id) => findSmokeRequest(id)?.id ?? null,
+      load: (id) => findSmokeModule(id)?.source ?? null,
     },
     {
       // The router must not need Electron: importing it fails the smoke.
