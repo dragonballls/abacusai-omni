@@ -44,7 +44,6 @@ const SMOKE_MODULE_STUBS = [
   },
 ];
 
-
 const entry = `
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/websocket";
