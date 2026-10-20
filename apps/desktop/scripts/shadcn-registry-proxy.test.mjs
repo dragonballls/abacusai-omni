@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { startRegistryProxy, UPSTREAM } from "./shadcn-registry-proxy.mjs";
 import { LOCAL_UI_OVERRIDES } from "./shadcn-registry-snapshot.mjs";
 import { INITIAL_ITEMS } from "./shadcn.mjs";
-import { startRegistryProxy, UPSTREAM } from "./shadcn-registry-proxy.mjs";
 
 const get = (url, path) =>
   new Promise((resolve, reject) => {
@@ -41,9 +41,15 @@ test("app-local UI overrides stay explicit and preserve popup helper consumers",
   assert.deepEqual([...LOCAL_UI_OVERRIDES].sort(), expected);
   const uiRoot = join(import.meta.dirname, "../../web/src/ui");
   for (const file of expected) {
-    assert.ok(existsSync(join(uiRoot, file)), `${file} should remain in renderer UI`);
+    assert.ok(
+      existsSync(join(uiRoot, file)),
+      `${file} should remain in renderer UI`
+    );
   }
-  assert.ok(!INITIAL_ITEMS.includes("alert"), "alert is intentionally local-only");
+  assert.ok(
+    !INITIAL_ITEMS.includes("alert"),
+    "alert is intentionally local-only"
+  );
   assert.ok(!INITIAL_ITEMS.includes("popup"), "popup is a shared local helper");
   const popup = readFileSync(join(uiRoot, "popup.tsx"), "utf8");
   for (const helper of [
