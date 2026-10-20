@@ -4204,7 +4204,7 @@
     "tokenLabel": "Home Assistant long-lived access token",
     "tokenPlaceholder": "Token (blank keeps the saved token)",
     "entityAllowlistLabel": "Life360 device tracker allowlist",
-    "settingsSaved": "Life360 settings saved. The access token is encrypted by OS-backed secure storage.",
+    "settingsSaved": "Life360 settings saved. The Home Assistant token is protected using the operating system's secure-storage service.",
     "allowlistHelp": "The allowlist restricts which trackers can be displayed. When it is empty, only entities attributed to Life360 are selected. Pins refresh when you open or refresh God’s Eye; up to 24 pins are drawn at once.",
     "saving": "Saving…",
     "saveSettings": "Save Life360 settings",
