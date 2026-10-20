@@ -313,9 +313,13 @@ export class Life360HomeAssistantProvider {
           !Array.isArray(state.attributes)
             ? (state.attributes as Record<string, unknown>)
             : {};
-        const attribution = String(
-          attrs.attribution ?? attrs.source ?? ""
-        ).toLowerCase();
+        const attribution = [
+          attrs.attribution,
+          attrs.source,
+        ]
+          .map((value) => String(value ?? ""))
+          .join(" ")
+          .toLowerCase();
         const inferredLife360 =
           entityId.toLowerCase().includes("life360") ||
           attribution.includes("life360");
