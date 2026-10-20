@@ -117,6 +117,22 @@ export async function validateHomeAssistantBaseUrl(
   return url;
 }
 
+/**
+ * Disabling sharing must remain possible when Home Assistant is offline or
+ * its hostname no longer resolves. A valid private URL is required only when
+ * the user enables the bridge; the provider validates it again before use.
+ */
+export async function validateHomeAssistantBaseUrlWhenEnabled(
+  enabled: boolean,
+  input: string,
+  lookupAddresses: (
+    hostname: string
+  ) => Promise<string[]> = defaultLookupAddresses
+): Promise<void> {
+  if (!enabled) return;
+  await validateHomeAssistantBaseUrl(input, lookupAddresses);
+}
+
 async function readJsonCapped(response: Response): Promise<unknown> {
   const declaredLength = Number(response.headers.get("content-length"));
   if (
