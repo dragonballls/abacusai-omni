@@ -35,7 +35,7 @@ const SMOKE_MODULE_STUBS = [
     request: "services/providers/gods-eye.js",
     id: "\0smoke-gods-eye",
     source: [
-      'export async function stopGodsEye() {}',
+      "export async function stopGodsEye() {}",
       'export async function getGodsEyeStatus() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
       'export async function openGodsEyeWindow() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
       'export async function saveGodsEyeLife360Settings() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',

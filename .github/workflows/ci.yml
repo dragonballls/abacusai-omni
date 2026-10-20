@@ -74,10 +74,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: TEMP diagnostic format for RPC smoke file
-        run: |
-          pnpm exec oxfmt apps/desktop/scripts/rpc-ws-smoke.mjs
-          git --no-pager diff --no-color -- apps/desktop/scripts/rpc-ws-smoke.mjs
       - run: pnpm run format:check
       - run: pnpm run lint
       # The tool configs (oxlint.config.ts, oxfmt.config.ts and what they
