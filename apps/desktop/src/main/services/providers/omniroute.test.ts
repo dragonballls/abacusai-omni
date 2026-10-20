@@ -121,8 +121,16 @@ describe("local OmniRoute gateway security contract", () => {
     expect(environment).toContain('PUPPETEER_SKIP_DOWNLOAD: "1"');
   });
 
-  it("sets OmniRoute Auto and preserves an existing shared gateway runtime", () => {
+  it("registers Astra via Responses API and preserves the default", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
+    expect(source).toContain('api: "openai-responses"');
+    expect(source).toContain('id: "openai/gpt-6-astra"');
+    expect(source).toContain("contextWindow: 1_050_000");
+    expect(source).toContain("maxTokens: 128_000");
+    expect(source).toContain("cacheRead: 1");
+    expect(source).toContain("cacheWrite: 12.5");
+    expect(source).toContain("if (!readSettings().defaultModel)");
+    expect(source).toContain("setDefaultModel(DEFAULT_MODEL);");
     expect(source).toContain('id: "auto"');
     expect(source).toContain("upsertCustomProvider(provider)");
     expect(source).toContain("findExistingPinnedRuntimeNode()");

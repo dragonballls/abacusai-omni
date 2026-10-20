@@ -10,16 +10,28 @@ import * as path from "node:path";
 export interface CustomProviderModel {
   id: string;
   name?: string;
+  /** Per-model transport override, such as Responses API for Astra tool calls. */
+  api?: "openai-completions" | "openai-responses";
   reasoning?: boolean;
+  input?: Array<"text" | "image">;
+  cost?: {
+    input: number;
+    output: number;
+    cacheRead?: number;
+    cacheWrite?: number;
+  };
   contextWindow?: number;
   maxTokens?: number;
+  thinkingLevelMap?: Record<string, string | null>;
 }
 
-/** An OpenAI-compatible endpoint: llama.cpp, vLLM, LiteLLM, an OSS router. */
+/** An OpenAI-compatible endpoint, including Responses API gateways. */
 export interface CustomProviderConfig {
   id: string;
   name?: string;
   baseUrl: string;
+  /** Transport used by this endpoint. Defaults to chat completions for compatibility. */
+  api?: "openai-completions" | "openai-responses";
   apiKey?: string;
   headers?: Record<string, string>;
   models?: CustomProviderModel[];

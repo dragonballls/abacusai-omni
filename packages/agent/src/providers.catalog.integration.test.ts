@@ -24,7 +24,11 @@ import { ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { defaultModelFor, PROVIDER_DEFAULTS } from "./config.js";
-import { listModels, resolveModel } from "./providers.js";
+import {
+  listModels,
+  registerCustomProviders,
+  resolveModel,
+} from "./providers.js";
 
 /**
  * Env var → provider id, as pi reads them. The long-tail providers the
@@ -173,5 +177,51 @@ describe("every session-start default", () => {
         `${envVar} starts on ${chosen ?? "nothing"}`
       ).toBe(true);
     }
+  });
+});
+
+describe("custom Responses API gateways", () => {
+  it("registers Astra as a paid Responses API model", () => {
+    const registry = new ModelRegistry(runtime);
+    registerCustomProviders(registry, {
+      customProviders: [
+        {
+          id: "omniroute-test",
+          name: "OmniRoute test",
+          baseUrl: "http://127.0.0.1:20128/v1",
+          api: "openai-responses",
+          apiKey: "test-gateway-client-key",
+          models: [
+            {
+              id: "openai/gpt-6-astra",
+              name: "GPT-6 Astra · Deep Reasoning · Paid API",
+              reasoning: true,
+              input: ["text", "image"],
+              contextWindow: 1_050_000,
+              maxTokens: 128_000,
+              cost: { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
+              thinkingLevelMap: {
+                off: null,
+                minimal: "low",
+                low: "low",
+                medium: "medium",
+                high: "high",
+                xhigh: "xhigh",
+                max: "max",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const model = listModels(registry).find(
+      (choice) => choice.id === "omniroute-test/openai/gpt-6-astra"
+    );
+    expect(model, "Astra model was not registered").toBeDefined();
+    expect(model?.reasoning).toBe(true);
+    expect(model?.free).toBe(false);
+    expect(model?.inputCost).toBe(10);
+    expect(model?.contextWindow).toBe(1_050_000);
   });
 });
