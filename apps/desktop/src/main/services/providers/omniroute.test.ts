@@ -121,6 +121,21 @@ describe("local OmniRoute gateway security contract", () => {
     expect(environment).toContain('PUPPETEER_SKIP_DOWNLOAD: "1"');
   });
 
+  it("syncs saved Abacus provider keys into OmniRoute connections", () => {
+    expect(source).toContain("function readAbacusProviderKeys()");
+    expect(source).toContain("PROVIDER_KEY_FIELDS.filter(");
+    expect(source).toContain(
+      'field.kind === "model" && field.provider !== "abacus"'
+    );
+    expect(source).toContain('name: "AbacusAI Bot - " + field.label');
+    expect(source).toContain("const keys = [...source.keys, ...abacusKeys];");
+    expect(source).toContain('"--credential-stdin"');
+    expect(source).toContain("connection.name === key.name");
+    expect(source).toContain(
+      "Environment-only credentials and non-model keys are"
+    );
+  });
+
   it("registers Astra via Responses API and preserves the default", () => {
     expect(source).toContain('const DEFAULT_MODEL = "omniroute/auto";');
     expect(source).toContain('api: "openai-responses"');
