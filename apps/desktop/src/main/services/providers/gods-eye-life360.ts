@@ -3,6 +3,15 @@ import { isIP } from "node:net";
 
 export const LIFE360_MAX_RESPONSE_BYTES = 64 * 1024;
 export const LIFE360_MAX_ENTITY_IDS = 100;
+const LIFE360_REQUEST_CONCURRENCY = 4;
+const LIFE360_ENTITY_DISCOVERY_TEMPLATE = `{%- set ns = namespace(ids=[]) -%}
+{%- for tracker in states.device_tracker -%}
+  {%- set source = ((tracker.attributes.get('source', '') | string) ~ ' ' ~ (tracker.attributes.get('attribution', '') | string)) | lower -%}
+  {%- if ns.ids | length < 100 and ('life360' in (tracker.entity_id | lower) or 'life360' in source) -%}
+    {%- set ns.ids = ns.ids + [tracker.entity_id] -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ ns.ids | to_json }}`;
 
 export interface Life360HomeAssistantConfig {
   enabled: boolean;
@@ -253,17 +262,45 @@ export class Life360HomeAssistantProvider {
 
     try {
       await this.requestJson(new URL("/api/", baseUrl).href);
-      const rawStates = await this.requestJson(
-        new URL("/api/states", baseUrl).href
-      );
-      if (!Array.isArray(rawStates))
-        throw new Error("Home Assistant returned malformed state data.");
-
+      const configuredIds = (this.config.entityIds ?? [])
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (
+        configuredIds.length > LIFE360_MAX_ENTITY_IDS ||
+        configuredIds.some((value) => !/^device_tracker\.[a-z0-9_]+$/i.test(value))
+      ) {
+        throw new Error("Stored tracker allowlist contains invalid entity IDs.");
+      }
       const allowlist = new Set(
-        (this.config.entityIds ?? [])
-          .map((value) => value.trim().toLowerCase())
-          .filter(Boolean)
+        configuredIds.map((value) => value.toLowerCase())
       );
+      let entityIds: string[];
+      if (allowlist.size > 0) {
+        entityIds = configuredIds;
+      } else {
+        const discovered = await this.requestJson(
+          new URL("/api/template", baseUrl).href,
+          {
+            method: "POST",
+            body: JSON.stringify({ template: LIFE360_ENTITY_DISCOVERY_TEMPLATE }),
+          }
+        );
+        if (!Array.isArray(discovered))
+          throw new Error("Home Assistant returned malformed tracker discovery data.");
+        entityIds = [
+          ...new Set(
+            discovered
+              .filter(
+                (value): value is string =>
+                  typeof value === "string" &&
+                  /^device_tracker\.[a-z0-9_]+$/i.test(value)
+              )
+              .map((value) => value.trim())
+          ),
+        ].slice(0, LIFE360_MAX_ENTITY_IDS);
+      }
+
+      const rawStates = await this.requestEntityStates(baseUrl, entityIds);
       const locations: Life360Location[] = [];
       for (const item of rawStates) {
         if (!item || typeof item !== "object" || Array.isArray(item)) continue;
@@ -330,16 +367,75 @@ export class Life360HomeAssistantProvider {
     }
   }
 
-  private async requestJson(url: string): Promise<unknown> {
+  private async requestEntityStates(
+    baseUrl: URL,
+    entityIds: string[]
+  ): Promise<unknown[]> {
+    const states: unknown[] = new Array(entityIds.length);
+    let nextIndex = 0;
+    const worker = async () => {
+      for (;;) {
+        const index = nextIndex++;
+        const entityId = entityIds[index];
+        if (entityId === undefined) return;
+        states[index] = await this.requestEntityState(baseUrl, entityId);
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(LIFE360_REQUEST_CONCURRENCY, entityIds.length) },
+        () => worker()
+      )
+    );
+    return states.filter((state) => state != null);
+  }
+
+  private async requestEntityState(
+    baseUrl: URL,
+    entityId: string
+  ): Promise<unknown | null> {
+    try {
+      const value = await this.requestJson(
+        new URL(
+          "/api/states/" + encodeURIComponent(entityId),
+          baseUrl
+        ).href
+      );
+      if (value == null || typeof value !== "object" || Array.isArray(value))
+        return null;
+      const state = value as Record<string, unknown>;
+      return String(state.entity_id ?? "").toLowerCase() ===
+        entityId.toLowerCase()
+        ? state
+        : null;
+    } catch (error) {
+      // A tracker can be removed between discovery and its individual read.
+      if (
+        error instanceof Error &&
+        error.message === "Home Assistant request failed (404)."
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  private async requestJson(
+    url: string,
+    options: { method?: "GET" | "POST"; body?: string } = {}
+  ): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
+      const body = options.body;
       const response = await this.fetchImpl(url, {
-        method: "GET",
+        method: options.method ?? "GET",
         headers: {
           Authorization: "Bearer " + this.config.token,
           Accept: "application/json",
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
+        ...(body === undefined ? {} : { body }),
         cache: "no-store",
         redirect: "error",
         signal: controller.signal,
