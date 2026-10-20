@@ -69,7 +69,7 @@ export const EnvironmentPage = () => {
         setLife360BaseUrlDraft(null);
         setLife360EntityIdsDraft(null);
         setLife360Message(
-          "Life360 settings saved. The access token is encrypted by OS-backed secure storage."
+          t("godsEye.settingsSaved")
         );
       },
       meta: { errorToast: true },
@@ -221,8 +221,8 @@ export const EnvironmentPage = () => {
         <GroupCard>
           <SettingRow
             id="godsEyeView"
-            title="God’s Eye View"
-            detail="Open the full local spatial-intelligence console. Its public data layers keep their upstream source terms and attribution."
+            title={t("godsEye.title")}
+            detail={t("godsEye.viewDescription")}
           >
             <StatePill
               tone={
@@ -230,10 +230,10 @@ export const EnvironmentPage = () => {
               }
             >
               {godsEyeStatusQuery.data?.runtimeReady
-                ? "Ready"
+                ? t("godsEye.ready")
                 : godsEyeStatusQuery.data?.runtimeAvailable
-                  ? "Dependencies missing"
-                  : "Not bundled"}
+                  ? t("godsEye.dependenciesMissing")
+                  : t("godsEye.notBundled")}
             </StatePill>
             <Button
               size="sm"
@@ -242,13 +242,13 @@ export const EnvironmentPage = () => {
               }
               onClick={() => openGodsEye.mutate({})}
             >
-              {openGodsEye.isPending ? "Opening…" : "Open / refresh"}
+              {openGodsEye.isPending ? t("godsEye.opening") : t("godsEye.openRefresh")}
             </Button>
           </SettingRow>
           <SettingRow
             id="godsEyeLife360Enabled"
-            title="Life360 through Home Assistant"
-            detail="Opt-in only. Reads authorized device_tracker entities from your private Home Assistant instance; it does not sign in to Life360 or bypass Circle sharing."
+            title={t("godsEye.life360Title")}
+            detail={t("godsEye.life360Description")}
           >
             <SettingSwitch
               id="godsEyeLife360Enabled"
@@ -258,30 +258,27 @@ export const EnvironmentPage = () => {
           </SettingRow>
           <div className="grid gap-2 p-3">
             <Input
-              aria-label="Home Assistant base URL"
-              placeholder="http://127.0.0.1:8123"
+              aria-label={t("godsEye.baseUrlLabel")}
+              placeholder={"http://127.0.0.1:8123" /* i18n-ignore: fixed URL example */}
               value={life360BaseUrl}
               onChange={(event) => setLife360BaseUrlDraft(event.target.value)}
             />
             <Input
-              aria-label="Home Assistant long-lived access token"
+              aria-label={t("godsEye.tokenLabel")}
               type="password"
               autoComplete="new-password"
-              placeholder="Token (blank keeps the saved token)"
+              placeholder={t("godsEye.tokenPlaceholder")}
               value={life360Token}
               onChange={(event) => setLife360Token(event.target.value)}
             />
             <Input
-              aria-label="Life360 device tracker allowlist"
-              placeholder="Optional: device_tracker.phone, device_tracker.tablet"
+              aria-label={t("godsEye.entityAllowlistLabel")}
+              placeholder={"Optional: device_tracker.phone, device_tracker.tablet" /* i18n-ignore: technical entity ID examples */}
               value={life360EntityIds}
               onChange={(event) => setLife360EntityIdsDraft(event.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              The allowlist restricts which trackers can be displayed. When it
-              is empty, only entities attributed to Life360 are selected. Pins
-              refresh when you open or refresh God’s Eye; up to 24 pins are
-              drawn at once.
+              {t("godsEye.allowlistHelp")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 p-3">
@@ -301,7 +298,7 @@ export const EnvironmentPage = () => {
                 });
               }}
             >
-              {saveLife360.isPending ? "Saving…" : "Save Life360 settings"}
+              {saveLife360.isPending ? t("godsEye.saving") : t("godsEye.saveSettings")}
             </Button>
             <Button
               size="sm"
@@ -312,7 +309,7 @@ export const EnvironmentPage = () => {
               }
               onClick={() => testLife360.mutate({})}
             >
-              {testLife360.isPending ? "Testing…" : "Test connection"}
+              {testLife360.isPending ? t("godsEye.testing") : t("godsEye.testConnection")}
             </Button>
             <Button
               size="sm"
@@ -336,7 +333,7 @@ export const EnvironmentPage = () => {
                 setLife360Token("");
               }}
             >
-              Disconnect Life360
+              {t("godsEye.disconnectLife360")}
             </Button>
           </div>
           {godsEyeStatusQuery.data?.life360.error && (

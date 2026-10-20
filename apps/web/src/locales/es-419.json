@@ -4189,5 +4189,27 @@
       "connection": "No pudimos conectar con AbacusAI Bot. Revisa tu conexión y vuelve a intentarlo.",
       "refused": "Esta cuenta no puede usar AbacusAI Bot en este sitio."
     }
+  },
+  "godsEye": {
+    "title": "God’s Eye View",
+    "viewDescription": "Open the full local spatial-intelligence console. Its public data layers keep their upstream source terms and attribution.",
+    "ready": "Ready",
+    "dependenciesMissing": "Dependencies missing",
+    "notBundled": "Not bundled",
+    "opening": "Opening…",
+    "openRefresh": "Open / refresh",
+    "life360Title": "Life360 through Home Assistant",
+    "life360Description": "Opt-in only. Reads authorized device_tracker entities from your private Home Assistant instance; it does not sign in to Life360 or bypass Circle sharing.",
+    "baseUrlLabel": "Home Assistant base URL",
+    "tokenLabel": "Home Assistant long-lived access token",
+    "tokenPlaceholder": "Token (blank keeps the saved token)",
+    "entityAllowlistLabel": "Life360 device tracker allowlist",
+    "settingsSaved": "Life360 settings saved. The access token is encrypted by OS-backed secure storage.",
+    "allowlistHelp": "The allowlist restricts which trackers can be displayed. When it is empty, only entities attributed to Life360 are selected. Pins refresh when you open or refresh God’s Eye; up to 24 pins are drawn at once.",
+    "saving": "Saving…",
+    "saveSettings": "Save Life360 settings",
+    "testing": "Testing…",
+    "testConnection": "Test connection",
+    "disconnectLife360": "Disconnect Life360"
   }
 }

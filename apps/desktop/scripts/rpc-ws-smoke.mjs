@@ -127,14 +127,26 @@ await build({
       // browser/RPC smoke independent of Electron and avoid bundling its
       // process-owning gateway implementation into the test harness.
       name: "smoke-omniroute-stub",
-      resolveId: (id) =>
-        id.includes("services/providers/omniroute.js")
-          ? "\0smoke-omniroute"
-          : null,
-      load: (id) =>
-        id === "\0smoke-omniroute"
-          ? 'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }'
-          : null,
+      resolveId: (id) => {
+        if (id.includes("services/providers/omniroute.js"))
+          return "\0smoke-omniroute";
+        if (id.includes("services/providers/gods-eye.js"))
+          return "\0smoke-gods-eye";
+        return null;
+      },
+      load: (id) => {
+        if (id === "\0smoke-omniroute")
+          return 'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }';
+        if (id === "\0smoke-gods-eye")
+          return [
+            'export async function stopGodsEye() {}',
+            'export async function getGodsEyeStatus() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+            'export async function openGodsEyeWindow() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+            'export async function saveGodsEyeLife360Settings() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+            'export async function testGodsEyeLife360() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+          ].join("\n");
+        return null;
+      },
     },
     {
       // The router must not need Electron: importing it fails the smoke.
