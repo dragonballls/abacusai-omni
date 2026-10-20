@@ -380,7 +380,7 @@ export class Life360HomeAssistantProvider {
     baseUrl: URL,
     entityIds: string[]
   ): Promise<unknown[]> {
-    const states: unknown[] = new Array(entityIds.length);
+    const states: unknown[] = [];
     let nextIndex = 0;
     const worker = async () => {
       for (;;) {
