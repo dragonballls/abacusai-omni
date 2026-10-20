@@ -95,6 +95,7 @@ export const powerMonitor = unavailable("powerMonitor");
 export const powerSaveBlocker = unavailable("powerSaveBlocker");
 export const protocol = unavailable("protocol");
 export const screen = unavailable("screen");
+export const safeStorage = unavailable("safeStorage");
 export const session = unavailable("session");
 export const systemPreferences = unavailable("systemPreferences");
 export const webContents = unavailable("webContents");
