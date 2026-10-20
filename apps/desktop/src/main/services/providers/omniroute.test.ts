@@ -136,7 +136,7 @@ describe("local OmniRoute gateway security contract", () => {
       expect(source).toContain(
         "Environment-only credentials and non-model keys are"
       );
-    }
+    },
   );
 
   it("registers Astra via Responses API and preserves the default", () => {
