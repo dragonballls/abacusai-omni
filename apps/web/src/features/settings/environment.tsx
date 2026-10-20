@@ -1,6 +1,6 @@
 import { EXEC_BACKENDS } from "@abacus-ai/contract/exec-backends";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -34,17 +34,14 @@ export const EnvironmentPage = () => {
     enabled: IS_ELECTRON,
   });
   const savedLife360 = godsEyeStatusQuery.data?.life360;
-  const [life360Enabled, setLife360Enabled] = useState(false);
-  const [life360BaseUrl, setLife360BaseUrl] = useState("http://127.0.0.1:8123");
+  const [life360EnabledDraft, setLife360EnabledDraft] = useState<boolean | null>(null);
+  const [life360BaseUrlDraft, setLife360BaseUrlDraft] = useState<string | null>(null);
+  const [life360EntityIdsDraft, setLife360EntityIdsDraft] = useState<string | null>(null);
   const [life360Token, setLife360Token] = useState("");
-  const [life360EntityIds, setLife360EntityIds] = useState("");
   const [life360Message, setLife360Message] = useState("");
-  useEffect(() => {
-    if (!savedLife360) return;
-    setLife360Enabled(savedLife360.enabled);
-    setLife360BaseUrl(savedLife360.baseUrl);
-    setLife360EntityIds(savedLife360.entityIds.join(", "));
-  }, [savedLife360?.enabled, savedLife360?.baseUrl, savedLife360?.entityIds]);
+  const life360Enabled = life360EnabledDraft ?? savedLife360?.enabled ?? false;
+  const life360BaseUrl = life360BaseUrlDraft ?? savedLife360?.baseUrl ?? "http://127.0.0.1:8123";
+  const life360EntityIds = life360EntityIdsDraft ?? savedLife360?.entityIds.join(", ") ?? "";
   const godsEyeStatusKey = godsEyeApi.status.queryKey({ input: {} });
   const openGodsEye = useMutation(
     godsEyeApi.open.mutationOptions({
@@ -60,6 +57,9 @@ export const EnvironmentPage = () => {
       onSuccess: (result) => {
         cache.setQueryData(godsEyeStatusKey, result);
         setLife360Token("");
+        setLife360EnabledDraft(null);
+        setLife360BaseUrlDraft(null);
+        setLife360EntityIdsDraft(null);
         setLife360Message("Life360 settings saved. The access token is encrypted by OS-backed secure storage.");
       },
       meta: { errorToast: true },
@@ -237,7 +237,7 @@ export const EnvironmentPage = () => {
             <SettingSwitch
               id="godsEyeLife360Enabled"
               checked={life360Enabled}
-              onCheckedChange={setLife360Enabled}
+              onCheckedChange={setLife360EnabledDraft}
             />
           </SettingRow>
           <div className="grid gap-2 p-3">
@@ -245,7 +245,7 @@ export const EnvironmentPage = () => {
               aria-label="Home Assistant base URL"
               placeholder="http://127.0.0.1:8123"
               value={life360BaseUrl}
-              onChange={(event) => setLife360BaseUrl(event.target.value)}
+              onChange={(event) => setLife360BaseUrlDraft(event.target.value)}
             />
             <Input
               aria-label="Home Assistant long-lived access token"
@@ -259,7 +259,7 @@ export const EnvironmentPage = () => {
               aria-label="Life360 device tracker allowlist"
               placeholder="Optional: device_tracker.phone, device_tracker.tablet"
               value={life360EntityIds}
-              onChange={(event) => setLife360EntityIds(event.target.value)}
+              onChange={(event) => setLife360EntityIdsDraft(event.target.value)}
             />
             <p className="text-xs text-muted-foreground">
               The allowlist restricts which trackers can be displayed. When it is empty,
@@ -303,7 +303,7 @@ export const EnvironmentPage = () => {
                   clearToken: true,
                   entityIds: life360EntityIds.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
                 });
-                setLife360Enabled(false);
+                setLife360EnabledDraft(false);
                 setLife360Token("");
               }}
             >
