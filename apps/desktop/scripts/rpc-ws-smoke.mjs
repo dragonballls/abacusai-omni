@@ -24,6 +24,27 @@ const OUT = join(DESKTOP, "node_modules", ".tmp", "rpc-ws-smoke");
 const BUILD = join(OUT, "build");
 const serve = process.argv.includes("--serve");
 
+const SMOKE_MODULE_STUBS = [
+  {
+    request: "services/providers/omniroute.js",
+    id: "\0smoke-omniroute",
+    source:
+      'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }',
+  },
+  {
+    request: "services/providers/gods-eye.js",
+    id: "\0smoke-gods-eye",
+    source: [
+      'export async function stopGodsEye() {}',
+      'export async function getGodsEyeStatus() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function openGodsEyeWindow() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function saveGodsEyeLife360Settings() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function testGodsEyeLife360() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+    ].join("\n"),
+  },
+];
+
+
 const entry = `
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/websocket";
@@ -128,23 +149,9 @@ await build({
       // process-owning gateway implementation into the test harness.
       name: "smoke-omniroute-stub",
       resolveId: (id) =>
-        id.includes("services/providers/omniroute.js")
-          ? "\0smoke-omniroute"
-          : id.includes("services/providers/gods-eye.js")
-            ? "\0smoke-gods-eye"
-            : null,
+        SMOKE_MODULE_STUBS.find((stub) => id.includes(stub.request))?.id ?? null,
       load: (id) =>
-        id === "\0smoke-omniroute"
-          ? 'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }'
-          : id === "\0smoke-gods-eye"
-            ? [
-                'export async function stopGodsEye() {}',
-                'export async function getGodsEyeStatus() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
-                'export async function openGodsEyeWindow() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
-                'export async function saveGodsEyeLife360Settings() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
-                'export async function testGodsEyeLife360() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
-              ].join("\n")
-            : null,
+        SMOKE_MODULE_STUBS.find((stub) => stub.id === id)?.source ?? null,
     },
     {
       // The router must not need Electron: importing it fails the smoke.
