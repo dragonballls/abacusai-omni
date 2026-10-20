@@ -59,6 +59,33 @@ describe("God's Eye Life360 view handoff", () => {
     expect(annotations).toHaveLength(24);
   });
 
+
+  it("removes Life360 pins on disconnect without deleting user pins or view state", () => {
+    const source =
+      "http://127.0.0.1:4173/#v=2&lat=33.9&lon=-117.9&alt=1200000&pitch=-80&an=" +
+      encodeURIComponent(
+        JSON.stringify([
+          { type: "pin", latitude: 40, longitude: -73, label: "User note" },
+          {
+            type: "pin",
+            latitude: 34.1,
+            longitude: -117.8,
+            label: "Life360 · Alice phone",
+            color: "amber",
+          },
+        ])
+      );
+    const result = new URL(buildGodsEyeRefreshUrl(source, []));
+    const params = new URLSearchParams(result.hash.slice(1));
+    const annotations = JSON.parse(params.get("an") ?? "[]") as Array<{
+      label: string;
+    }>;
+    expect(params.get("lat")).toBe("33.9");
+    expect(params.get("lon")).toBe("-117.9");
+    expect(annotations).toHaveLength(1);
+    expect(annotations[0].label).toBe("User note");
+  });
+
   it("refuses non-loopback app URLs", () => {
     expect(() =>
       buildGodsEyeRefreshUrl("https://example.com/", [alice])

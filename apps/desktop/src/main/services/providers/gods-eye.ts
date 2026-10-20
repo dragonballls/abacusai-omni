@@ -49,6 +49,7 @@ let serverPort: number | null = null;
 let appWindow: BrowserWindow | null = null;
 let startPromise: Promise<{ origin: string; root: string }> | null = null;
 let stopPromise: Promise<void> | null = null;
+let life360StatusError: string | null = null;
 
 function readConfig(): StoredConfig {
   try {
@@ -478,6 +479,27 @@ async function readLife360(
   };
 }
 
+async function refreshOpenGodsEyeMap(
+  locations: readonly Life360Location[]
+): Promise<boolean> {
+  const window = appWindow;
+  if (!window || window.isDestroyed()) return true;
+  try {
+    const current = window.webContents.getURL();
+    const url = new URL(current);
+    if (
+      url.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
+    ) {
+      return false;
+    }
+    await window.loadURL(buildGodsEyeRefreshUrl(current, locations));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getGodsEyeStatus(): GodsEyeIntegrationStatus {
   const config = readConfig();
   const source = findSource();
@@ -495,9 +517,10 @@ export function getGodsEyeStatus(): GodsEyeIntegrationStatus {
       baseUrl: config.baseUrl,
       entityIds: [...config.entityIds],
       error:
-        config.enabled && !config.tokenCipher
+        life360StatusError ??
+        (config.enabled && !config.tokenCipher
           ? "Life360 is enabled but no Home Assistant token is saved."
-          : null,
+          : null),
     },
   };
 }
@@ -544,6 +567,14 @@ export async function saveGodsEyeLife360Settings(input: {
     entityIds,
     tokenCipher,
   });
+  life360StatusError = null;
+  if (
+    !input.enabled &&
+    !(await refreshOpenGodsEyeMap([]))
+  ) {
+    life360StatusError =
+      "Life360 was disconnected, but the open map could not be refreshed. Close and reopen God's Eye to remove any remaining location pins.";
+  }
   return getGodsEyeStatus();
 }
 
@@ -584,6 +615,7 @@ export async function openGodsEyeWindow(): Promise<{
     await window.loadURL(
       buildGodsEyeRefreshUrl(currentUrl, refreshed.locations)
     );
+    life360StatusError = refreshed.error;
     window.show();
     window.focus();
   } catch (error) {
