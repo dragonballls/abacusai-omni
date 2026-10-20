@@ -1432,7 +1432,16 @@ async function syncBrahmaProviderKeys(): Promise<BrahmaKeySyncResult> {
   }
 }
 
-function ensureAbacusProvider(clientKey: string): void {
+function ensureAbacusProvider(
+  clientKey: string,
+  openaiConfigured: boolean | null
+): void {
+  const existingAstra = readSettings().customProviders
+    ?.find((entry) => entry.id === PROVIDER_ID)
+    ?.models?.some((model) => model.id === "openai/gpt-6-astra");
+  const showAstra =
+    openaiConfigured === true ||
+    (openaiConfigured == null && existingAstra === true);
   const provider: CustomProviderEntry = {
     id: PROVIDER_ID,
     name: "OmniRoute",
@@ -1448,27 +1457,37 @@ function ensureAbacusProvider(clientKey: string): void {
         contextWindow: 262_144,
         maxTokens: 32_768,
       },
-      {
-        id: "openai/gpt-6-astra",
-        name: "GPT-6 Astra · Deep Reasoning (Paid API)",
-        api: "openai-responses",
-        reasoning: true,
-        input: ["text", "image"],
-        // Model capacity and published standard short-context pricing; long
-        // contexts and processing tiers can cost more.
-        contextWindow: 1_050_000,
-        maxTokens: 128_000,
-        cost: { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
-        thinkingLevelMap: {
-          off: null,
-          minimal: "low",
-          low: "low",
-          medium: "medium",
-          high: "high",
-          xhigh: "xhigh",
-          max: "max",
-        },
-      },
+      ...(showAstra
+        ? [
+            {
+              id: "openai/gpt-6-astra",
+              name: "GPT-6 Astra · Deep Reasoning (Paid API)",
+              api: "openai-responses",
+              reasoning: true,
+              input: ["text", "image"],
+              // Model capacity and standard short-context pricing; long
+              // contexts and processing tiers can cost more.
+              contextWindow: 1_050_000,
+              maxTokens: 128_000,
+              cost: {
+                input: 10,
+                output: 50,
+                cacheRead: 1,
+                cacheWrite: 12.5,
+              },
+              // Minimal maps to low; high reasoning effort remains available.
+              thinkingLevelMap: {
+                off: null,
+                minimal: "low",
+                low: "low",
+                medium: "medium",
+                high: "high",
+                xhigh: "xhigh",
+                max: "max",
+              },
+            },
+          ]
+        : []),
     ],
   };
   upsertCustomProvider(provider);
