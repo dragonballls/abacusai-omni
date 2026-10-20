@@ -15,7 +15,7 @@
     "dev": "pnpm run dev:desktop",
     "dev:desktop": "turbo run dev --filter=@abacus-ai/desktop",
     "format": "oxfmt .",
-    "format:check": "oxfmt . && git diff -- apps/desktop/src/main/services/providers/omniroute.ts",
+    "format:check": "oxfmt --check .",
     "lint": "oxlint .",
     "lint:all": "oxlint --config packages/config/oxlint/all.ts .",
     "lint:fix": "oxlint --fix .",
