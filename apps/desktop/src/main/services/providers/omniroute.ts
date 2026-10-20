@@ -1549,9 +1549,16 @@ export async function openOmniRouteWindow(): Promise<{
     "Preparing the secure local gateway. Your saved profile and provider settings are being preserved."
   );
 
+  let keySync: BrahmaKeySyncResult = {
+    sourceFound: false,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    openaiConfigured: null,
+  };
   try {
     const clientKey = await ensureOmniRoute();
-    const keySync = await syncBrahmaProviderKeys();
+    keySync = await syncBrahmaProviderKeys();
     ensureAbacusProvider(clientKey);
     await authenticateOmniRouteDashboard(window);
     await window.loadURL(OMNIROUTE_ORIGIN);
