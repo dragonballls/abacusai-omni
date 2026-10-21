@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "Nuovo bot",
       "templates": "Or start with a template",
+      "torvisConductor": "Crea il coordinatore T.O.R.V.I.S.",
+      "openTorvisConductor": "Apri T.O.R.V.I.S.",
       "more": "More",
       "uses": "Uses"
     },
