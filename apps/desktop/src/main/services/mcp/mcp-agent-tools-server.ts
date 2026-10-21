@@ -2373,13 +2373,10 @@ export class McpAgentToolsServer extends McpHttpServer {
           markerIndex = index;
       }
 
-      const following =
-        markerIndex < 0 ? [] : turns.slice(markerIndex + 1);
+      const following = markerIndex < 0 ? [] : turns.slice(markerIndex + 1);
       // A later user turn closes this task's transcript segment. Never take
       // an unrelated, newer assistant answer as this task's result.
-      const nextUserIndex = following.findIndex(
-        (item) => item.role === "user"
-      );
+      const nextUserIndex = following.findIndex((item) => item.role === "user");
       const taskTurns =
         nextUserIndex < 0 ? following : following.slice(0, nextUserIndex);
       const response = taskTurns

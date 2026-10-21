@@ -315,9 +315,7 @@ describe("A2A bot team", () => {
       })
     ) as { state: string; output?: string };
     expect(status.state).toBe("completed");
-    expect(status.output).toBe(
-      "Completed assigned work for research-session"
-    );
+    expect(status.output).toBe("Completed assigned work for research-session");
     expect(status.output).not.toContain("unrelated later");
   });
 
