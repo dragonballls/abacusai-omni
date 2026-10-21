@@ -30,9 +30,7 @@ const seedWithTorvis = () => {
 it("opens the existing TORVIS conductor when entering the Bots area", async () => {
   harness = await renderApp("/bots", { seed: seedWithTorvis() });
   await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe(
-      "/bots/torvis-test-id"
-    )
+    expect(harness!.router.state.location.pathname).toBe("/bots/torvis-test-id")
   );
 });
 
