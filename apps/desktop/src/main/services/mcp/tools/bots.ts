@@ -17,8 +17,8 @@ export const BOTS_TOOLS: ToolDefinition[] = [
     ].join("\n"),
     inputSchema: { type: "object", properties: {} },
     run: (host, args, callerSession) => host.myActivity(callerSession),
-  },,
-{
+  },
+  {
     name: "a2a",
     toolsets: ["a2a"],
     botsOnly: true,
@@ -35,7 +35,7 @@ export const BOTS_TOOLS: ToolDefinition[] = [
       "Create and update agents with explicit names and mission instructions. Deletion requires",
       "the exact current name and must never be used merely to stop a task.",
       "This tool is available only inside a persistent bot chat, not a regular session or unattended routine."
-    ].join("\\n"),
+    ].join("\n"),
     inputSchema: {
       type: "object",
       properties: {
