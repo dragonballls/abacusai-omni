@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "Neuer Bot",
       "templates": "Or start with a template",
+      "torvisConductor": "T.O.R.V.I.S.-Koordinator erstellen",
+      "openTorvisConductor": "T.O.R.V.I.S. öffnen",
       "more": "More",
       "uses": "Uses"
     },
@@ -641,6 +643,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Erstellt und koordiniert Agenten, verteilt Aufgaben, sammelt Ergebnisse und organisiert Agentenbesprechungen.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Einen Shell-Befehl im Arbeitsordner ausführen.",
       "batch_edit": "Change several places in one file in a single edit.",

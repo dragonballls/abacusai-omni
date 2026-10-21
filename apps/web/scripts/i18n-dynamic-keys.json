@@ -322,6 +322,7 @@
   {
     "prefix": "capabilities.toolDescriptions.",
     "values": [
+      "a2a",
       "ast_edit",
       "bash",
       "batch_edit",

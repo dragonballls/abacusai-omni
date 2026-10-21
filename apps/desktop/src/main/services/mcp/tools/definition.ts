@@ -34,6 +34,7 @@ export type ToolHost = Pick<
   | "connectConnectorOutcome"
   | "disconnectConnectorOutcome"
   | "myActivity"
+  | "a2a"
   | "listChats"
   | "readChatMessages"
   | "autoReply"

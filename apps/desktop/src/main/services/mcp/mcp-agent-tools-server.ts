@@ -1,4 +1,5 @@
 import fs from "fs";
+import { randomUUID } from "node:crypto";
 import path from "path";
 import { pathToFileURL } from "url";
 
@@ -28,8 +29,18 @@ import {
   type Connector,
 } from "@abacus-ai/connectors/registry";
 import type {
+  Bot,
+  BotChatHandle,
+  BotChangeNotice,
+  BotCreateInput,
+  BotUpdateInput,
+} from "@abacus-ai/contract/bots";
+import type {
+  AgentSessionListItem,
   ConnectorStatus,
   ConnectorStatuses,
+  SendAgentMessageRequest,
+  SessionTurnStateSnapshot,
 } from "@abacus-ai/contract/contracts";
 import type { ConversationKey } from "@abacus-ai/contract/conversation-scope";
 import { artifactPathLine } from "@abacus-ai/contract/deliverables";
@@ -191,6 +202,52 @@ const isToolEnabled = (definition: ListedTool, enabled: Set<string>): boolean =>
 const fileUrl = (absolutePath: string): string =>
   pathToFileURL(absolutePath).href;
 
+export interface AgentTeamApi {
+  listBots: () => Bot[];
+  createBot: (input: BotCreateInput) => Bot;
+  updateBot: (id: string, changes: BotUpdateInput) => Bot;
+  deleteBot: (id: string) => void;
+  announceBotChange?: (id: string, notice: BotChangeNotice) => Promise<void>;
+  openBotChat: (botId: string) => Promise<BotChatHandle>;
+  sendAgentMessage: (request: SendAgentMessageRequest) => Promise<boolean>;
+  listSessions: () => AgentSessionListItem[];
+  getTurnState: (
+    workspaceId: string,
+    sessionId: string
+  ) => SessionTurnStateSnapshot;
+}
+
+interface AgentTaskRecord {
+  id: string;
+  botId: string;
+  botName: string;
+  workspaceId: string;
+  sessionId: string;
+  marker: string;
+  submittedAt: number;
+  meetingId: string | null;
+}
+
+interface AgentMeetingParticipant {
+  botId: string;
+  botName: string;
+  taskIds: string[];
+  latestTaskId: string | null;
+  error?: string;
+}
+
+interface AgentMeetingRecord {
+  id: string;
+  topic: string;
+  createdAt: number;
+  participants: AgentMeetingParticipant[];
+}
+
+const A2A_MAX_MEETING_PARTICIPANTS = 8;
+const A2A_MAX_TRACKED_TASKS = 200;
+const A2A_MAX_TRACKED_MEETINGS = 50;
+const A2A_MAX_TASK_TEXT = 12_000;
+
 export interface McpAgentToolsServerOptions {
   skillsService: SkillsService;
   /** Re-read per request so toggles take effect live. */
@@ -212,6 +269,10 @@ export interface McpAgentToolsServerOptions {
    * renderer opens it in that pane and no other. Null for an unknown session.
    */
   conversationKeyForSession?: (sessionId: string) => ConversationKey | null;
+  /**
+   * Bot CRUD and dispatch operations for A2A team coordination.
+   */
+  agentTeam?: AgentTeamApi;
   /**
    * What the session's chat can do where a host lane says (the hosted
    * WhatsApp lane); null for every other session and bot, which are app
@@ -432,6 +493,12 @@ export class McpAgentToolsServer extends McpHttpServer {
 
   /** The loopback origins `serve` returned to each session. */
   private readonly servedOrigins = new Map<string, Set<string>>();
+  /** Active task handles for this app run; bot chats and transcripts remain persistent. */
+  private readonly a2aTasks = new Map<string, AgentTaskRecord>();
+  /** Active meeting registry; the participants' actual work lives in their bot chats. */
+  private readonly a2aMeetings = new Map<string, AgentMeetingRecord>();
+  /** Prevent overlapping dispatches to the same worker while a send is being admitted. */
+  private readonly a2aDispatchingBots = new Set<string>();
 
   /** The always-on tools guarantee this. */
   hasEnabledTools(): boolean {
@@ -2214,6 +2281,511 @@ export class McpAgentToolsServer extends McpHttpServer {
         ? "Your other conversations have no recorded turns yet."
         : sections.join("\n\n")
     );
+  }
+
+  /**
+   * Bot-to-bot coordination. Bots and conversations remain in the existing
+   * Abacus stores; this bounded registry only correlates delegated work.
+   */
+  async a2a(
+    args: Record<string, unknown>,
+    callerSession?: string
+  ): Promise<ToolResult> {
+    const api = this.options.agentTeam;
+    const callerBotId =
+      callerSession != null
+        ? (this.options.botIdForSession?.(callerSession) ?? null)
+        : null;
+
+    if (callerBotId == null)
+      return this.err(
+        "A2A is only available from a bot's own persistent chat."
+      );
+    if (api == null)
+      return this.err("Bot team coordination is not available on this host.");
+
+    const action = typeof args.action === "string" ? args.action : "";
+
+    const stringArg = (
+      key: string,
+      max: number,
+      required = false
+    ): string | null => {
+      const value = args[key];
+      if (value == null && !required) return null;
+      if (typeof value !== "string")
+        throw new Error(key + " must be a string.");
+
+      const trimmed = value.trim();
+      if (trimmed.length === 0 && required)
+        throw new Error(key + " is required.");
+      if (trimmed.length > max)
+        throw new Error(key + " must be " + max + " characters or fewer.");
+      return trimmed;
+    };
+
+    const agentById = (id: string): Bot => {
+      const bot = api.listBots().find((item) => item.id === id);
+      if (bot == null) throw new Error("No agent with id " + id + ".");
+      return bot;
+    };
+
+    const publicAgent = (bot: Bot) => ({
+      id: bot.id,
+      name: bot.name,
+      title: bot.title,
+      mission: bot.description.slice(0, 1_000),
+      persona: bot.persona,
+      model: bot.model,
+    });
+
+    const taskSnapshot = (taskId: string) => {
+      const task = this.a2aTasks.get(taskId);
+      if (task == null)
+        return {
+          task_id: taskId,
+          state: "expired_or_unknown" as const,
+        };
+
+      const bots = api.listBots();
+      const session = api
+        .listSessions()
+        .find(
+          (item) =>
+            item.id === task.sessionId &&
+            (item.owner?.botId === task.botId ||
+              bots.some(
+                (bot) => bot.id === task.botId && bot.sessionId === item.id
+              ))
+        );
+      const turnState = api.getTurnState(task.workspaceId, task.sessionId);
+      const activity = (this.options.ownActivity?.(task.botId) ?? []).find(
+        (item) => item.sessionId === task.sessionId
+      );
+      const turns = readTranscriptTail(activity?.file ?? null, 60, 6_000);
+      let markerIndex = -1;
+
+      for (let index = 0; index < turns.length; index++) {
+        if (
+          turns[index]?.role === "user" &&
+          turns[index]?.text.includes(task.marker)
+        )
+          markerIndex = index;
+      }
+
+      const following = markerIndex < 0 ? [] : turns.slice(markerIndex + 1);
+      // A later user turn closes this task's transcript segment. Never take
+      // an unrelated, newer assistant answer as this task's result.
+      const nextUserIndex = following.findIndex((item) => item.role === "user");
+      const taskTurns =
+        nextUserIndex < 0 ? following : following.slice(0, nextUserIndex);
+      const response = taskTurns
+        .filter((item) => item.role === "assistant")
+        .at(-1)?.text;
+      // If another user turn has already arrived, an answer before that
+      // boundary belongs to this task even if the worker is now busy again.
+      const responseConcludesTask =
+        response != null &&
+        (nextUserIndex >= 0 ||
+          (!turnState.isBusy && turnState.phase !== "waiting_permission"));
+      const state = responseConcludesTask
+        ? "completed"
+        : turnState.phase === "waiting_permission"
+          ? "waiting_permission"
+          : turnState.isBusy
+            ? "running"
+            : turnState.phase === "error" || session?.status === "stopped"
+              ? "failed"
+              : "queued";
+      const note =
+        turnState.phase === "waiting_permission"
+          ? "This task is waiting for a permission decision in Abacus."
+          : session == null
+            ? "The chat session could not be found; reopen the agent in Abacus."
+            : undefined;
+
+      return {
+        task_id: task.id,
+        agent: { id: task.botId, name: task.botName },
+        state,
+        submitted_at: new Date(task.submittedAt).toISOString(),
+        ...(responseConcludesTask && response != null
+          ? { output: response }
+          : {}),
+        ...(note != null ? { note } : {}),
+      };
+    };
+
+    const dispatch = async (
+      botId: string,
+      taskText: string,
+      meetingId: string | null
+    ): Promise<AgentTaskRecord> => {
+      const bot = agentById(botId);
+      if (botId === callerBotId)
+        throw new Error(
+          "A coordinator cannot dispatch into its own active chat."
+        );
+      if (this.a2aDispatchingBots.has(botId))
+        throw new Error(
+          bot.name +
+            " is already receiving a task from this coordinator. Wait for its dispatch to finish."
+        );
+      // A persistent chat is one serial conversation. Do not interleave task
+      // prompts: doing so makes a later assistant answer impossible to assign
+      // reliably to its original task id.
+      for (const existing of this.a2aTasks.values()) {
+        if (existing.botId !== botId) continue;
+        const existingState = taskSnapshot(existing.id).state;
+        if (
+          existingState === "queued" ||
+          existingState === "running" ||
+          existingState === "waiting_permission"
+        )
+          throw new Error(
+            bot.name +
+              " already has an active task (" +
+              existing.id +
+              "; " +
+              existingState +
+              "). Poll task_status before assigning more work to this bot."
+          );
+      }
+
+      this.a2aDispatchingBots.add(botId);
+      try {
+        const chat = await api.openBotChat(botId);
+        const id = randomUUID();
+        const marker = "Abacus Task ID: " + id;
+        const message = [
+          marker,
+          "You have been assigned a task by the coordinating bot.",
+          "Use the model, integrations, skills, and tools already configured for your own Abacus bot. Do not repeat the task marker in your final answer.",
+          "Task:",
+          taskText,
+        ].join("\n\n");
+        const accepted = await api.sendAgentMessage({
+          workspaceId: chat.workspaceId,
+          sessionId: chat.sessionId,
+          message,
+        });
+
+        if (!accepted)
+          throw new Error(
+            "Abacus could not deliver the task to " + bot.name + "."
+          );
+
+        const record: AgentTaskRecord = {
+          id,
+          botId,
+          botName: bot.name,
+          workspaceId: chat.workspaceId,
+          sessionId: chat.sessionId,
+          marker,
+          submittedAt: Date.now(),
+          meetingId,
+        };
+        this.a2aTasks.set(id, record);
+
+        while (this.a2aTasks.size > A2A_MAX_TRACKED_TASKS) {
+          const oldest = this.a2aTasks.keys().next().value;
+          if (oldest == null) break;
+          this.a2aTasks.delete(oldest);
+        }
+        return record;
+      } finally {
+        this.a2aDispatchingBots.delete(botId);
+      }
+    };
+
+    const meetingSnapshot = (meeting: AgentMeetingRecord) => ({
+      meeting_id: meeting.id,
+      topic: meeting.topic,
+      created_at: new Date(meeting.createdAt).toISOString(),
+      participants: meeting.participants.map((participant) => ({
+        agent: {
+          id: participant.botId,
+          name: participant.botName,
+        },
+        ...(participant.error != null ? { error: participant.error } : {}),
+        ...(participant.latestTaskId != null
+          ? taskSnapshot(participant.latestTaskId)
+          : { state: "not_dispatched" }),
+      })),
+    });
+
+    try {
+      switch (action) {
+        case "list_agents": {
+          const bots = api.listBots();
+          return this.ok(
+            JSON.stringify(
+              {
+                agents: bots.map(publicAgent),
+                count: bots.length,
+                maximum: 50,
+              },
+              null,
+              2
+            )
+          );
+        }
+
+        case "create_agent": {
+          const name = stringArg("name", 30, true)!;
+          const mission = stringArg("mission", 4_000, true)!;
+          const title = stringArg("title", 80);
+          const persona = stringArg("persona", 1_000);
+          const model = stringArg("model", 200);
+          const input: BotCreateInput = {
+            name,
+            description: mission,
+            ...(title != null ? { title } : {}),
+            ...(persona != null ? { persona } : {}),
+            ...(model != null ? { model } : {}),
+          };
+          const bot = api.createBot(input);
+          return this.ok(
+            JSON.stringify({ created: publicAgent(bot) }, null, 2)
+          );
+        }
+
+        case "update_agent": {
+          const id = stringArg("agent_id", 128, true)!;
+          const changes: BotUpdateInput = {};
+          const name = stringArg("name", 30);
+          const title = stringArg("title", 80);
+          const mission = stringArg("mission", 4_000);
+          const persona = stringArg("persona", 1_000);
+
+          if (name != null) changes.name = name;
+          if (title != null) changes.title = title;
+          if (mission != null) changes.description = mission;
+          if (persona != null) changes.persona = persona;
+
+          if (args.model !== undefined) {
+            changes.model =
+              args.model === null ? null : stringArg("model", 200, true)!;
+          }
+          if (Object.keys(changes).length === 0)
+            throw new Error("Provide at least one field to update.");
+
+          const updated = api.updateBot(id, changes);
+          const notice: BotChangeNotice = {
+            ...(changes.description !== undefined ? { mission: true } : {}),
+            ...(changes.persona !== undefined ? { persona: true } : {}),
+          };
+          if (api.announceBotChange != null && Object.keys(notice).length > 0)
+            await api.announceBotChange(id, notice).catch(() => undefined);
+
+          return this.ok(
+            JSON.stringify({ updated: publicAgent(updated) }, null, 2)
+          );
+        }
+
+        case "delete_agent": {
+          const id = stringArg("agent_id", 128, true)!;
+          const confirmation = stringArg("confirm_name", 30, true)!;
+          const target = agentById(id);
+
+          if (id === callerBotId)
+            throw new Error(
+              "A coordinating bot cannot delete its own bot record."
+            );
+          if (target.name !== confirmation)
+            throw new Error(
+              "Deletion refused: confirm_name must exactly match the agent's current name."
+            );
+
+          api.deleteBot(id);
+          return this.ok("Deleted agent " + target.name + ".");
+        }
+
+        case "delegate_task": {
+          const id = stringArg("agent_id", 128, true)!;
+          const taskText = stringArg("task", A2A_MAX_TASK_TEXT, true)!;
+          const task = await dispatch(id, taskText, null);
+          return this.ok(
+            JSON.stringify(
+              {
+                accepted: true,
+                task_id: task.id,
+                agent: { id: task.botId, name: task.botName },
+                state: "queued",
+                note: "Poll with action task_status. The worker uses its own configured Abacus model, tools, and connected services.",
+              },
+              null,
+              2
+            )
+          );
+        }
+
+        case "task_status": {
+          const taskId = stringArg("task_id", 128, true)!;
+          if (!this.a2aTasks.has(taskId))
+            throw new Error("Unknown or expired task id " + taskId + ".");
+          return this.ok(JSON.stringify(taskSnapshot(taskId), null, 2));
+        }
+
+        case "convene": {
+          const topic = stringArg("topic", 200, true)!;
+          const instructions = stringArg("instructions", 4_000, true)!;
+          if (!Array.isArray(args.agent_ids))
+            throw new Error("agent_ids must be an array of agent ids.");
+
+          const agentIds = [...new Set(args.agent_ids)];
+          if (
+            agentIds.length === 0 ||
+            agentIds.length > A2A_MAX_MEETING_PARTICIPANTS ||
+            agentIds.some((id) => typeof id !== "string")
+          )
+            throw new Error(
+              "Choose between 1 and " +
+                A2A_MAX_MEETING_PARTICIPANTS +
+                " distinct agent ids."
+            );
+          for (const id of agentIds) {
+            if (id === callerBotId)
+              throw new Error(
+                "The coordinating bot cannot be its own meeting participant."
+              );
+          }
+
+          const meeting: AgentMeetingRecord = {
+            id: randomUUID(),
+            topic,
+            createdAt: Date.now(),
+            participants: agentIds.map((id) => {
+              const bot = agentById(id);
+              return {
+                botId: bot.id,
+                botName: bot.name,
+                taskIds: [],
+                latestTaskId: null,
+              };
+            }),
+          };
+          this.a2aMeetings.set(meeting.id, meeting);
+
+          while (this.a2aMeetings.size > A2A_MAX_TRACKED_MEETINGS) {
+            const oldest = this.a2aMeetings.keys().next().value;
+            if (oldest == null) break;
+            this.a2aMeetings.delete(oldest);
+          }
+
+          const results = await Promise.allSettled(
+            meeting.participants.map(async (participant) => {
+              const task = await dispatch(
+                participant.botId,
+                [
+                  "You are a participant in an Abacus bot meeting.",
+                  "Meeting ID: " + meeting.id,
+                  "Topic: " + topic,
+                  "Bring your independent expertise. State your recommendation, key evidence, assumptions, risks, and unresolved questions.",
+                  "Meeting request:",
+                  instructions,
+                ].join("\n\n"),
+                meeting.id
+              );
+              participant.taskIds.push(task.id);
+              participant.latestTaskId = task.id;
+              return task;
+            })
+          );
+          results.forEach((result, index) => {
+            if (result.status === "rejected") {
+              meeting.participants[index]!.error =
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : String(result.reason);
+            }
+          });
+
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+        }
+
+        case "meeting_status": {
+          const meetingId = stringArg("meeting_id", 128, true)!;
+          const meeting = this.a2aMeetings.get(meetingId);
+          if (meeting == null)
+            throw new Error("Unknown or expired meeting id " + meetingId + ".");
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+        }
+
+        case "follow_up": {
+          const meetingId = stringArg("meeting_id", 128, true)!;
+          const instructions = stringArg("instructions", 4_000, true)!;
+          const sharedContext = stringArg("shared_context", 10_000);
+          const meeting = this.a2aMeetings.get(meetingId);
+          if (meeting == null)
+            throw new Error("Unknown or expired meeting id " + meetingId + ".");
+
+          let selected = meeting.participants;
+          if (args.agent_ids !== undefined) {
+            if (
+              !Array.isArray(args.agent_ids) ||
+              args.agent_ids.some((id) => typeof id !== "string")
+            )
+              throw new Error(
+                "agent_ids must be an array of meeting participant ids."
+              );
+
+            const requested = new Set(args.agent_ids as string[]);
+            selected = meeting.participants.filter((item) =>
+              requested.has(item.botId)
+            );
+            if (selected.length !== requested.size)
+              throw new Error(
+                "Every follow-up agent must be a participant in this meeting."
+              );
+          }
+          if (selected.length === 0)
+            throw new Error("Choose at least one meeting participant.");
+
+          const results = await Promise.allSettled(
+            selected.map(async (participant) => {
+              const task = await dispatch(
+                participant.botId,
+                [
+                  "Follow-up for Abacus meeting " + meeting.id + ".",
+                  "Topic: " + meeting.topic,
+                  ...(sharedContext != null
+                    ? [
+                        "Current shared context and peer findings:",
+                        sharedContext,
+                      ]
+                    : []),
+                  "Follow-up request:",
+                  instructions,
+                ].join("\n\n"),
+                meeting.id
+              );
+              participant.taskIds.push(task.id);
+              participant.latestTaskId = task.id;
+              participant.error = undefined;
+              return task;
+            })
+          );
+          results.forEach((result, index) => {
+            if (result.status === "rejected") {
+              selected[index]!.error =
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : String(result.reason);
+            }
+          });
+
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+        }
+
+        default:
+          throw new Error(
+            "action must be list_agents, create_agent, update_agent, delete_agent, delegate_task, task_status, convene, meeting_status, or follow_up."
+          );
+      }
+    } catch (error) {
+      return this.err(error instanceof Error ? error.message : String(error));
+    }
   }
 
   async listChats(args: Record<string, unknown>): Promise<ToolResult> {

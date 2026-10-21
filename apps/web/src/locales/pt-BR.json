@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "Novo bot",
       "templates": "Or start with a template",
+      "torvisConductor": "Criar condutor T.O.R.V.I.S.",
+      "openTorvisConductor": "Abrir T.O.R.V.I.S.",
       "more": "More",
       "uses": "Uses"
     },
@@ -641,6 +643,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Crie e coordene agentes, delegue tarefas, reúna resultados e convoque reuniões entre agentes.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Executar um comando de shell no espaço de trabalho.",
       "batch_edit": "Change several places in one file in a single edit.",

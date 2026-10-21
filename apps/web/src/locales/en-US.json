@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "Name your bot",
       "templates": "Templates",
+      "torvisConductor": "Create T.O.R.V.I.S. conductor",
+      "openTorvisConductor": "Open T.O.R.V.I.S.",
       "more": "More",
       "uses": "Uses"
     },
@@ -641,6 +643,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Create and coordinate agents, delegate tasks, collect results, and convene agent meetings.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Run a shell command in the workspace.",
       "batch_edit": "Change several places in one file in a single edit.",

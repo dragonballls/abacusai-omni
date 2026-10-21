@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "नया बॉट",
       "templates": "Or start with a template",
+      "torvisConductor": "T.O.R.V.I.S. कंडक्टर बनाएं",
+      "openTorvisConductor": "T.O.R.V.I.S. खोलें",
       "more": "More",
       "uses": "Uses"
     },
@@ -641,6 +643,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "एजेंट बनाएं और समन्वय करें, कार्य सौंपें, परिणाम एकत्र करें और एजेंट मीटिंग आयोजित करें।",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "वर्कस्पेस में शेल कमांड चलाएँ।",
       "batch_edit": "Change several places in one file in a single edit.",

@@ -58,6 +58,31 @@ it("/bots/new keeps its template order when connector statuses arrive late, and 
   await waitFor(() => expect(order()[0]).toBe("template-email-drafting"));
 });
 
+it("starts a prefilled T.O.R.V.I.S. conductor bot", async () => {
+  harness = await renderApp("/bots/new");
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Create T.O.R.V.I.S. conductor",
+    })
+  );
+  await waitFor(() =>
+    expect(harness!.router.state.location.search).toHaveProperty(
+      "step",
+      "setup"
+    )
+  );
+  const name = (await screen.findByRole("textbox", {
+    name: "Name",
+  })) as HTMLInputElement;
+  expect(name.value).toBe("T.O.R.V.I.S.");
+  const instructions = (await screen.findByRole("textbox", {
+    name: "Instructions",
+  })) as HTMLTextAreaElement;
+  expect(instructions.value).toContain(
+    "primary conductor for the user's Abacus agent network"
+  );
+});
+
 it("keeps naming single-line, autofocuses, and submits without accepting an IME Enter", async () => {
   harness = await renderApp("/bots/new");
   const input = await waitFor(() => {
