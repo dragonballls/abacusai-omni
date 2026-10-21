@@ -641,6 +641,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "エージェントの作成・調整、タスクの委任、結果の収集、エージェント会議の開催を行います。",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "ワークスペースでシェルコマンドを実行します。",
       "batch_edit": "Change several places in one file in a single edit.",
