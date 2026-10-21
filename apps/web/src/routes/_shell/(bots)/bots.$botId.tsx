@@ -1,5 +1,6 @@
 import { BotId } from "@abacus-ai/contract/contract/ids";
 import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import * as v from "valibot";
 
@@ -33,10 +34,14 @@ import {
   updatePanelTab,
 } from "#renderer/features/shell/panel-store";
 import { SidePanelContent } from "#renderer/features/shell/side-panel-slot";
-import { TopBarSlot } from "#renderer/features/shell/top-bar-slots";
+import {
+  TopBarSlot,
+  useTopBarActions,
+} from "#renderer/features/shell/top-bar-slots";
 import { activeTabOf, usePanelScope } from "#renderer/features/shell/use-panel";
 import { accentVars, resolveLook } from "#renderer/lib/bots/avatar";
 import { BotSearch } from "#renderer/lib/navigation/search";
+import { useAppNavigate } from "#renderer/lib/navigation/use-app-navigate";
 import { Button } from "#renderer/ui/button";
 
 import { BotBrowser, BotBrowserRegistration } from "./-browser";
@@ -82,6 +87,27 @@ const ComposedChat = ({
   expanded: boolean;
 }) => {
   const { chat } = Route.useRouteContext();
+  const { t } = useTranslation();
+  const navigate = useAppNavigate();
+  const normalizedBotName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const isTorvisConductor =
+    normalizedBotName === "torvis" ||
+    normalizedBotName === "torvisconductor";
+  const modeActions = useMemo(
+    () => [
+      {
+        id: "torvis-abacus-mode-switch",
+        label: isTorvisConductor ? "Abacus workspace" : t("bots.start.openTorvisConductor"),
+        onSelect: () => {
+          void navigate({
+            to: isTorvisConductor ? "/bots/new" : "/bots",
+          } as never);
+        },
+      },
+    ],
+    [isTorvisConductor, navigate, t]
+  );
+  useTopBarActions(modeActions);
   const runtime =
     fixtureState.current && bot.sessionId == null
       ? fixtureState.current.runtime
