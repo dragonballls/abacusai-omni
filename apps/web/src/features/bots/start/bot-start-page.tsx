@@ -289,7 +289,7 @@ export const BotStartPage = ({
               }}
             >
               <Bot className="size-4" />
-              {torvisBot ? "Open T.O.R.V.I.S." : t("bots.start.torvisConductor")}
+              {torvisBot ? t("bots.start.openTorvisConductor") : t("bots.start.torvisConductor")}
             </Button>
           </div>
           {/* A symmetric grid (tokens.css): 3 or 4 equal columns, whichever
