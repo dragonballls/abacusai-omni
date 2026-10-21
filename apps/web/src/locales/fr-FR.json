@@ -641,6 +641,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Crée et coordonne des agents, délègue des tâches, recueille les résultats et organise des réunions entre agents.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Exécuter une commande shell dans l’espace de travail.",
       "batch_edit": "Change several places in one file in a single edit.",
