@@ -24,7 +24,7 @@ export const RAIL_AREAS = [
 ] as const satisfies readonly ShellAreaId[];
 
 export const AREA_HOME = {
-  bots: "/bots/new",
+  bots: "/bots",
   sessions: "/sessions/new",
   routines: "/routines",
   artifacts: "/artifacts",
