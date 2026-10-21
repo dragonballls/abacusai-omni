@@ -497,6 +497,8 @@ export class McpAgentToolsServer extends McpHttpServer {
   private readonly a2aTasks = new Map<string, AgentTaskRecord>();
   /** Active meeting registry; the participants' actual work lives in their bot chats. */
   private readonly a2aMeetings = new Map<string, AgentMeetingRecord>();
+  /** Prevent overlapping dispatches to the same worker while a send is being admitted. */
+  private readonly a2aDispatchingBots = new Set<string>();
 
   /** The always-on tools guarantee this. */
   hasEnabledTools(): boolean {
@@ -2285,10 +2287,6 @@ export class McpAgentToolsServer extends McpHttpServer {
    * Bot-to-bot coordination. Bots and conversations remain in the existing
    * Abacus stores; this bounded registry only correlates delegated work.
    */
-  /**
-   * Bot-to-bot coordination. Bots and conversations remain in the existing
-   * Abacus stores; this bounded registry only correlates delegated work.
-   */
   async a2a(
     args: Record<string, unknown>,
     callerSession?: string
@@ -2375,23 +2373,33 @@ export class McpAgentToolsServer extends McpHttpServer {
           markerIndex = index;
       }
 
-      const response =
-        markerIndex < 0
-          ? undefined
-          : turns
-              .slice(markerIndex + 1)
-              .filter((item) => item.role === "assistant")
-              .at(-1)?.text;
-      const state =
-        turnState.phase === "waiting_permission"
+      const following =
+        markerIndex < 0 ? [] : turns.slice(markerIndex + 1);
+      // A later user turn closes this task's transcript segment. Never take
+      // an unrelated, newer assistant answer as this task's result.
+      const nextUserIndex = following.findIndex(
+        (item) => item.role === "user"
+      );
+      const taskTurns =
+        nextUserIndex < 0 ? following : following.slice(0, nextUserIndex);
+      const response = taskTurns
+        .filter((item) => item.role === "assistant")
+        .at(-1)?.text;
+      // If another user turn has already arrived, an answer before that
+      // boundary belongs to this task even if the worker is now busy again.
+      const responseConcludesTask =
+        response != null &&
+        (nextUserIndex >= 0 ||
+          (!turnState.isBusy && turnState.phase !== "waiting_permission"));
+      const state = responseConcludesTask
+        ? "completed"
+        : turnState.phase === "waiting_permission"
           ? "waiting_permission"
           : turnState.isBusy
             ? "running"
-            : response != null
-              ? "completed"
-              : turnState.phase === "error" || session?.status === "stopped"
-                ? "failed"
-                : "queued";
+            : turnState.phase === "error" || session?.status === "stopped"
+              ? "failed"
+              : "queued";
       const note =
         turnState.phase === "waiting_permission"
           ? "This task is waiting for a permission decision in Abacus."
@@ -2404,7 +2412,9 @@ export class McpAgentToolsServer extends McpHttpServer {
         agent: { id: task.botId, name: task.botName },
         state,
         submitted_at: new Date(task.submittedAt).toISOString(),
-        ...(response != null ? { output: response } : {}),
+        ...(responseConcludesTask && response != null
+          ? { output: response }
+          : {}),
         ...(note != null ? { note } : {}),
       };
     };
@@ -2419,46 +2429,76 @@ export class McpAgentToolsServer extends McpHttpServer {
         throw new Error(
           "A coordinator cannot dispatch into its own active chat."
         );
-
-      const chat = await api.openBotChat(botId);
-      const id = randomUUID();
-      const marker = "Abacus Task ID: " + id;
-      const message = [
-        marker,
-        "You have been assigned a task by the coordinating bot.",
-        "Use the model, integrations, skills, and tools already configured for your own Abacus bot. Do not repeat the task marker in your final answer.",
-        "Task:",
-        taskText,
-      ].join("\n\n");
-      const accepted = await api.sendAgentMessage({
-        workspaceId: chat.workspaceId,
-        sessionId: chat.sessionId,
-        message,
-      });
-
-      if (!accepted)
+      if (this.a2aDispatchingBots.has(botId))
         throw new Error(
-          "Abacus could not deliver the task to " + bot.name + "."
+          bot.name +
+            " is already receiving a task from this coordinator. Wait for its dispatch to finish."
         );
-
-      const record: AgentTaskRecord = {
-        id,
-        botId,
-        botName: bot.name,
-        workspaceId: chat.workspaceId,
-        sessionId: chat.sessionId,
-        marker,
-        submittedAt: Date.now(),
-        meetingId,
-      };
-      this.a2aTasks.set(id, record);
-
-      while (this.a2aTasks.size > A2A_MAX_TRACKED_TASKS) {
-        const oldest = this.a2aTasks.keys().next().value;
-        if (oldest == null) break;
-        this.a2aTasks.delete(oldest);
+      // A persistent chat is one serial conversation. Do not interleave task
+      // prompts: doing so makes a later assistant answer impossible to assign
+      // reliably to its original task id.
+      for (const existing of this.a2aTasks.values()) {
+        if (existing.botId !== botId) continue;
+        const existingState = taskSnapshot(existing.id).state;
+        if (
+          existingState === "queued" ||
+          existingState === "running" ||
+          existingState === "waiting_permission"
+        )
+          throw new Error(
+            bot.name +
+              " already has an active task (" +
+              existing.id +
+              "; " +
+              existingState +
+              "). Poll task_status before assigning more work to this bot."
+          );
       }
-      return record;
+
+      this.a2aDispatchingBots.add(botId);
+      try {
+        const chat = await api.openBotChat(botId);
+        const id = randomUUID();
+        const marker = "Abacus Task ID: " + id;
+        const message = [
+          marker,
+          "You have been assigned a task by the coordinating bot.",
+          "Use the model, integrations, skills, and tools already configured for your own Abacus bot. Do not repeat the task marker in your final answer.",
+          "Task:",
+          taskText,
+        ].join("\n\n");
+        const accepted = await api.sendAgentMessage({
+          workspaceId: chat.workspaceId,
+          sessionId: chat.sessionId,
+          message,
+        });
+
+        if (!accepted)
+          throw new Error(
+            "Abacus could not deliver the task to " + bot.name + "."
+          );
+
+        const record: AgentTaskRecord = {
+          id,
+          botId,
+          botName: bot.name,
+          workspaceId: chat.workspaceId,
+          sessionId: chat.sessionId,
+          marker,
+          submittedAt: Date.now(),
+          meetingId,
+        };
+        this.a2aTasks.set(id, record);
+
+        while (this.a2aTasks.size > A2A_MAX_TRACKED_TASKS) {
+          const oldest = this.a2aTasks.keys().next().value;
+          if (oldest == null) break;
+          this.a2aTasks.delete(oldest);
+        }
+        return record;
+      } finally {
+        this.a2aDispatchingBots.delete(botId);
+      }
     };
 
     const meetingSnapshot = (meeting: AgentMeetingRecord) => ({
