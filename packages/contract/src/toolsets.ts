@@ -184,10 +184,10 @@ export const TOOLSETS: Toolset[] = [
   {
     id: "a2a",
     labelKey: "a2a",
-    status: "planned",
-    // Agent-to-agent protocol; needs a plugin host too, so no tools listed yet.
-    tools: [],
-    defaultEnabled: false,
+    status: "ready",
+    delivery: "mcp-agent-tools",
+    tools: [tool("a2a")],
+    defaultEnabled: true,
   },
   {
     id: "bfl",
