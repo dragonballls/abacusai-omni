@@ -324,7 +324,10 @@ describe("A2A bot team", () => {
       shared_context: "Compare evidence, do not invent facts.",
       agent_ids: ["research"],
     });
-    expect(followup).toContain("Reconcile disagreements");
+    expect(followup).toContain("Completed assigned work for research-session");
+    expect(fs.readFileSync(logs["research-session"]!, "utf8")).toContain(
+      "Reconcile disagreements"
+    );
 
     const status = await call(server, {
       action: "meeting_status",
