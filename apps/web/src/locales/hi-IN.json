@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "नया बॉट",
       "templates": "Or start with a template",
+      "torvisConductor": "T.O.R.V.I.S. कंडक्टर बनाएं",
+      "openTorvisConductor": "T.O.R.V.I.S. खोलें",
       "more": "More",
       "uses": "Uses"
     },
