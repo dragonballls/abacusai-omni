@@ -107,7 +107,7 @@ const ComposedChat = ({
         },
       },
     ],
-    [isTorvisConductor, navigate, t]
+    [isTorvisConductor, navigate, t],
   );
   useTopBarActions(modeActions);
   const runtime =

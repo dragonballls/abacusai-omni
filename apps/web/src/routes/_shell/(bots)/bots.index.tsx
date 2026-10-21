@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_shell/(bots)/bots/")({
     selectTorvisConductor();
     throw redirect({
       to: "/bots/new",
-      search: { step: "setup" },
+      search: (previous) => ({ ...previous, step: "setup" }),
       state: true,
       replace: true,
     });
