@@ -31,6 +31,14 @@ env:
   ABACUS_BUILD_COMMIT: ${{ github.sha }}
 
 jobs:
+  mark-lvi-adapter:
+    name: Test Mark-LVI Abacus adapter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run source adapter tests
+        run: python3 -m unittest discover -s integrations/mark_lvi -p 'test_*.py'
+
   # Which release unit does this change touch? Renderer and agent source are
   # an experience release (hot-swapped over TUF, no relaunch); anything else
   # (dependencies, the shell, the preload, the lockfile) fails toward a
