@@ -91,18 +91,17 @@ const ComposedChat = ({
   const normalizedBotName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
   const isTorvisConductor = normalizedBotName === "torvis" || normalizedBotName === "torvisconductor";
   const modeActions = [
-      {
-        id: "torvis-abacus-mode-switch",
-        label: isTorvisConductor
-          ? "Abacus workspace"
-          : t("bots.start.openTorvisConductor"),
-        onSelect: () => {
-          void navigate({
-            to: isTorvisConductor ? "/bots/new" : "/bots",
-          } as never);
-        },
+    {
+      id: "torvis-abacus-mode-switch",
+      label: isTorvisConductor
+        ? "Abacus workspace"
+        : t("bots.start.openTorvisConductor"),
+      onSelect: () => {
+        void navigate({
+          to: isTorvisConductor ? "/bots/new" : "/bots",
+        } as never);
       },
-    ],
+    },
   ];
   useTopBarActions(modeActions);
   const runtime =
