@@ -641,6 +641,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Erstellt und koordiniert Agenten, verteilt Aufgaben, sammelt Ergebnisse und organisiert Agentenbesprechungen.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Einen Shell-Befehl im Arbeitsordner ausführen.",
       "batch_edit": "Change several places in one file in a single edit.",
