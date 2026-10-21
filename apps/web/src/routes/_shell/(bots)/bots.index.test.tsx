@@ -1,5 +1,5 @@
-import { afterEach, expect, it } from "vitest";
 import { waitFor } from "@testing-library/react";
+import { afterEach, expect, it } from "vitest";
 
 import { defaultSeed, renderApp } from "#renderer/test-support/app-harness";
 
@@ -13,9 +13,11 @@ afterEach(async () => {
 
 const seedWithTorvis = () => {
   const seed = defaultSeed();
-  const existing = seed.bots[0]!;
+  const bots = seed.bots ?? [];
+  const existing = bots[0];
+  if (!existing) throw new Error("Default fixture must include at least one bot.");
   seed.bots = [
-    ...seed.bots,
+    ...bots,
     {
       ...existing,
       id: "torvis-test-id",
@@ -29,7 +31,9 @@ const seedWithTorvis = () => {
 it("opens the existing TORVIS conductor when entering the Bots area", async () => {
   harness = await renderApp("/bots", { seed: seedWithTorvis() });
   await waitFor(() =>
-    expect(harness!.router.state.location.pathname).toBe("/bots/torvis-test-id")
+    expect(harness!.router.state.location.pathname).toBe(
+      "/bots/torvis-test-id"
+    )
   );
 });
 
