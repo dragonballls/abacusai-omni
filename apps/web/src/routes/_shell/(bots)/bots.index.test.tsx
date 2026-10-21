@@ -48,4 +48,15 @@ it("starts a fresh install directly in TORVIS conductor setup", async () => {
   expect(getDraft().values.instructions).toContain(
     "primary conductor for the user's Abacus agent network"
   );
+
+  const instructions = getDraft().values.instructions;
+  expect(instructions).toContain(
+    "configured provider API keys or a supported local model"
+  );
+  expect(instructions).toContain(
+    "Do not invent an Abacus subscription or Abacus-credit requirement"
+  );
+  expect(instructions).toContain(
+    "Never bypass upstream billing, provider quotas, account access controls"
+  );
 });
