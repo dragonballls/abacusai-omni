@@ -402,6 +402,7 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "Name your bot",
       "templates": "Templates",
+      "torvisConductor": "Create T.O.R.V.I.S. conductor",
       "more": "More",
       "uses": "Uses"
     },
