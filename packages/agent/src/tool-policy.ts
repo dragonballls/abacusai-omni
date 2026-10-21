@@ -89,6 +89,7 @@ const MEDIA_OFF =
 
 /** The built-in tools the phone does not get, each with why. */
 export const PHONE_EXCLUDED_MCP_TOOLS: Readonly<Record<string, string>> = {
+  a2a: "requires a coordinating bot chat, not the hosted WhatsApp session",
   memory: "the phone keeps its own memory tool",
   todo: "one list for every session, lost on restart: the phone's memory tracks follow-ups",
   skill_manage: "writes skill files the user never sees",
@@ -215,6 +216,7 @@ const NO_OUTPUT = "a run's only output is its answer to its owner";
 
 /** The built-in tools an unattended run never gets, each with why. */
 export const UNATTENDED_EXCLUDED_TOOLS: Readonly<Record<string, string>> = {
+  a2a: "bot-team coordination is not available to unattended runs",
   bash: NO_CODE,
   write: NO_CODE,
   edit: NO_CODE,

@@ -89,7 +89,8 @@ const ComposedChat = ({
   const { t } = useTranslation();
   const navigate = useAppNavigate();
   const normalizedBotName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const isTorvisConductor = normalizedBotName === "torvis" || normalizedBotName === "torvisconductor";
+  const isTorvisConductor =
+    normalizedBotName === "torvis" || normalizedBotName === "torvisconductor";
   const modeActions = [
     {
       id: "torvis-abacus-mode-switch",

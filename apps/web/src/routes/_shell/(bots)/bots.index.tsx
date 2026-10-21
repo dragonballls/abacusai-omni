@@ -25,7 +25,9 @@ export const Route = createFileRoute("/_shell/(bots)/bots/")({
       to: "/bots/new",
       search: (previous) => ({
         step: "setup",
-        ...(previous.connect === "whatsapp" ? { connect: "whatsapp" as const } : {}),
+        ...(previous.connect === "whatsapp"
+          ? { connect: "whatsapp" as const }
+          : {}),
       }),
       state: true,
       replace: true,
