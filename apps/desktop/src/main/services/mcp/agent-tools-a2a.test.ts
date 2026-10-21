@@ -321,6 +321,21 @@ describe("A2A bot team", () => {
     expect(status.output).not.toContain("unrelated later");
   });
 
+  it("refuses a second dispatch while the same worker is being assigned", async () => {
+    const server = build();
+    const internal = server as unknown as {
+      a2aDispatchingBots: Set<string>;
+    };
+    internal.a2aDispatchingBots.add("research");
+
+    const result = await call(server, {
+      action: "delegate_task",
+      agent_id: "research",
+      task: "A second assignment must not interleave.",
+    });
+    expect(result).toMatch(/already receiving a task/i);
+  });
+
   it("convenes a parallel meeting and supports a follow-up round", async () => {
     const server = build();
     const createdMeeting = JSON.parse(
