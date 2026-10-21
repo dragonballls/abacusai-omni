@@ -294,6 +294,33 @@ describe("A2A bot team", () => {
     );
   });
 
+  it("keeps a task result scoped to its own transcript turn", async () => {
+    const server = build();
+    const submitted = JSON.parse(
+      await call(server, {
+        action: "delegate_task",
+        agent_id: "research",
+        task: "Summarize the relevant API changes.",
+      })
+    ) as { task_id: string };
+
+    const file = logs["research-session"]!;
+    appendMessage(file, "user", "A separate request after the delegated task.");
+    appendMessage(file, "assistant", "An unrelated later assistant answer.");
+
+    const status = JSON.parse(
+      await call(server, {
+        action: "task_status",
+        task_id: submitted.task_id,
+      })
+    ) as { state: string; output?: string };
+    expect(status.state).toBe("completed");
+    expect(status.output).toBe(
+      "Completed assigned work for research-session"
+    );
+    expect(status.output).not.toContain("unrelated later");
+  });
+
   it("convenes a parallel meeting and supports a follow-up round", async () => {
     const server = build();
     const createdMeeting = JSON.parse(
