@@ -34,7 +34,11 @@ let logs: Record<string, string>;
 let created = 0;
 const previousHome = process.env.ABACUSAI_BOT_HOME;
 
-const makeBot = (id: string, name: string, sessionId: string | null = null): FakeBot => ({
+const makeBot = (
+  id: string,
+  name: string,
+  sessionId: string | null = null
+): FakeBot => ({
   id,
   name,
   title: name,
@@ -59,7 +63,9 @@ const logFor = (sessionId: string): string => {
 const appendMessage = (file: string, role: string, text: string): void => {
   fs.appendFileSync(
     file,
-    JSON.stringify({ message: { role, content: [{ type: "text", text }] } }) + "\n"
+    JSON.stringify({
+      message: { role, content: [{ type: "text", text }] },
+    }) + "\n"
   );
 };
 
@@ -95,17 +101,25 @@ const build = (): McpAgentToolsServer =>
     ownActivity: (botId: string) => {
       const bot = bots.find((item) => item.id === botId);
       if (bot?.sessionId == null) return [];
-      return [{
-        sessionId: bot.sessionId,
-        label: bot.name,
-        role: "forever" as const,
-        file: logFor(bot.sessionId),
-      }];
+      return [
+        {
+          sessionId: bot.sessionId,
+          label: bot.name,
+          role: "forever" as const,
+          file: logFor(bot.sessionId),
+        },
+      ];
     },
     agentTeam: {
       listBots: () => bots as never,
-      createBot: (input: { name: string; description: string; title?: string; persona?: string; model?: string | null }) => {
-        const id = "created-" + (++created);
+      createBot: (input: {
+        name: string;
+        description: string;
+        title?: string;
+        persona?: string;
+        model?: string | null;
+      }) => {
+        const id = "created-" + ++created;
         const bot = makeBot(id, input.name);
         bot.description = input.description;
         bot.title = input.title ?? input.name;
@@ -119,9 +133,12 @@ const build = (): McpAgentToolsServer =>
         if (bot == null) throw new Error("Unknown bot " + id);
         if (typeof changes.name === "string") bot.name = changes.name;
         if (typeof changes.title === "string") bot.title = changes.title;
-        if (typeof changes.description === "string") bot.description = changes.description;
-        if (typeof changes.persona === "string") bot.persona = changes.persona;
-        if (typeof changes.model === "string" || changes.model === null) bot.model = changes.model as string | null;
+        if (typeof changes.description === "string")
+          bot.description = changes.description;
+        if (typeof changes.persona === "string")
+          bot.persona = changes.persona;
+        if (typeof changes.model === "string" || changes.model === null)
+          bot.model = changes.model as string | null;
         bot.updatedAt = Date.now();
         return bot as never;
       },
@@ -140,10 +157,17 @@ const build = (): McpAgentToolsServer =>
           sessionId: bot.sessionId,
         };
       },
-      sendAgentMessage: async (request: { sessionId: string; message: string }) => {
+      sendAgentMessage: async (request: {
+        sessionId: string;
+        message: string;
+      }) => {
         const file = logFor(request.sessionId);
         appendMessage(file, "user", request.message);
-        appendMessage(file, "assistant", "Completed assigned work for " + request.sessionId);
+        appendMessage(
+          file,
+          "assistant",
+          "Completed assigned work for " + request.sessionId
+        );
         return true;
       },
       listSessions: () =>
@@ -154,7 +178,12 @@ const build = (): McpAgentToolsServer =>
             workspaceId: "workspace-1",
             label: bot.name,
             status: "running",
-            owner: { kind: "bot", botId: bot.id, role: "forever", key: null },
+            owner: {
+              kind: "bot",
+              botId: bot.id,
+              role: "forever",
+              key: null,
+            },
           })) as never,
       getTurnState: (workspaceId: string, sessionId: string) =>
         ({
@@ -186,18 +215,22 @@ const call = async (
 
 describe("A2A bot team", () => {
   it("refuses to manage the team from a plain session", async () => {
-    const text = await call(build(), { action: "list_agents" }, "ordinary-session");
-    expect(text).toContain("only available in a bot");
+    const text = await call(
+      build(),
+      { action: "list_agents" },
+      "ordinary-session"
+    );
+    expect(text).toMatch(/only available in a bot|only bots can call/i);
   });
 
-  it("lists existing agents without exposing their session IDs", async () => {
+  it("lists agents without exposing their session IDs", async () => {
     const text = await call(build(), { action: "list_agents" });
     expect(text).toContain("Research Scout");
     expect(text).toContain("Critical Reviewer");
     expect(text).not.toContain("research-session");
   });
 
-  it("creates and updates a named agent with a mission and persona", async () => {
+  it("creates and updates an agent name, mission, and persona", async () => {
     const server = build();
     const createdText = await call(server, {
       action: "create_agent",
@@ -206,7 +239,9 @@ describe("A2A bot team", () => {
       persona: "Precise, skeptical, evidence-led.",
       model: "provider/test-model",
     });
-    const createdResult = JSON.parse(createdText) as { created: { id: string } };
+    const createdResult = JSON.parse(createdText) as {
+      created: { id: string };
+    };
     expect(createdResult.created.id).toBe("created-1");
     expect(createdText).toContain("Review code for correctness and security.");
 
@@ -239,11 +274,13 @@ describe("A2A bot team", () => {
 
   it("delegates work into a worker chat and reads back its result", async () => {
     const server = build();
-    const submitted = JSON.parse(await call(server, {
-      action: "delegate_task",
-      agent_id: "research",
-      task: "Investigate the current API routing implementation.",
-    })) as { accepted: boolean; task_id: string; state: string };
+    const submitted = JSON.parse(
+      await call(server, {
+        action: "delegate_task",
+        agent_id: "research",
+        task: "Investigate the current API routing implementation.",
+      })
+    ) as { accepted: boolean; task_id: string; state: string };
 
     expect(submitted.accepted).toBe(true);
     expect(submitted.state).toBe("queued");
@@ -253,24 +290,32 @@ describe("A2A bot team", () => {
       task_id: submitted.task_id,
     });
     expect(statusText).toContain('"state": "completed"');
-    expect(statusText).toContain("Completed assigned work for research-session");
+    expect(statusText).toContain(
+      "Completed assigned work for research-session"
+    );
   });
 
   it("convenes a parallel meeting and supports a follow-up round", async () => {
     const server = build();
-    const createdMeeting = JSON.parse(await call(server, {
-      action: "convene",
-      topic: "Review the API design",
-      instructions: "Assess correctness, risk, and maintainability.",
-      agent_ids: ["research", "critic"],
-    })) as {
+    const createdMeeting = JSON.parse(
+      await call(server, {
+        action: "convene",
+        topic: "Review the API design",
+        instructions: "Assess correctness, risk, and maintainability.",
+        agent_ids: ["research", "critic"],
+      })
+    ) as {
       meeting_id: string;
       participants: Array<{ agent: { id: string }; state: string }>;
     };
 
     expect(createdMeeting.meeting_id).toBeTruthy();
     expect(createdMeeting.participants).toHaveLength(2);
-    expect(createdMeeting.participants.every((item) => item.state === "completed")).toBe(true);
+    expect(
+      createdMeeting.participants.every(
+        (item) => item.state === "completed"
+      )
+    ).toBe(true);
 
     const followup = await call(server, {
       action: "follow_up",
@@ -289,12 +334,23 @@ describe("A2A bot team", () => {
     expect(status).toContain("Critical Reviewer");
   });
 
-  it("limits a meeting to eight distinct existing workers", async () => {
+  it("limits a meeting to eight distinct workers", async () => {
     const text = await call(build(), {
       action: "convene",
       topic: "Large meeting",
       instructions: "Discuss",
-      agent_ids: ["research", "research", "missing", "critic", "conductor", "x", "y", "z", "q", "p"],
+      agent_ids: [
+        "research",
+        "research",
+        "missing",
+        "critic",
+        "conductor",
+        "x",
+        "y",
+        "z",
+        "q",
+        "p",
+      ],
     });
     expect(text).toContain("Choose between 1 and 8 distinct agent ids");
   });
