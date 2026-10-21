@@ -52,6 +52,10 @@ export const BotStartPage = ({
 }) => {
   const { t } = useTranslation();
   const { bots } = useBots();
+  const torvisBot = bots.find((bot) => {
+    const normalized = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return normalized === "torvis" || normalized === "torvisconductor";
+  });
   const draft = useBotDraft();
   const navigate = useAppNavigate();
   // The name pill is this page's composer: it morphs into the bot chat's.
@@ -273,6 +277,10 @@ export const BotStartPage = ({
               variant="secondary"
               size="sm"
               onClick={() => {
+                if (torvisBot) {
+                  void navigate({ to: `/bots/${torvisBot.id}` as never });
+                  return;
+                }
                 selectTorvisConductor();
                 void navigate({
                   to: "/bots/new",
@@ -281,7 +289,7 @@ export const BotStartPage = ({
               }}
             >
               <Bot className="size-4" />
-              {t("bots.start.torvisConductor")}
+              {torvisBot ? "Open T.O.R.V.I.S." : t("bots.start.torvisConductor")}
             </Button>
           </div>
           {/* A symmetric grid (tokens.css): 3 or 4 equal columns, whichever
