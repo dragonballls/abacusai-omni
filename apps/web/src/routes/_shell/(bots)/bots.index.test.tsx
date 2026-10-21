@@ -14,8 +14,7 @@ afterEach(async () => {
 const seedWithTorvis = () => {
   const seed = defaultSeed();
   const bots = seed.bots ?? [];
-  const existing = bots[0];
-  if (!existing) throw new Error("Missing bot fixture.");
+  const existing = bots[0]!;
   seed.bots = [
     ...bots,
     {
