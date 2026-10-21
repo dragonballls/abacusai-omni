@@ -27,9 +27,20 @@ Gateway**.
   reports the provisioning failure and leaves the shared gateway untouched.
   API-key enforcement for that already-running process stays under its owner's
   existing settings.
-- Add Gemini, OpenRouter, Anthropic, OpenAI, or other upstream keys inside
-  OmniRoute's own dashboard. Those credentials are managed by OmniRoute and are
-  not copied into AbacusAI Bot's provider-key settings or committed to Git.
+- When the user opens the OmniRoute dashboard, explicitly saved model-provider
+  keys from **Abacus Settings → Models** are synced into separately named
+  OmniRoute connections (for example, `AbacusAI Bot - Gemini`). Key rotation
+  updates that named connection on the next dashboard open. Environment-only
+  credentials, the Abacus account credential, and capability-only keys are not
+  imported. The sync does not delete remote connections when a key is removed
+  from Abacus, so remove an obsolete synced connection inside OmniRoute if
+  needed. Existing user-managed OmniRoute connections keep their own names and
+  are not overwritten.
+- Add additional provider accounts and duplicate keys directly inside
+  OmniRoute's dashboard. Credentials stay on the machine; they are sent from
+  Abacus to the OmniRoute CLI through standard input, not command-line
+  arguments, and are excluded from process output. Never commit credentials to
+  Git.
 - AbacusAI Bot registers an OpenAI-compatible `omniroute/auto` model and sets
   it as the default for new sessions. Authenticated `/v1/models` checks use the
   same app-specific API key as model requests. The gateway must have at least
