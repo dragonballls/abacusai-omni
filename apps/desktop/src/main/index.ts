@@ -130,6 +130,7 @@ import {
   signOut,
   skipOnboarding,
 } from "./services/providers/account-service";
+import { stopGodsEye } from "./services/providers/gods-eye.js";
 import { stopOmniRoute } from "./services/providers/omniroute.js";
 import { getLocalUsageSnapshot } from "./services/providers/usage";
 import { accountStashKey } from "./services/session/account-session-stash";
@@ -1904,6 +1905,11 @@ app.on("before-quit", (event) => {
         await stopOmniRoute();
       } catch (error) {
         console.warn("[omniroute] graceful shutdown failed", error);
+      }
+      try {
+        await stopGodsEye();
+      } catch (error) {
+        console.warn("[gods-eye] graceful shutdown failed", error);
       }
       app.exit(0);
     }

@@ -54,7 +54,7 @@ const READS: Record<string, string> = {
   routines: "events hostedRuns runners",
   sessions: "turnState",
   settings:
-    "defaultMode.get events execBackend.get get keys.listProviders notifications.get promptHistory.list sandboxSupport toolsets.get",
+    "defaultMode.get events execBackend.get get godsEye.status keys.listProviders notifications.get promptHistory.list sandboxSupport toolsets.get",
   skills: "listInstalled search",
   system: "events info loginItem.get",
   terminal: "events output shell.get",

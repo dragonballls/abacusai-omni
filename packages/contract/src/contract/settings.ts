@@ -4,6 +4,8 @@ import * as v from "valibot";
 import type {
   DefaultAgentMode,
   ExecBackendState,
+  GodsEyeIntegrationStatus,
+  GodsEyeLife360TestResult,
   NotificationSettings,
   SandboxSupport,
 } from "../contracts";
@@ -73,6 +75,29 @@ export const settings = {
     open: mutation
       .input(NoInput)
       .output(type<{ ok: boolean; message: string }>()),
+  },
+  godsEye: {
+    /** Launch the full standalone God’s Eye console in its own desktop window. */
+    status: query.input(NoInput).output(type<GodsEyeIntegrationStatus>()),
+    open: mutation
+      .input(NoInput)
+      .output(type<{ ok: boolean; message: string }>()),
+    life360: {
+      /** Store an opt-in Home Assistant connection; the token is never returned. */
+      save: mutation
+        .input(
+          v.object({
+            enabled: v.boolean(),
+            baseUrl: v.pipe(v.string(), v.maxLength(400)),
+            token: v.pipe(v.string(), v.maxLength(4096)),
+            clearToken: v.optional(v.boolean()),
+            entityIds: v.pipe(v.array(v.string()), v.maxLength(100)),
+          })
+        )
+        .output(type<GodsEyeIntegrationStatus>()),
+      /** Checks the configured feed and returns a count, not location coordinates. */
+      test: mutation.input(NoInput).output(type<GodsEyeLife360TestResult>()),
+    },
   },
   setDefaultModel: mutation
     .input(v.object({ modelId: v.pipe(v.string(), v.nonEmpty()) }))

@@ -70,6 +70,15 @@ const REQUIRED = [
         "omniroute-runtime/node_modules/omniroute/dist/node_modules/node-machine-id/package.json",
       ]
     : []),
+  "gods-eye-view/package.json",
+  "gods-eye-view/LICENSE",
+  "gods-eye-view/DATA_SOURCES.md",
+  "gods-eye-view/public/models/README.md",
+  "gods-eye-view/src/main.js",
+  "gods-eye-view/node_modules/vite/bin/vite.js",
+  ...(process.platform === "win32"
+    ? []
+    : ["gods-eye-node/node", "gods-eye-node/LICENSE"]),
   "skills",
 ];
 
@@ -156,6 +165,36 @@ function main() {
     );
     process.exit(1);
   }
+
+  const godsEyeNode =
+    process.platform === "win32"
+      ? path.join(resources, "omniroute-runtime", "node.exe")
+      : path.join(resources, "gods-eye-node", "node");
+  const godsEyeVersion = spawnSync(godsEyeNode, ["--version"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  const nodeMatch = /^v(\d+)\.(\d+)\.(\d+)/.exec(
+    String(godsEyeVersion.stdout ?? "").trim()
+  );
+  const nodeMajor = Number(nodeMatch?.[1]);
+  const nodeMinor = Number(nodeMatch?.[2]);
+  const supportedGodsEyeNode =
+    (nodeMajor === 24 && nodeMinor >= 14) || nodeMajor === 26;
+  if (
+    godsEyeVersion.error ||
+    godsEyeVersion.status !== 0 ||
+    !supportedGodsEyeNode
+  ) {
+    console.error(
+      "[packaged-resources] God's Eye requires a runnable Node.js 24.14.x or 26.x runtime."
+    );
+    process.exit(1);
+  }
+  console.log(
+    "[packaged-resources] God's Eye runtime: " +
+      String(godsEyeVersion.stdout).trim()
+  );
 
   // Present is not the same as usable. A binary that lost its executable bit on
   // the way into the bundle, or that was packaged for another architecture,

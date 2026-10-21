@@ -134,8 +134,7 @@ export class LocalModelProxy {
   /** Unload the model and stop answering; the process is quitting. */
   close(): void {
     this.clearIdle();
-    this.upstream?.stop();
-    this.upstream = null;
+    this.stopUpstream();
     this.server?.close();
     this.server = null;
   }
@@ -143,8 +142,14 @@ export class LocalModelProxy {
   /** Unload whatever is loaded (a model was removed, or the machine is idle). */
   unload(): void {
     this.clearIdle();
-    this.upstream?.stop();
+    this.stopUpstream();
+  }
+
+  /** Clear the reference before stopping so repeated cleanup is idempotent. */
+  private stopUpstream(): void {
+    const upstream = this.upstream;
     this.upstream = null;
+    if (upstream?.running) upstream.stop();
   }
 
   private clearIdle(): void {
@@ -170,9 +175,18 @@ export class LocalModelProxy {
     const next = this.options.serverFor(modelId);
     if (next == null) throw new Error(`no local model named ${modelId}`);
     this.starting = (async () => {
-      current?.stop();
+      // Stop only a live, different server. A failed start leaves an object
+      // with running=false, which must not receive another stop call.
+      if (current != null && current !== next && current.running) {
+        current.stop();
+      }
       this.upstream = next;
-      await next.start();
+      try {
+        await next.start();
+      } catch (error) {
+        if (this.upstream === next) this.upstream = null;
+        throw error;
+      }
     })().finally(() => {
       this.starting = null;
     });
@@ -271,8 +285,11 @@ export class LocalModelProxy {
         if (!response.headersSent) fail(response, 502, error.message);
         else if (!response.destroyed && !response.writableEnded) response.end();
       });
-      // The client going away mid-stream: stop generating for nobody.
-      response.on("close", () => proxied.destroy());
+      // A normal response also emits "close" after "finish". Only abort the
+      // upstream socket when the downstream disconnected before it flushed.
+      response.on("close", () => {
+        if (!response.writableFinished) proxied.destroy();
+      });
       proxied.end(body);
     });
   }

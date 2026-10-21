@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
 import { startRegistryProxy, UPSTREAM } from "./shadcn-registry-proxy.mjs";
+import { LOCAL_UI_OVERRIDES } from "./shadcn-registry-snapshot.mjs";
+import { INITIAL_ITEMS } from "./shadcn.mjs";
 
 const get = (url, path) =>
   new Promise((resolve, reject) => {
@@ -20,6 +22,60 @@ const get = (url, path) =>
     req.on("error", reject);
     req.end();
   });
+
+test("app-local UI overrides stay explicit and preserve popup helper consumers", () => {
+  const expected = [
+    "alert.tsx",
+    "attachment.tsx",
+    "combobox.tsx",
+    "command.tsx",
+    "context-menu.tsx",
+    "dropdown-menu.tsx",
+    "hover-card.tsx",
+    "item.tsx",
+    "popover.tsx",
+    "popup.tsx",
+    "select.tsx",
+    "tooltip.tsx",
+  ];
+  assert.deepEqual([...LOCAL_UI_OVERRIDES].sort(), expected);
+  const uiRoot = join(import.meta.dirname, "../../web/src/ui");
+  for (const file of expected) {
+    assert.ok(
+      existsSync(join(uiRoot, file)),
+      `${file} should remain in renderer UI`
+    );
+  }
+  assert.ok(
+    !INITIAL_ITEMS.includes("alert"),
+    "alert is intentionally local-only"
+  );
+  assert.ok(!INITIAL_ITEMS.includes("popup"), "popup is a shared local helper");
+  const popup = readFileSync(join(uiRoot, "popup.tsx"), "utf8");
+  for (const helper of [
+    "popupPositioning",
+    "popupItemTitle",
+    "popupItemChildren",
+  ]) {
+    assert.ok(popup.includes(helper), `${helper} remains available`);
+  }
+  for (const file of [
+    "combobox.tsx",
+    "command.tsx",
+    "context-menu.tsx",
+    "dropdown-menu.tsx",
+    "hover-card.tsx",
+    "popover.tsx",
+    "select.tsx",
+    "tooltip.tsx",
+  ]) {
+    assert.match(
+      readFileSync(join(uiRoot, file), "utf8"),
+      /from "#renderer\/ui\/popup"/,
+      `${file} uses shared popup helpers`
+    );
+  }
+});
 
 test("recording confines requests to the registry and replays long query paths", async () => {
   const dir = mkdtempSync(join(tmpdir(), "registry-proxy-test-"));

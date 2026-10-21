@@ -24,6 +24,31 @@ const OUT = join(DESKTOP, "node_modules", ".tmp", "rpc-ws-smoke");
 const BUILD = join(OUT, "build");
 const serve = process.argv.includes("--serve");
 
+const SMOKE_MODULE_STUBS = [
+  {
+    request: "services/providers/omniroute.js",
+    id: "\0smoke-omniroute",
+    source:
+      'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }',
+  },
+  {
+    request: "services/providers/gods-eye.js",
+    id: "\0smoke-gods-eye",
+    source: [
+      "export async function stopGodsEye() {}",
+      'export async function getGodsEyeStatus() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function openGodsEyeWindow() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function saveGodsEyeLife360Settings() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+      'export async function testGodsEyeLife360() { throw new Error("Gods Eye is unavailable in the RPC smoke test"); }',
+    ].join("\n"),
+  },
+];
+
+const findSmokeRequest = (id) =>
+  SMOKE_MODULE_STUBS.find((stub) => id.includes(stub.request));
+const findSmokeModule = (id) =>
+  SMOKE_MODULE_STUBS.find((stub) => stub.id === id);
+
 const entry = `
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/websocket";
@@ -127,14 +152,8 @@ await build({
       // browser/RPC smoke independent of Electron and avoid bundling its
       // process-owning gateway implementation into the test harness.
       name: "smoke-omniroute-stub",
-      resolveId: (id) =>
-        id.includes("services/providers/omniroute.js")
-          ? "\0smoke-omniroute"
-          : null,
-      load: (id) =>
-        id === "\0smoke-omniroute"
-          ? 'export async function openOmniRouteWindow() { throw new Error("OmniRoute is unavailable in the RPC smoke test"); }'
-          : null,
+      resolveId: (id) => findSmokeRequest(id)?.id ?? null,
+      load: (id) => findSmokeModule(id)?.source ?? null,
     },
     {
       // The router must not need Electron: importing it fails the smoke.

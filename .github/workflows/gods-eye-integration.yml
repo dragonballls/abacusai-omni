@@ -1,0 +1,65 @@
+name: God’s Eye integration
+
+on:
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - "integrations/gods-eye-view"
+      - "docs/integrations/gods-eye-view.md"
+      - "apps/desktop/electron-builder.yml"
+      - "apps/desktop/scripts/before-pack.cjs"
+      - "apps/desktop/src/main/index.ts"
+      - "apps/desktop/src/main/services/providers/gods-eye*.ts"
+      - "apps/desktop/src/main/rpc/procedures/settings.ts"
+      - "apps/host/src/electron-shim.ts"
+      - "apps/web/src/features/settings/environment.tsx"
+      - "packages/contract/src/contract/settings.ts"
+      - "packages/contract/src/contracts.ts"
+      - "scripts/prepare-gods-eye-runtime.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".gitmodules"
+      - "integrations/gods-eye-view"
+      - "docs/integrations/gods-eye-view.md"
+      - "apps/desktop/electron-builder.yml"
+      - "apps/desktop/scripts/before-pack.cjs"
+      - "apps/desktop/src/main/index.ts"
+      - "apps/desktop/src/main/services/providers/gods-eye*.ts"
+      - "apps/desktop/src/main/rpc/procedures/settings.ts"
+      - "apps/host/src/electron-shim.ts"
+      - "apps/web/src/features/settings/environment.tsx"
+      - "packages/contract/src/contract/settings.ts"
+      - "packages/contract/src/contracts.ts"
+      - "scripts/prepare-gods-eye-runtime.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gods-eye-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  upstream-runtime:
+    name: Verify pinned God’s Eye runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - name: Validate the exact submodule pin and install locked dependencies
+        run: node scripts/prepare-gods-eye-runtime.mjs
+      - name: Build the standalone God’s Eye application
+        working-directory: integrations/gods-eye-view
+        run: npm run build
+      - name: Run the standalone God’s Eye unit suite
+        working-directory: integrations/gods-eye-view
+        run: npm test

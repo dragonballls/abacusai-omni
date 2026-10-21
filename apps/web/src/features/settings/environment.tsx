@@ -28,6 +28,62 @@ export const EnvironmentPage = () => {
   const query = useQuery(
     transport.orpc.settings.execBackend.get.queryOptions({ input: {} })
   );
+  const godsEyeApi = transport.orpc.settings.godsEye;
+  const godsEyeStatusQuery = useQuery({
+    ...godsEyeApi.status.queryOptions({ input: {} }),
+    enabled: IS_ELECTRON,
+  });
+  const savedLife360 = godsEyeStatusQuery.data?.life360;
+  const [life360EnabledDraft, setLife360EnabledDraft] = useState<
+    boolean | null
+  >(null);
+  const [life360BaseUrlDraft, setLife360BaseUrlDraft] = useState<string | null>(
+    null
+  );
+  const [life360EntityIdsDraft, setLife360EntityIdsDraft] = useState<
+    string | null
+  >(null);
+  const [life360Token, setLife360Token] = useState("");
+  const [life360Message, setLife360Message] = useState("");
+  const life360Enabled = life360EnabledDraft ?? savedLife360?.enabled ?? false;
+  const life360BaseUrl =
+    life360BaseUrlDraft ?? savedLife360?.baseUrl ?? "http://127.0.0.1:8123";
+  const life360EntityIds =
+    life360EntityIdsDraft ?? savedLife360?.entityIds.join(", ") ?? "";
+  const godsEyeStatusKey = godsEyeApi.status.queryKey({ input: {} });
+  const openGodsEye = useMutation(
+    godsEyeApi.open.mutationOptions({
+      onSuccess: (result) => {
+        showInfo(result.message);
+        void cache.invalidateQueries({ queryKey: godsEyeStatusKey });
+      },
+      meta: { errorToast: true },
+    })
+  );
+  const saveLife360 = useMutation(
+    godsEyeApi.life360.save.mutationOptions({
+      onSuccess: (result) => {
+        cache.setQueryData(godsEyeStatusKey, result);
+        setLife360Token("");
+        setLife360EnabledDraft(null);
+        setLife360BaseUrlDraft(null);
+        setLife360EntityIdsDraft(null);
+        setLife360Message(t("godsEye.settingsSaved"));
+      },
+      meta: { errorToast: true },
+    })
+  );
+  const testLife360 = useMutation(
+    godsEyeApi.life360.test.mutationOptions({
+      onSuccess: (result) => {
+        setLife360Message(result.message);
+        if (result.success) showInfo(result.message);
+        else showError(result.message);
+        void cache.invalidateQueries({ queryKey: godsEyeStatusKey });
+      },
+      meta: { errorToast: true },
+    })
+  );
   const shell = useQuery(
     transport.orpc.terminal.shell.get.queryOptions({ input: {} })
   );
@@ -159,6 +215,147 @@ export const EnvironmentPage = () => {
           </StatePill>
         </SettingRow>
       </GroupCard>
+      {IS_ELECTRON && (
+        <GroupCard>
+          <SettingRow
+            id="godsEyeView"
+            title={t("godsEye.title")}
+            detail={t("godsEye.viewDescription")}
+          >
+            <StatePill
+              tone={
+                godsEyeStatusQuery.data?.runtimeReady ? "success" : "warning"
+              }
+            >
+              {godsEyeStatusQuery.data?.runtimeReady
+                ? t("godsEye.ready")
+                : godsEyeStatusQuery.data?.runtimeAvailable
+                  ? t("godsEye.dependenciesMissing")
+                  : t("godsEye.notBundled")}
+            </StatePill>
+            <Button
+              size="sm"
+              disabled={
+                !godsEyeStatusQuery.data?.runtimeReady || openGodsEye.isPending
+              }
+              onClick={() => openGodsEye.mutate({})}
+            >
+              {openGodsEye.isPending
+                ? t("godsEye.opening")
+                : t("godsEye.openRefresh")}
+            </Button>
+          </SettingRow>
+          <SettingRow
+            id="godsEyeLife360Enabled"
+            title={t("godsEye.life360Title")}
+            detail={t("godsEye.life360Description")}
+          >
+            <SettingSwitch
+              id="godsEyeLife360Enabled"
+              checked={life360Enabled}
+              onCheckedChange={setLife360EnabledDraft}
+            />
+          </SettingRow>
+          <div className="grid gap-2 p-3">
+            <Input
+              aria-label={t("godsEye.baseUrlLabel")}
+              placeholder={
+                "http://127.0.0.1:8123" /* i18n-ignore: fixed URL example */
+              }
+              value={life360BaseUrl}
+              onChange={(event) => setLife360BaseUrlDraft(event.target.value)}
+            />
+            <Input
+              aria-label={t("godsEye.tokenLabel")}
+              type="password"
+              autoComplete="new-password"
+              placeholder={t("godsEye.tokenPlaceholder")}
+              value={life360Token}
+              onChange={(event) => setLife360Token(event.target.value)}
+            />
+            <Input
+              aria-label={t("godsEye.entityAllowlistLabel")}
+              placeholder={
+                "Optional: device_tracker.phone, device_tracker.tablet" /* i18n-ignore: technical entity ID examples */
+              }
+              value={life360EntityIds}
+              onChange={(event) => setLife360EntityIdsDraft(event.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">
+              {t("godsEye.allowlistHelp")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 p-3">
+            <Button
+              size="sm"
+              disabled={saveLife360.isPending}
+              onClick={() => {
+                saveLife360.mutate({
+                  enabled: life360Enabled,
+                  baseUrl: life360BaseUrl.trim(),
+                  token: life360Token,
+                  clearToken: false,
+                  entityIds: life360EntityIds
+                    .split(/[\n,]+/)
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+                });
+              }}
+            >
+              {saveLife360.isPending
+                ? t("godsEye.saving")
+                : t("godsEye.saveSettings")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={
+                !godsEyeStatusQuery.data?.life360.enabled ||
+                testLife360.isPending
+              }
+              onClick={() => testLife360.mutate({})}
+            >
+              {testLife360.isPending
+                ? t("godsEye.testing")
+                : t("godsEye.testConnection")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={
+                !godsEyeStatusQuery.data?.life360.configured ||
+                saveLife360.isPending
+              }
+              onClick={() => {
+                saveLife360.mutate({
+                  enabled: false,
+                  baseUrl: life360BaseUrl.trim(),
+                  token: "",
+                  clearToken: true,
+                  entityIds: life360EntityIds
+                    .split(/[\n,]+/)
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+                });
+                setLife360EnabledDraft(false);
+                setLife360Token("");
+              }}
+            >
+              {t("godsEye.disconnectLife360")}
+            </Button>
+          </div>
+          {godsEyeStatusQuery.data?.life360.error && (
+            <p className="px-3 pb-2 text-xs" role="status">
+              {godsEyeStatusQuery.data.life360.error}
+            </p>
+          )}
+          {life360Message && (
+            <p className="px-3 pb-3 text-xs" role="status">
+              {life360Message}
+            </p>
+          )}
+        </GroupCard>
+      )}
     </AreaPage>
   );
 };
