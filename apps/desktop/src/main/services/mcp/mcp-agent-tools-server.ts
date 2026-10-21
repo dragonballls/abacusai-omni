@@ -207,11 +207,19 @@ export interface AgentTeamApi {
   createBot: (input: BotCreateInput) => Bot;
   updateBot: (id: string, changes: BotUpdateInput) => Bot;
   deleteBot: (id: string) => void;
-  announceBotChange?: (id: string, notice: BotChangeNotice) => Promise<void>;
+  announceBotChange?: (
+    id: string,
+    notice: BotChangeNotice
+  ) => Promise<void>;
   openBotChat: (botId: string) => Promise<BotChatHandle>;
-  sendAgentMessage: (request: SendAgentMessageRequest) => Promise<boolean>;
+  sendAgentMessage: (
+    request: SendAgentMessageRequest
+  ) => Promise<boolean>;
   listSessions: () => AgentSessionListItem[];
-  getTurnState: (workspaceId: string, sessionId: string) => SessionTurnStateSnapshot;
+  getTurnState: (
+    workspaceId: string,
+    sessionId: string
+  ) => SessionTurnStateSnapshot;
 }
 
 interface AgentTaskRecord {
@@ -2282,6 +2290,10 @@ export class McpAgentToolsServer extends McpHttpServer {
    * Bot-to-bot coordination. Bots and conversations remain in the existing
    * Abacus stores; this bounded registry only correlates delegated work.
    */
+  /**
+   * Bot-to-bot coordination. Bots and conversations remain in the existing
+   * Abacus stores; this bounded registry only correlates delegated work.
+   */
   async a2a(
     args: Record<string, unknown>,
     callerSession?: string
@@ -2291,12 +2303,16 @@ export class McpAgentToolsServer extends McpHttpServer {
       callerSession != null
         ? (this.options.botIdForSession?.(callerSession) ?? null)
         : null;
+
     if (callerBotId == null)
-      return this.err("A2A is only available from a bot's own persistent chat.");
+      return this.err(
+        "A2A is only available from a bot's own persistent chat."
+      );
     if (api == null)
       return this.err("Bot team coordination is not available on this host.");
 
     const action = typeof args.action === "string" ? args.action : "";
+
     const stringArg = (
       key: string,
       max: number,
@@ -2306,6 +2322,7 @@ export class McpAgentToolsServer extends McpHttpServer {
       if (value == null && !required) return null;
       if (typeof value !== "string")
         throw new Error(key + " must be a string.");
+
       const trimmed = value.trim();
       if (trimmed.length === 0 && required)
         throw new Error(key + " is required.");
@@ -2313,11 +2330,13 @@ export class McpAgentToolsServer extends McpHttpServer {
         throw new Error(key + " must be " + max + " characters or fewer.");
       return trimmed;
     };
+
     const agentById = (id: string): Bot => {
       const bot = api.listBots().find((item) => item.id === id);
       if (bot == null) throw new Error("No agent with id " + id + ".");
       return bot;
     };
+
     const publicAgent = (bot: Bot) => ({
       id: bot.id,
       name: bot.name,
@@ -2326,16 +2345,23 @@ export class McpAgentToolsServer extends McpHttpServer {
       persona: bot.persona,
       model: bot.model,
     });
+
     const taskSnapshot = (taskId: string) => {
       const task = this.a2aTasks.get(taskId);
       if (task == null)
-        return { task_id: taskId, state: "expired_or_unknown" as const };
+        return {
+          task_id: taskId,
+          state: "expired_or_unknown" as const,
+        };
+
       const bots = api.listBots();
       const session = api.listSessions().find(
         (item) =>
           item.id === task.sessionId &&
           (item.owner?.botId === task.botId ||
-            bots.some((bot) => bot.id === task.botId && bot.sessionId === item.id))
+            bots.some(
+              (bot) => bot.id === task.botId && bot.sessionId === item.id
+            ))
       );
       const turnState = api.getTurnState(task.workspaceId, task.sessionId);
       const activity = (this.options.ownActivity?.(task.botId) ?? []).find(
@@ -2343,6 +2369,7 @@ export class McpAgentToolsServer extends McpHttpServer {
       );
       const turns = readTranscriptTail(activity?.file ?? null, 60, 6_000);
       let markerIndex = -1;
+
       for (let index = 0; index < turns.length; index++) {
         if (
           turns[index]?.role === "user" &&
@@ -2350,6 +2377,7 @@ export class McpAgentToolsServer extends McpHttpServer {
         )
           markerIndex = index;
       }
+
       const response =
         markerIndex < 0
           ? undefined
@@ -2367,20 +2395,23 @@ export class McpAgentToolsServer extends McpHttpServer {
               : turnState.phase === "error" || session?.status === "stopped"
                 ? "failed"
                 : "queued";
+      const note =
+        turnState.phase === "waiting_permission"
+          ? "This task is waiting for a permission decision in Abacus."
+          : session == null
+            ? "The chat session could not be found; reopen the agent in Abacus."
+            : undefined;
+
       return {
         task_id: task.id,
         agent: { id: task.botId, name: task.botName },
         state,
         submitted_at: new Date(task.submittedAt).toISOString(),
         ...(response != null ? { output: response } : {}),
-        ...(turnState.phase === "waiting_permission"
-          ? { note: "This task is waiting for a permission decision in Abacus." }
-          : {}),
-        ...(session == null
-          ? { note: "The chat session could not be found; reopen the agent in Abacus." }
-          : {}),
+        ...(note != null ? { note } : {}),
       };
     };
+
     const dispatch = async (
       botId: string,
       taskText: string,
@@ -2388,7 +2419,10 @@ export class McpAgentToolsServer extends McpHttpServer {
     ): Promise<AgentTaskRecord> => {
       const bot = agentById(botId);
       if (botId === callerBotId)
-        throw new Error("A coordinator cannot dispatch into its own active chat.");
+        throw new Error(
+          "A coordinator cannot dispatch into its own active chat."
+        );
+
       const chat = await api.openBotChat(botId);
       const id = randomUUID();
       const marker = "Abacus Task ID: " + id;
@@ -2404,8 +2438,12 @@ export class McpAgentToolsServer extends McpHttpServer {
         sessionId: chat.sessionId,
         message,
       });
+
       if (!accepted)
-        throw new Error("Abacus could not deliver the task to " + bot.name + ".");
+        throw new Error(
+          "Abacus could not deliver the task to " + bot.name + "."
+        );
+
       const record: AgentTaskRecord = {
         id,
         botId,
@@ -2417,6 +2455,7 @@ export class McpAgentToolsServer extends McpHttpServer {
         meetingId,
       };
       this.a2aTasks.set(id, record);
+
       while (this.a2aTasks.size > A2A_MAX_TRACKED_TASKS) {
         const oldest = this.a2aTasks.keys().next().value;
         if (oldest == null) break;
@@ -2424,13 +2463,19 @@ export class McpAgentToolsServer extends McpHttpServer {
       }
       return record;
     };
+
     const meetingSnapshot = (meeting: AgentMeetingRecord) => ({
       meeting_id: meeting.id,
       topic: meeting.topic,
       created_at: new Date(meeting.createdAt).toISOString(),
       participants: meeting.participants.map((participant) => ({
-        agent: { id: participant.botId, name: participant.botName },
-        ...(participant.error != null ? { error: participant.error } : {}),
+        agent: {
+          id: participant.botId,
+          name: participant.botName,
+        },
+        ...(participant.error != null
+          ? { error: participant.error }
+          : {}),
         ...(participant.latestTaskId != null
           ? taskSnapshot(participant.latestTaskId)
           : { state: "not_dispatched" }),
@@ -2443,12 +2488,17 @@ export class McpAgentToolsServer extends McpHttpServer {
           const bots = api.listBots();
           return this.ok(
             JSON.stringify(
-              { agents: bots.map(publicAgent), count: bots.length, maximum: 50 },
+              {
+                agents: bots.map(publicAgent),
+                count: bots.length,
+                maximum: 50,
+              },
               null,
               2
             )
           );
         }
+
         case "create_agent": {
           const name = stringArg("name", 30, true)!;
           const mission = stringArg("mission", 4_000, true)!;
@@ -2463,8 +2513,11 @@ export class McpAgentToolsServer extends McpHttpServer {
             ...(model != null ? { model } : {}),
           };
           const bot = api.createBot(input);
-          return this.ok(JSON.stringify({ created: publicAgent(bot) }, null, 2));
+          return this.ok(
+            JSON.stringify({ created: publicAgent(bot) }, null, 2)
+          );
         }
+
         case "update_agent": {
           const id = stringArg("agent_id", 128, true)!;
           const changes: BotUpdateInput = {};
@@ -2472,19 +2525,19 @@ export class McpAgentToolsServer extends McpHttpServer {
           const title = stringArg("title", 80);
           const mission = stringArg("mission", 4_000);
           const persona = stringArg("persona", 1_000);
+
           if (name != null) changes.name = name;
           if (title != null) changes.title = title;
           if (mission != null) changes.description = mission;
           if (persona != null) changes.persona = persona;
+
           if (args.model !== undefined) {
-            if (args.model === null) {
-              changes.model = null;
-            } else {
-              changes.model = stringArg("model", 200, true)!;
-            }
+            changes.model =
+              args.model === null ? null : stringArg("model", 200, true)!;
           }
           if (Object.keys(changes).length === 0)
             throw new Error("Provide at least one field to update.");
+
           const updated = api.updateBot(id, changes);
           const notice: BotChangeNotice = {
             ...(changes.description !== undefined ? { mission: true } : {}),
@@ -2492,21 +2545,30 @@ export class McpAgentToolsServer extends McpHttpServer {
           };
           if (api.announceBotChange != null && Object.keys(notice).length > 0)
             await api.announceBotChange(id, notice).catch(() => undefined);
-          return this.ok(JSON.stringify({ updated: publicAgent(updated) }, null, 2));
+
+          return this.ok(
+            JSON.stringify({ updated: publicAgent(updated) }, null, 2)
+          );
         }
+
         case "delete_agent": {
           const id = stringArg("agent_id", 128, true)!;
           const confirmation = stringArg("confirm_name", 30, true)!;
           const target = agentById(id);
+
           if (id === callerBotId)
-            throw new Error("A coordinating bot cannot delete its own bot record.");
+            throw new Error(
+              "A coordinating bot cannot delete its own bot record."
+            );
           if (target.name !== confirmation)
             throw new Error(
               "Deletion refused: confirm_name must exactly match the agent's current name."
             );
+
           api.deleteBot(id);
           return this.ok("Deleted agent " + target.name + ".");
         }
+
         case "delegate_task": {
           const id = stringArg("agent_id", 128, true)!;
           const taskText = stringArg("task", A2A_MAX_TASK_TEXT, true)!;
@@ -2525,17 +2587,22 @@ export class McpAgentToolsServer extends McpHttpServer {
             )
           );
         }
+
         case "task_status": {
           const taskId = stringArg("task_id", 128, true)!;
           if (!this.a2aTasks.has(taskId))
             throw new Error("Unknown or expired task id " + taskId + ".");
-          return this.ok(JSON.stringify(taskSnapshot(taskId), null, 2));
+          return this.ok(
+            JSON.stringify(taskSnapshot(taskId), null, 2)
+          );
         }
+
         case "convene": {
           const topic = stringArg("topic", 200, true)!;
           const instructions = stringArg("instructions", 4_000, true)!;
           if (!Array.isArray(args.agent_ids))
             throw new Error("agent_ids must be an array of agent ids.");
+
           const agentIds = [...new Set(args.agent_ids)];
           if (
             agentIds.length === 0 ||
@@ -2543,26 +2610,39 @@ export class McpAgentToolsServer extends McpHttpServer {
             agentIds.some((id) => typeof id !== "string")
           )
             throw new Error(
-              "Choose between 1 and " + A2A_MAX_MEETING_PARTICIPANTS + " distinct agent ids."
+              "Choose between 1 and " +
+                A2A_MAX_MEETING_PARTICIPANTS +
+                " distinct agent ids."
             );
-          for (const id of agentIds)
+          for (const id of agentIds) {
             if (id === callerBotId)
-              throw new Error("The coordinating bot cannot be its own meeting participant.");
+              throw new Error(
+                "The coordinating bot cannot be its own meeting participant."
+              );
+          }
+
           const meeting: AgentMeetingRecord = {
             id: randomUUID(),
             topic,
             createdAt: Date.now(),
             participants: agentIds.map((id) => {
               const bot = agentById(id);
-              return { botId: bot.id, botName: bot.name, taskIds: [], latestTaskId: null };
+              return {
+                botId: bot.id,
+                botName: bot.name,
+                taskIds: [],
+                latestTaskId: null,
+              };
             }),
           };
           this.a2aMeetings.set(meeting.id, meeting);
+
           while (this.a2aMeetings.size > A2A_MAX_TRACKED_MEETINGS) {
             const oldest = this.a2aMeetings.keys().next().value;
             if (oldest == null) break;
             this.a2aMeetings.delete(oldest);
           }
+
           const results = await Promise.allSettled(
             meeting.participants.map(async (participant) => {
               const task = await dispatch(
@@ -2583,19 +2663,29 @@ export class McpAgentToolsServer extends McpHttpServer {
             })
           );
           results.forEach((result, index) => {
-            if (result.status === "rejected")
+            if (result.status === "rejected") {
               meeting.participants[index]!.error =
-                result.reason instanceof Error ? result.reason.message : String(result.reason);
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : String(result.reason);
+            }
           });
-          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+
+          return this.ok(
+            JSON.stringify(meetingSnapshot(meeting), null, 2)
+          );
         }
+
         case "meeting_status": {
           const meetingId = stringArg("meeting_id", 128, true)!;
           const meeting = this.a2aMeetings.get(meetingId);
           if (meeting == null)
             throw new Error("Unknown or expired meeting id " + meetingId + ".");
-          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+          return this.ok(
+            JSON.stringify(meetingSnapshot(meeting), null, 2)
+          );
         }
+
         case "follow_up": {
           const meetingId = stringArg("meeting_id", 128, true)!;
           const instructions = stringArg("instructions", 4_000, true)!;
@@ -2603,20 +2693,29 @@ export class McpAgentToolsServer extends McpHttpServer {
           const meeting = this.a2aMeetings.get(meetingId);
           if (meeting == null)
             throw new Error("Unknown or expired meeting id " + meetingId + ".");
+
           let selected = meeting.participants;
           if (args.agent_ids !== undefined) {
             if (
               !Array.isArray(args.agent_ids) ||
               args.agent_ids.some((id) => typeof id !== "string")
             )
-              throw new Error("agent_ids must be an array of meeting participant ids.");
+              throw new Error(
+                "agent_ids must be an array of meeting participant ids."
+              );
+
             const requested = new Set(args.agent_ids as string[]);
-            selected = meeting.participants.filter((item) => requested.has(item.botId));
+            selected = meeting.participants.filter((item) =>
+              requested.has(item.botId)
+            );
             if (selected.length !== requested.size)
-              throw new Error("Every follow-up agent must be a participant in this meeting.");
+              throw new Error(
+                "Every follow-up agent must be a participant in this meeting."
+              );
           }
           if (selected.length === 0)
             throw new Error("Choose at least one meeting participant.");
+
           const results = await Promise.allSettled(
             selected.map(async (participant) => {
               const task = await dispatch(
@@ -2639,12 +2738,19 @@ export class McpAgentToolsServer extends McpHttpServer {
             })
           );
           results.forEach((result, index) => {
-            if (result.status === "rejected")
+            if (result.status === "rejected") {
               selected[index]!.error =
-                result.reason instanceof Error ? result.reason.message : String(result.reason);
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : String(result.reason);
+            }
           });
-          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
+
+          return this.ok(
+            JSON.stringify(meetingSnapshot(meeting), null, 2)
+          );
         }
+
         default:
           throw new Error(
             "action must be list_agents, create_agent, update_agent, delete_agent, delegate_task, task_status, convene, meeting_status, or follow_up."
