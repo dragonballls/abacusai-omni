@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "url";
 
 /**
@@ -28,9 +29,19 @@ import {
   type Connector,
 } from "@abacus-ai/connectors/registry";
 import type {
+  AgentSessionListItem,
   ConnectorStatus,
   ConnectorStatuses,
+  SendAgentMessageRequest,
+  SessionTurnStateSnapshot,
 } from "@abacus-ai/contract/contracts";
+import type {
+  Bot,
+  BotChatHandle,
+  BotChangeNotice,
+  BotCreateInput,
+  BotUpdateInput,
+} from "@abacus-ai/contract/bots";
 import type { ConversationKey } from "@abacus-ai/contract/conversation-scope";
 import { artifactPathLine } from "@abacus-ai/contract/deliverables";
 import {
@@ -191,6 +202,49 @@ const isToolEnabled = (definition: ListedTool, enabled: Set<string>): boolean =>
 const fileUrl = (absolutePath: string): string =>
   pathToFileURL(absolutePath).href;
 
+export interface AgentTeamApi {
+  listBots: () => Bot[];
+  createBot: (input: BotCreateInput) => Bot;
+  updateBot: (id: string, changes: BotUpdateInput) => Bot;
+  deleteBot: (id: string) => void;
+  announceBotChange?: (id: string, notice: BotChangeNotice) => Promise<void>;
+  openBotChat: (botId: string) => Promise<BotChatHandle>;
+  sendAgentMessage: (request: SendAgentMessageRequest) => Promise<boolean>;
+  listSessions: () => AgentSessionListItem[];
+  getTurnState: (workspaceId: string, sessionId: string) => SessionTurnStateSnapshot;
+}
+
+interface AgentTaskRecord {
+  id: string;
+  botId: string;
+  botName: string;
+  workspaceId: string;
+  sessionId: string;
+  marker: string;
+  submittedAt: number;
+  meetingId: string | null;
+}
+
+interface AgentMeetingParticipant {
+  botId: string;
+  botName: string;
+  taskIds: string[];
+  latestTaskId: string | null;
+  error?: string;
+}
+
+interface AgentMeetingRecord {
+  id: string;
+  topic: string;
+  createdAt: number;
+  participants: AgentMeetingParticipant[];
+}
+
+const A2A_MAX_MEETING_PARTICIPANTS = 8;
+const A2A_MAX_TRACKED_TASKS = 200;
+const A2A_MAX_TRACKED_MEETINGS = 50;
+const A2A_MAX_TASK_TEXT = 12_000;
+
 export interface McpAgentToolsServerOptions {
   skillsService: SkillsService;
   /** Re-read per request so toggles take effect live. */
@@ -212,6 +266,10 @@ export interface McpAgentToolsServerOptions {
    * renderer opens it in that pane and no other. Null for an unknown session.
    */
   conversationKeyForSession?: (sessionId: string) => ConversationKey | null;
+  /**
+   * Bot CRUD and dispatch operations for A2A team coordination.
+   */
+  agentTeam?: AgentTeamApi;
   /**
    * What the session's chat can do where a host lane says (the hosted
    * WhatsApp lane); null for every other session and bot, which are app
@@ -432,6 +490,10 @@ export class McpAgentToolsServer extends McpHttpServer {
 
   /** The loopback origins `serve` returned to each session. */
   private readonly servedOrigins = new Map<string, Set<string>>();
+  /** Active task handles for this app run; bot chats and transcripts remain persistent. */
+  private readonly a2aTasks = new Map<string, AgentTaskRecord>();
+  /** Active meeting registry; the participants' actual work lives in their bot chats. */
+  private readonly a2aMeetings = new Map<string, AgentMeetingRecord>();
 
   /** The always-on tools guarantee this. */
   hasEnabledTools(): boolean {
