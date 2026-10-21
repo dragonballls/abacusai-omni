@@ -1182,6 +1182,18 @@ export class ServiceHost {
       },
       hosted: this.hostedRoutines,
     },
+    agentTeam: {
+      listBots: () => this.listBots(),
+      createBot: (input) => this.createBot(input),
+      updateBot: (id, changes) => this.updateBot(id, changes),
+      deleteBot: (id) => this.deleteBot(id),
+      announceBotChange: (id, notice) => this.announceBotChange(id, notice),
+      openBotChat: (id) => this.openBotChat(id),
+      sendAgentMessage: (request) => this.sendAgentMessage(request),
+      listSessions: () => this.listAllAgentSessions(),
+      getTurnState: (workspaceId, sessionId) =>
+        this.getSessionTurnState(workspaceId, sessionId),
+    },
     ownActivity: (botId) => {
       const owned = this.agentSessionManagerService.listOwnedBy(botId);
       // The forever chat may predate owner stamps; the record pointer names it.
