@@ -9,7 +9,7 @@ import { afterEach, expect, it } from "vitest";
 
 import { renderApp } from "#renderer/test-support/app-harness";
 
-import { clearDraft } from "../form/draft-store";
+import { clearDraft, selectTorvisConductor } from "../form/draft-store";
 
 let harness: Awaited<ReturnType<typeof renderApp>> | undefined;
 afterEach(async () => {
@@ -56,6 +56,31 @@ it("/bots/new keeps its template order when connector statuses arrive late, and 
   await act(() => harness!.router.navigate({ to: "/routines" }));
   await act(() => harness!.router.navigate({ to: "/bots/new" }));
   await waitFor(() => expect(order()[0]).toBe("template-email-drafting"));
+});
+
+it("starts a prefilled T.O.R.V.I.S. conductor bot", async () => {
+  harness = await renderApp("/bots/new");
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Create T.O.R.V.I.S. conductor",
+    })
+  );
+  await waitFor(() =>
+    expect(harness!.router.state.location.search).toHaveProperty(
+      "step",
+      "setup"
+    )
+  );
+  const name = (await screen.findByRole("textbox", {
+    name: "Name",
+  })) as HTMLInputElement;
+  expect(name.value).toBe("T.O.R.V.I.S.");
+  const instructions = (await screen.findByRole("textbox", {
+    name: "Instructions",
+  })) as HTMLTextAreaElement;
+  expect(instructions.value).toContain(
+    "primary conductor for the user's Abacus agent network"
+  );
 });
 
 it("keeps naming single-line, autofocuses, and submits without accepting an IME Enter", async () => {
