@@ -1,6 +1,5 @@
 import { BotId } from "@abacus-ai/contract/contract/ids";
 import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import * as v from "valibot";
 
@@ -90,11 +89,8 @@ const ComposedChat = ({
   const { t } = useTranslation();
   const navigate = useAppNavigate();
   const normalizedBotName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const isTorvisConductor =
-    normalizedBotName === "torvis" ||
-    normalizedBotName === "torvisconductor";
-  const modeActions = useMemo(
-    () => [
+  const isTorvisConductor = normalizedBotName === "torvis" || normalizedBotName === "torvisconductor";
+  const modeActions = [
       {
         id: "torvis-abacus-mode-switch",
         label: isTorvisConductor
@@ -107,8 +103,7 @@ const ComposedChat = ({
         },
       },
     ],
-    [isTorvisConductor, navigate, t],
-  );
+  ];
   useTopBarActions(modeActions);
   const runtime =
     fixtureState.current && bot.sessionId == null

@@ -1,10 +1,7 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 
-import {
-  clearDraft,
-  getDraft,
-} from "#renderer/features/bots/form/draft-store";
+import { clearDraft, getDraft } from "#renderer/features/bots/form/draft-store";
 import { defaultSeed, renderApp } from "#renderer/test-support/app-harness";
 
 let harness: Awaited<ReturnType<typeof renderApp>> | undefined;
@@ -32,15 +29,12 @@ const seedWithTorvis = () => {
   return seed;
 };
 
-it(
-  "opens the existing TORVIS conductor when entering the Bots area",
-  async () => {
-    harness = await renderApp("/bots", { seed: seedWithTorvis() });
-    await waitFor(() =>
-      expect(harness!.router.state.location.pathname).toBe("/bots/torvis-test-id")
-    );
-  },
-);
+it("opens the existing TORVIS conductor when entering the Bots area", async () => {
+  harness = await renderApp("/bots", { seed: seedWithTorvis() });
+  await waitFor(() =>
+    expect(harness!.router.state.location.pathname).toBe("/bots/torvis-test-id")
+  );
+});
 
 it("starts a fresh install directly in TORVIS conductor setup", async () => {
   harness = await renderApp("/bots", { seed: defaultSeed() });
