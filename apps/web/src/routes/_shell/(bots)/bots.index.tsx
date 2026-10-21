@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { selectTorvisConductor } from "#renderer/features/bots/form/draft-store";
 
 export const Route = createFileRoute("/_shell/(bots)/bots/")({
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     await context.db.collections.bots.preload();
     const torvisBot = context.db.collections.bots.toArray.find((bot) => {
       const normalized = bot.name.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_shell/(bots)/bots/")({
     selectTorvisConductor();
     throw redirect({
       to: "/bots/new",
-      search: (previous) => ({ ...previous, step: "setup" }),
+      search: { step: "setup", connect: location.search.connect },
       state: true,
       replace: true,
     });
