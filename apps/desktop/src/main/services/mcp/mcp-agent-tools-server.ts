@@ -1,6 +1,6 @@
 import fs from "fs";
-import path from "path";
 import { randomUUID } from "node:crypto";
+import path from "path";
 import { pathToFileURL } from "url";
 
 /**
@@ -29,19 +29,19 @@ import {
   type Connector,
 } from "@abacus-ai/connectors/registry";
 import type {
-  AgentSessionListItem,
-  ConnectorStatus,
-  ConnectorStatuses,
-  SendAgentMessageRequest,
-  SessionTurnStateSnapshot,
-} from "@abacus-ai/contract/contracts";
-import type {
   Bot,
   BotChatHandle,
   BotChangeNotice,
   BotCreateInput,
   BotUpdateInput,
 } from "@abacus-ai/contract/bots";
+import type {
+  AgentSessionListItem,
+  ConnectorStatus,
+  ConnectorStatuses,
+  SendAgentMessageRequest,
+  SessionTurnStateSnapshot,
+} from "@abacus-ai/contract/contracts";
 import type { ConversationKey } from "@abacus-ai/contract/conversation-scope";
 import { artifactPathLine } from "@abacus-ai/contract/deliverables";
 import {
@@ -207,14 +207,9 @@ export interface AgentTeamApi {
   createBot: (input: BotCreateInput) => Bot;
   updateBot: (id: string, changes: BotUpdateInput) => Bot;
   deleteBot: (id: string) => void;
-  announceBotChange?: (
-    id: string,
-    notice: BotChangeNotice
-  ) => Promise<void>;
+  announceBotChange?: (id: string, notice: BotChangeNotice) => Promise<void>;
   openBotChat: (botId: string) => Promise<BotChatHandle>;
-  sendAgentMessage: (
-    request: SendAgentMessageRequest
-  ) => Promise<boolean>;
+  sendAgentMessage: (request: SendAgentMessageRequest) => Promise<boolean>;
   listSessions: () => AgentSessionListItem[];
   getTurnState: (
     workspaceId: string,
@@ -2355,14 +2350,16 @@ export class McpAgentToolsServer extends McpHttpServer {
         };
 
       const bots = api.listBots();
-      const session = api.listSessions().find(
-        (item) =>
-          item.id === task.sessionId &&
-          (item.owner?.botId === task.botId ||
-            bots.some(
-              (bot) => bot.id === task.botId && bot.sessionId === item.id
-            ))
-      );
+      const session = api
+        .listSessions()
+        .find(
+          (item) =>
+            item.id === task.sessionId &&
+            (item.owner?.botId === task.botId ||
+              bots.some(
+                (bot) => bot.id === task.botId && bot.sessionId === item.id
+              ))
+        );
       const turnState = api.getTurnState(task.workspaceId, task.sessionId);
       const activity = (this.options.ownActivity?.(task.botId) ?? []).find(
         (item) => item.sessionId === task.sessionId
@@ -2473,9 +2470,7 @@ export class McpAgentToolsServer extends McpHttpServer {
           id: participant.botId,
           name: participant.botName,
         },
-        ...(participant.error != null
-          ? { error: participant.error }
-          : {}),
+        ...(participant.error != null ? { error: participant.error } : {}),
         ...(participant.latestTaskId != null
           ? taskSnapshot(participant.latestTaskId)
           : { state: "not_dispatched" }),
@@ -2592,9 +2587,7 @@ export class McpAgentToolsServer extends McpHttpServer {
           const taskId = stringArg("task_id", 128, true)!;
           if (!this.a2aTasks.has(taskId))
             throw new Error("Unknown or expired task id " + taskId + ".");
-          return this.ok(
-            JSON.stringify(taskSnapshot(taskId), null, 2)
-          );
+          return this.ok(JSON.stringify(taskSnapshot(taskId), null, 2));
         }
 
         case "convene": {
@@ -2671,9 +2664,7 @@ export class McpAgentToolsServer extends McpHttpServer {
             }
           });
 
-          return this.ok(
-            JSON.stringify(meetingSnapshot(meeting), null, 2)
-          );
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
         }
 
         case "meeting_status": {
@@ -2681,9 +2672,7 @@ export class McpAgentToolsServer extends McpHttpServer {
           const meeting = this.a2aMeetings.get(meetingId);
           if (meeting == null)
             throw new Error("Unknown or expired meeting id " + meetingId + ".");
-          return this.ok(
-            JSON.stringify(meetingSnapshot(meeting), null, 2)
-          );
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
         }
 
         case "follow_up": {
@@ -2724,7 +2713,10 @@ export class McpAgentToolsServer extends McpHttpServer {
                   "Follow-up for Abacus meeting " + meeting.id + ".",
                   "Topic: " + meeting.topic,
                   ...(sharedContext != null
-                    ? ["Current shared context and peer findings:", sharedContext]
+                    ? [
+                        "Current shared context and peer findings:",
+                        sharedContext,
+                      ]
                     : []),
                   "Follow-up request:",
                   instructions,
@@ -2746,9 +2738,7 @@ export class McpAgentToolsServer extends McpHttpServer {
             }
           });
 
-          return this.ok(
-            JSON.stringify(meetingSnapshot(meeting), null, 2)
-          );
+          return this.ok(JSON.stringify(meetingSnapshot(meeting), null, 2));
         }
 
         default:
