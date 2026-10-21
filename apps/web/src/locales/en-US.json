@@ -641,6 +641,7 @@
   },
   "capabilities": {
     "toolDescriptions": {
+      "a2a": "Create and coordinate agents, delegate tasks, collect results, and convene agent meetings.",
       "ast_edit": "Structural search-and-replace that cannot break the syntax.",
       "bash": "Run a shell command in the workspace.",
       "batch_edit": "Change several places in one file in a single edit.",
