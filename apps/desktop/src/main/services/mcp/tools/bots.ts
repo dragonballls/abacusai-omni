@@ -34,7 +34,7 @@ export const BOTS_TOOLS: ToolDefinition[] = [
       "for results; follow_up sends new work with the shared meeting findings.",
       "Create and update agents with explicit names and mission instructions. Deletion requires",
       "the exact current name and must never be used merely to stop a task.",
-      "This tool is available only inside a persistent bot chat, not a regular session or unattended routine."
+      "This tool is available only inside a persistent bot chat, not a regular session or unattended routine.",
     ].join("\n"),
     inputSchema: {
       type: "object",
@@ -42,12 +42,23 @@ export const BOTS_TOOLS: ToolDefinition[] = [
         action: {
           type: "string",
           enum: [
-            "list_agents", "create_agent", "update_agent", "delete_agent",
-            "delegate_task", "task_status", "convene", "meeting_status", "follow_up"
-          ]
+            "list_agents",
+            "create_agent",
+            "update_agent",
+            "delete_agent",
+            "delegate_task",
+            "task_status",
+            "convene",
+            "meeting_status",
+            "follow_up",
+          ],
         },
         agent_id: { type: "string" },
-        agent_ids: { type: "array", items: { type: "string" }, maxItems: 8 },
+        agent_ids: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 8,
+        },
         name: { type: "string" },
         title: { type: "string" },
         mission: { type: "string" },
@@ -59,11 +70,10 @@ export const BOTS_TOOLS: ToolDefinition[] = [
         topic: { type: "string" },
         instructions: { type: "string" },
         meeting_id: { type: "string" },
-        shared_context: { type: "string" }
+        shared_context: { type: "string" },
       },
-      required: ["action"]
+      required: ["action"],
     },
-    run: (host, args, callerSession) => host.a2a(args, callerSession)
+    run: (host, args, callerSession) => host.a2a(args, callerSession),
   },
-
 ];
