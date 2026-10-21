@@ -135,8 +135,7 @@ const build = (): McpAgentToolsServer =>
         if (typeof changes.title === "string") bot.title = changes.title;
         if (typeof changes.description === "string")
           bot.description = changes.description;
-        if (typeof changes.persona === "string")
-          bot.persona = changes.persona;
+        if (typeof changes.persona === "string") bot.persona = changes.persona;
         if (typeof changes.model === "string" || changes.model === null)
           bot.model = changes.model as string | null;
         bot.updatedAt = Date.now();
@@ -312,15 +311,14 @@ describe("A2A bot team", () => {
     expect(createdMeeting.meeting_id).toBeTruthy();
     expect(createdMeeting.participants).toHaveLength(2);
     expect(
-      createdMeeting.participants.every(
-        (item) => item.state === "completed"
-      )
+      createdMeeting.participants.every((item) => item.state === "completed")
     ).toBe(true);
 
     const followup = await call(server, {
       action: "follow_up",
       meeting_id: createdMeeting.meeting_id,
-      instructions: "Reconcile disagreements and give one final recommendation.",
+      instructions:
+        "Reconcile disagreements and give one final recommendation.",
       shared_context: "Compare evidence, do not invent facts.",
       agent_ids: ["research"],
     });
