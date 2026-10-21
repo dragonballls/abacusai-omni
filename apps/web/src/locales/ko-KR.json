@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "새 봇",
       "templates": "Or start with a template",
+      "torvisConductor": "T.O.R.V.I.S. 오케스트레이터 만들기",
+      "openTorvisConductor": "T.O.R.V.I.S. 열기",
       "more": "More",
       "uses": "Uses"
     },
