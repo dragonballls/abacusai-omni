@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Bot } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +38,12 @@ import { ToggleGroup, ToggleGroupItem } from "#renderer/ui/toggle-group";
 
 import { useBots, botsQueries } from "../data/queries";
 import { useBotsTransport } from "../data/transport";
-import { useBotDraft, updateDraft, selectTemplate } from "../form/draft-store";
+import {
+  useBotDraft,
+  updateDraft,
+  selectTemplate,
+  selectTorvisConductor,
+} from "../form/draft-store";
 import { templateColumns } from "./template-columns";
 export const BotStartPage = ({
   category = "featured",
@@ -263,6 +268,21 @@ export const BotStartPage = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                selectTorvisConductor();
+                void navigate({
+                  to: "/bots/new",
+                  search: { step: "setup", category },
+                });
+              }}
+            >
+              <Bot className="size-4" />
+              {t("bots.start.torvisConductor")}
+            </Button>
           </div>
           {/* A symmetric grid (tokens.css): 3 or 4 equal columns, whichever
               divides the count, else the fuller last row, centred. Phones
