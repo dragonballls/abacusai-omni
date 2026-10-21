@@ -10,7 +10,8 @@ const MAX_TEXT = 240;
 
 export const readTranscriptTail = (
   file: string | null,
-  turns: number
+  turns: number,
+  maxText = MAX_TEXT
 ): Array<{ role: "user" | "assistant"; text: string }> => {
   if (file == null) return [];
   let raw: string;
@@ -61,7 +62,7 @@ export const readTranscriptTail = (
     if (text.length === 0 || text.startsWith("[")) continue;
     out.push({
       role,
-      text: text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}…` : text,
+      text: text.length > maxText ? `${text.slice(0, maxText)}…` : text,
     });
   }
   return out.slice(-turns);
