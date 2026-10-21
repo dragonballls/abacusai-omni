@@ -402,6 +402,8 @@
       "setup": "Set up {{name}}",
       "namePlaceholder": "新しいボット",
       "templates": "Or start with a template",
+      "torvisConductor": "T.O.R.V.I.S. コンダクターを作成",
+      "openTorvisConductor": "T.O.R.V.I.S. を開く",
       "more": "More",
       "uses": "Uses"
     },
