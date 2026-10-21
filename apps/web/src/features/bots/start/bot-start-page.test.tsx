@@ -9,7 +9,7 @@ import { afterEach, expect, it } from "vitest";
 
 import { renderApp } from "#renderer/test-support/app-harness";
 
-import { clearDraft, selectTorvisConductor } from "../form/draft-store";
+import { clearDraft } from "../form/draft-store";
 
 let harness: Awaited<ReturnType<typeof renderApp>> | undefined;
 afterEach(async () => {
