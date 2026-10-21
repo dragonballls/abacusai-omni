@@ -97,7 +97,9 @@ const ComposedChat = ({
     () => [
       {
         id: "torvis-abacus-mode-switch",
-        label: isTorvisConductor ? "Abacus workspace" : t("bots.start.openTorvisConductor"),
+        label: isTorvisConductor
+          ? "Abacus workspace"
+          : t("bots.start.openTorvisConductor"),
         onSelect: () => {
           void navigate({
             to: isTorvisConductor ? "/bots/new" : "/bots",
